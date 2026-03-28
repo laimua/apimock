@@ -1,0 +1,1031 @@
+﻿
+> apimock@0.1.0 test D:\work\apimock
+> vitest "--run"
+
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mD:/work/apimock[39m
+
+ [32m鉁?[39m src/lib/__tests__/openapi-parser.test.ts [2m([22m[2m33 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m鉁?[39m tests/components/TemplateLibraryDialog.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 348[2mms[22m[39m
+ [32m鉁?[39m tests/components/Badge.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m鉁?[39m tests/components/ConfirmDialog.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+node.exe : [90mstderr[2m | tests/components/ResponseRuleEditor.test.tsx[2m > [22m[2mResponseRuleEditor[2m > [22m
+[2mshould render loading state initially
+所在位置 D:\software\node\node_global\pnpm.ps1:24 字符: 5
++     & "node$exe"  "$basedir/node_modules/pnpm/bin/pnpm.cjs" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([90mstderr[2m...state initially:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[22m[39mAn update to ResponseRuleEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/w
+rap-tests-with-act
+An update to ResponseRuleEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/w
+rap-tests-with-act
+
+ [32m鉁?[39m tests/components/ErrorScenariosSelector.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 199[2mms[22m[39m
+[90mstderr[2m | tests/components/RequestRecords.test.tsx[2m > [22m[2mRequestRecords[2m > [22m[2mshould render l
+oading state initially
+[22m[39mAn update to RequestRecords inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/w
+rap-tests-with-act
+An update to RequestRecords inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/w
+rap-tests-with-act
+
+[90mstderr[2m | tests/components/ResponseRuleEditor.test.tsx[2m > [22m[2mResponseRuleEditor[2m > [22m[2mshould 
+call delete API when confirmed
+[22m[39mAn update to ResponseRuleEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/w
+rap-tests-with-act
+An update to ResponseRuleEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/w
+rap-tests-with-act
+An update to ResponseRuleEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/w
+rap-tests-with-act
+
+[90mstderr[2m | tests/components/ResponseRuleEditor.test.tsx[2m > [22m[2mResponseRuleEditor[2m > [22m[2mshould 
+call delete API when confirmed
+[22m[39mAn update to ResponseRuleEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/w
+rap-tests-with-act
+An update to ResponseRuleEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/w
+rap-tests-with-act
+
+[90mstderr[2m | tests/components/RequestRecords.test.tsx[2m > [22m[2mRequestRecords[2m > [22m[2mshould call cle
+ar API when confirmed
+[22m[39mAn update to RequestRecords inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/w
+rap-tests-with-act
+An update to RequestRecords inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/w
+rap-tests-with-act
+An update to RequestRecords inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/w
+rap-tests-with-act
+
+ [32m鉁?[39m tests/components/ResponseRuleEditor.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[32m 266[2mms[22m[39m
+[90mstderr[2m | tests/api/check-slug.test.ts[2m > [22m[2mCheck Slug API[2m > [22m[2mGET /api/projects/check-slu
+g[2m > [22m[2mshould validate slug format
+[22m[39mCheck slug API error: ZodError: [
+  {
+    "origin": "string",
+    "code": "too_big",
+    "maximum": 255,
+    "inclusive": true,
+    "path": [
+      "slug"
+    ],
+    "message": "Too big: expected string to have <=255 characters"
+  }
+]
+    at Module.GET (D:/work/apimock/src/app/api/projects/check-slug/route.ts:33:39)
+    at D:/work/apimock/tests/api/check-slug.test.ts:81:30
+    at [90mfile:///D:/work/apimock/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/run
+ner[24m/dist/index.js:145:11
+    at [90mfile:///D:/work/apimock/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/run
+ner[24m/dist/index.js:915:26
+    at [90mfile:///D:/work/apimock/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/run
+ner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///D:/work/apimock/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules
+/[4m@vitest/runner[24m/dist/index.js:1209:10[90m)[39m
+    at [90mfile:///D:/work/apimock/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/run
+ner[24m/dist/index.js:1653:37
+    at Traces.$ [90m(file:///D:/work/apimock/[39mnode_modules/[4m.pnpm[24m/vitest@4.0.18_@types+node@2_c7123fdc31b4
+2259974fff01964c1c60/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27[90m)[39m
+    at trace [90m(file:///D:/work/apimock/[39mnode_modules/[4m.pnpm[24m/vitest@4.0.18_@types+node@2_c7123fdc31b4225
+9974fff01964c1c60/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21[90m)[39m
+
+ [32m鉁?[39m tests/api/check-slug.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 149[2mms[22m[39m
+ [32m鉁?[39m tests/components/RequestRecords.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[32m 229[2mms[22m[39m
+[90mstderr[2m | tests/api/ai-generate.test.ts[2m > [22m[2mAI Generate API[2m > [22m[2mPOST /api/ai/generate[2m
+ > [22m[2mshould use specified provider
+[22m[39mError with provider: Error: Invalid encrypted data format
+    at decrypt (D:/work/apimock/src/lib/encryption.ts:37:11)
+    at generateWithProvider (D:/work/apimock/src/app/api/ai/generate/route.ts:168:18)
+    at Module.POST (D:/work/apimock/src/app/api/ai/generate/route.ts:227:24)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at D:/work/apimock/tests/api/ai-generate.test.ts:110:24
+    at [90mfile:///D:/work/apimock/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/run
+ner[24m/dist/index.js:915:20
+
+ [32m鉁?[39m tests/api/ai-generate.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 1413[2mms[22m[39m
+ [31m鉂?[39m tests/api/ai-providers.test.ts [2m([22m[2m18 tests[22m[2m | [22m[31m13 failed[39m[2m)[22m[33m 1914[2mms[22m[39m
+       [32m鉁?[39m should return empty array when no providers exist[32m 9[2mms[22m[39m
+       [32m鉁?[39m should return list of providers without API keys[32m 139[2mms[22m[39m
+[31m       [31m脳[31m should return providers sorted by isDefault and createdAt[39m[32m 7[2mms[22m[39m
+[31m       [31m脳[31m should create a new provider with valid data[39m[32m 149[2mms[22m[39m
+       [32m鉁?[39m should validate defaultModel is in models list[32m 3[2mms[22m[39m
+[31m       [31m脳[31m should set first provider as default[39m[32m 176[2mms[22m[39m
+       [32m鉁?[39m should handle optional fields[32m 134[2mms[22m[39m
+       [32m鉁?[39m should validate required fields[32m 3[2mms[22m[39m
+[31m       [31m脳[31m should update provider[39m[32m 3[2mms[22m[39m
+[31m       [31m脳[31m should return 404 for non-existent provider[39m[32m 3[2mms[22m[39m
+[31m       [31m脳[31m should validate models and defaultModel relationship[39m[32m 2[2mms[22m[39m
+[31m       [31m脳[31m should require confirmation before deletion[39m[32m 3[2mms[22m[39m
+[31m       [31m脳[31m should delete provider after confirmation[39m[32m 2[2mms[22m[39m
+[31m       [31m脳[31m should return 404 for non-existent provider[39m[32m 2[2mms[22m[39m
+[31m       [31m脳[31m should test provider connection[39m[32m 4[2mms[22m[39m
+[31m       [31m脳[31m should return 404 for non-existent provider[39m[32m 3[2mms[22m[39m
+[31m       [31m脳[31m should set provider as default[39m[32m 3[2mms[22m[39m
+[31m       [31m脳[31m should return 404 for non-existent provider[39m[32m 2[2mms[22m[39m
+ [32m鉁?[39m tests/api/projects.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 2487[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should handle special characters in name for slug generation [33m 459[2mms[22m[39m
+ [32m鉁?[39m tests/api/share.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 2646[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should return public project and endpoints [33m 468[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should return 404 for non-existent slug [33m 365[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should return endpoints sorted by method and path [33m 515[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should handle project with no endpoints [33m 386[2mms[22m[39m
+ [32m鉁?[39m tests/api/import.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 3329[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should import endpoints from valid OpenAPI file [33m 795[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should skip existing endpoints [33m 675[2mms[22m[39m
+ [32m鉁?[39m tests/api/endpoints.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 4504[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should return list of endpoints for a project [33m 361[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should only return endpoints for the specified project [33m 470[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should create a new endpoint with valid data [33m 386[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should create endpoint with default values [33m 373[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should validate HTTP methods [33m 1030[2mms[22m[39m
+ [32m鉁?[39m tests/api/requests.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 4418[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should return requests for a project [33m 564[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should support pagination [33m 495[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should filter by endpointId [33m 687[2mms[22m[39m
+ [32m鉁?[39m tests/api/responses.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 4440[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should return list of responses [33m 637[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should return empty array when no responses exist [33m 613[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should sort responses by priority and isDefault [33m 532[2mms[22m[39m
+       [33m[2m鉁?[22m[39m should set default response and clear other defaults [33m 321[2mms[22m[39m
+
+[31m鈳幆鈳幆鈳幆[39m[1m[41m Failed Tests 13 [49m[22m[31m鈳幆鈳幆鈳幆鈳?[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mGET /api/ai/providers[
+2m > [22mshould return providers sorted by isDefault and createdAt
+[31m[1mError[22m: Failed query: insert into "ai_providers" ("id", "name", "provider", "base_url", "api_key", "models
+", "default_model", "system_prompt", "is_active", "is_default", "created_at", "updated_at") values (?, ?, ?, ?, ?, ?, ?
+, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+params: provider1,Default Provider,openai,,encrypted-key-1,["gpt-4"],gpt-4,,1,1,1774688518490,1774688528490,provider2,R
+egular Provider,openai,,encrypted-key-2,["gpt-4"],gpt-4,,1,0,1774688528490,1774688528490[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m43:15[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:12[22m[39m
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m109:7[22m[39m
+    [90m107| [39m
+    [90m108| [39m    it('should return providers sorted by isDefault and createdAt', as鈥?    [90m109| [39m      [3
+5mawait[39m mockDb[33m.[39m[34minsert[39m(aiProviders)[33m.[39m[34mvalues[39m([
+    [90m   | [39m      [31m^[39m
+    [90m110| [39m        {
+    [90m111| [39m          id[33m:[39m [32m'provider1'[39m[33m,[39m
+
+[31m[1mCaused by: LibsqlError[22m: SQLITE_CONSTRAINT: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m mapSqliteError node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js
+:[2m434:16[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m337:15[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT', extendedCode: 'SQLITE_CONSTRAINT_PRIMARYKEY', ra
+wCode: 1555 }[39m
+[31m[1mCaused by: SqliteError[22m: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m convertError node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m59:12[22m[39m
+[90m [2m鉂?[22m Statement.run node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m335:13[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m330:34[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT_PRIMARYKEY', rawCode: 1555 }[39m
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳痆1/13]鈳?[22m[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mPOST /api/ai/providers
+[2m > [22mshould create a new provider with valid data
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m175:35[22m[39m
+    [90m173| [39m      [34mexpect[39m(data[33m.[39mdata[33m.[39mapiKey)[33m.[39m[34mtoBeUndefined[39m()[33
+m;[39m
+    [90m174| [39m      [34mexpect[39m(data[33m.[39mdata[33m.[39mid)[33m.[39m[34mtoBeDefined[39m()[33m;[39
+m
+    [90m175| [39m      [34mexpect[39m(data[33m.[39mdata[33m.[39misDefault)[33m.[39m[34mtoBe[39m([35mtrue[
+39m)[33m;[39m
+    [90m   | [39m                                  [31m^[39m
+    [90m176| [39m    })[33m;[39m
+    [90m177| [39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳痆2/13]鈳?[22m[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mPOST /api/ai/providers
+[2m > [22mshould set first provider as default
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m217:35[22m[39m
+    [90m215| [39m
+    [90m216| [39m      [34mexpect[39m(data[33m.[39msuccess)[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m217| [39m      [34mexpect[39m(data[33m.[39mdata[33m.[39misDefault)[33m.[39m[34mtoBe[39m([35mtrue[
+39m)[33m;[39m
+    [90m   | [39m                                  [31m^[39m
+    [90m218| [39m    })[33m;[39m
+    [90m219| [39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳痆3/13]鈳?[22m[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mPATCH /api/ai/providers
+/[id][2m > [22mshould update provider
+[31m[1mError[22m: Failed query: insert into "ai_providers" ("id", "name", "provider", "base_url", "api_key", "models
+", "default_model", "system_prompt", "is_active", "is_default", "created_at", "updated_at") values (?, ?, ?, ?, ?, ?, ?
+, ?, ?, ?, ?, ?)
+params: provider1,Test Provider,openai,,encrypted-key,["gpt-4"],gpt-4,,1,0,1774688528962,1774688528962[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m43:15[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:12[22m[39m
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m264:7[22m[39m
+    [90m262| [39m  [34mdescribe[39m([32m'PATCH /api/ai/providers/[id]'[39m[33m,[39m () [33m=>[39m {
+    [90m263| [39m    [34mbeforeEach[39m([35masync[39m () [33m=>[39m {
+    [90m264| [39m      [35mawait[39m mockDb[33m.[39m[34minsert[39m(aiProviders)[33m.[39m[34mvalues[39m({
+    [90m   | [39m      [31m^[39m
+    [90m265| [39m        id[33m:[39m [32m'provider1'[39m[33m,[39m
+    [90m266| [39m        name[33m:[39m [32m'Test Provider'[39m[33m,[39m
+
+[31m[1mCaused by: LibsqlError[22m: SQLITE_CONSTRAINT: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m mapSqliteError node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js
+:[2m434:16[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m337:15[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT', extendedCode: 'SQLITE_CONSTRAINT_PRIMARYKEY', ra
+wCode: 1555 }[39m
+[31m[1mCaused by: SqliteError[22m: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m convertError node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m59:12[22m[39m
+[90m [2m鉂?[22m Statement.run node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m335:13[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m330:34[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT_PRIMARYKEY', rawCode: 1555 }[39m
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳痆4/13]鈳?[22m[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mPATCH /api/ai/providers
+/[id][2m > [22mshould return 404 for non-existent provider
+[31m[1mError[22m: Failed query: insert into "ai_providers" ("id", "name", "provider", "base_url", "api_key", "models
+", "default_model", "system_prompt", "is_active", "is_default", "created_at", "updated_at") values (?, ?, ?, ?, ?, ?, ?
+, ?, ?, ?, ?, ?)
+params: provider1,Test Provider,openai,,encrypted-key,["gpt-4"],gpt-4,,1,0,1774688528965,1774688528965[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m43:15[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:12[22m[39m
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m264:7[22m[39m
+    [90m262| [39m  [34mdescribe[39m([32m'PATCH /api/ai/providers/[id]'[39m[33m,[39m () [33m=>[39m {
+    [90m263| [39m    [34mbeforeEach[39m([35masync[39m () [33m=>[39m {
+    [90m264| [39m      [35mawait[39m mockDb[33m.[39m[34minsert[39m(aiProviders)[33m.[39m[34mvalues[39m({
+    [90m   | [39m      [31m^[39m
+    [90m265| [39m        id[33m:[39m [32m'provider1'[39m[33m,[39m
+    [90m266| [39m        name[33m:[39m [32m'Test Provider'[39m[33m,[39m
+
+[31m[1mCaused by: LibsqlError[22m: SQLITE_CONSTRAINT: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m mapSqliteError node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js
+:[2m434:16[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m337:15[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT', extendedCode: 'SQLITE_CONSTRAINT_PRIMARYKEY', ra
+wCode: 1555 }[39m
+[31m[1mCaused by: SqliteError[22m: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m convertError node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m59:12[22m[39m
+[90m [2m鉂?[22m Statement.run node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m335:13[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m330:34[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT_PRIMARYKEY', rawCode: 1555 }[39m
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳痆5/13]鈳?[22m[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mPATCH /api/ai/providers
+/[id][2m > [22mshould validate models and defaultModel relationship
+[31m[1mError[22m: Failed query: insert into "ai_providers" ("id", "name", "provider", "base_url", "api_key", "models
+", "default_model", "system_prompt", "is_active", "is_default", "created_at", "updated_at") values (?, ?, ?, ?, ?, ?, ?
+, ?, ?, ?, ?, ?)
+params: provider1,Test Provider,openai,,encrypted-key,["gpt-4"],gpt-4,,1,0,1774688528968,1774688528968[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m43:15[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:12[22m[39m
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m264:7[22m[39m
+    [90m262| [39m  [34mdescribe[39m([32m'PATCH /api/ai/providers/[id]'[39m[33m,[39m () [33m=>[39m {
+    [90m263| [39m    [34mbeforeEach[39m([35masync[39m () [33m=>[39m {
+    [90m264| [39m      [35mawait[39m mockDb[33m.[39m[34minsert[39m(aiProviders)[33m.[39m[34mvalues[39m({
+    [90m   | [39m      [31m^[39m
+    [90m265| [39m        id[33m:[39m [32m'provider1'[39m[33m,[39m
+    [90m266| [39m        name[33m:[39m [32m'Test Provider'[39m[33m,[39m
+
+[31m[1mCaused by: LibsqlError[22m: SQLITE_CONSTRAINT: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m mapSqliteError node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js
+:[2m434:16[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m337:15[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT', extendedCode: 'SQLITE_CONSTRAINT_PRIMARYKEY', ra
+wCode: 1555 }[39m
+[31m[1mCaused by: SqliteError[22m: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m convertError node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m59:12[22m[39m
+[90m [2m鉂?[22m Statement.run node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m335:13[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m330:34[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT_PRIMARYKEY', rawCode: 1555 }[39m
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳痆6/13]鈳?[22m[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mDELETE /api/ai/provider
+s/[id][2m > [22mshould require confirmation before deletion
+[31m[1mError[22m: Failed query: insert into "ai_providers" ("id", "name", "provider", "base_url", "api_key", "models
+", "default_model", "system_prompt", "is_active", "is_default", "created_at", "updated_at") values (?, ?, ?, ?, ?, ?, ?
+, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+params: provider1,Default Provider,openai,,encrypted-key-1,["gpt-4"],gpt-4,,1,1,1774688528971,1774688528971,provider2,R
+egular Provider,openai,,encrypted-key-2,["gpt-4"],gpt-4,,1,0,1774688528971,1774688528971[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m43:15[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:12[22m[39m
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m342:7[22m[39m
+    [90m340| [39m  [34mdescribe[39m([32m'DELETE /api/ai/providers/[id]'[39m[33m,[39m () [33m=>[39m {
+    [90m341| [39m    [34mbeforeEach[39m([35masync[39m () [33m=>[39m {
+    [90m342| [39m      [35mawait[39m mockDb[33m.[39m[34minsert[39m(aiProviders)[33m.[39m[34mvalues[39m([
+    [90m   | [39m      [31m^[39m
+    [90m343| [39m        {
+    [90m344| [39m          id[33m:[39m [32m'provider1'[39m[33m,[39m
+
+[31m[1mCaused by: LibsqlError[22m: SQLITE_CONSTRAINT: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m mapSqliteError node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js
+:[2m434:16[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m337:15[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT', extendedCode: 'SQLITE_CONSTRAINT_PRIMARYKEY', ra
+wCode: 1555 }[39m
+[31m[1mCaused by: SqliteError[22m: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m convertError node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m59:12[22m[39m
+[90m [2m鉂?[22m Statement.run node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m335:13[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m330:34[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT_PRIMARYKEY', rawCode: 1555 }[39m
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳痆7/13]鈳?[22m[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mDELETE /api/ai/provider
+s/[id][2m > [22mshould delete provider after confirmation
+[31m[1mError[22m: Failed query: insert into "ai_providers" ("id", "name", "provider", "base_url", "api_key", "models
+", "default_model", "system_prompt", "is_active", "is_default", "created_at", "updated_at") values (?, ?, ?, ?, ?, ?, ?
+, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+params: provider1,Default Provider,openai,,encrypted-key-1,["gpt-4"],gpt-4,,1,1,1774688528973,1774688528973,provider2,R
+egular Provider,openai,,encrypted-key-2,["gpt-4"],gpt-4,,1,0,1774688528973,1774688528973[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m43:15[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:12[22m[39m
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m342:7[22m[39m
+    [90m340| [39m  [34mdescribe[39m([32m'DELETE /api/ai/providers/[id]'[39m[33m,[39m () [33m=>[39m {
+    [90m341| [39m    [34mbeforeEach[39m([35masync[39m () [33m=>[39m {
+    [90m342| [39m      [35mawait[39m mockDb[33m.[39m[34minsert[39m(aiProviders)[33m.[39m[34mvalues[39m([
+    [90m   | [39m      [31m^[39m
+    [90m343| [39m        {
+    [90m344| [39m          id[33m:[39m [32m'provider1'[39m[33m,[39m
+
+[31m[1mCaused by: LibsqlError[22m: SQLITE_CONSTRAINT: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m mapSqliteError node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js
+:[2m434:16[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m337:15[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT', extendedCode: 'SQLITE_CONSTRAINT_PRIMARYKEY', ra
+wCode: 1555 }[39m
+[31m[1mCaused by: SqliteError[22m: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m convertError node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m59:12[22m[39m
+[90m [2m鉂?[22m Statement.run node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m335:13[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m330:34[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT_PRIMARYKEY', rawCode: 1555 }[39m
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳痆8/13]鈳?[22m[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mDELETE /api/ai/provider
+s/[id][2m > [22mshould return 404 for non-existent provider
+[31m[1mError[22m: Failed query: insert into "ai_providers" ("id", "name", "provider", "base_url", "api_key", "models
+", "default_model", "system_prompt", "is_active", "is_default", "created_at", "updated_at") values (?, ?, ?, ?, ?, ?, ?
+, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+params: provider1,Default Provider,openai,,encrypted-key-1,["gpt-4"],gpt-4,,1,1,1774688528976,1774688528976,provider2,R
+egular Provider,openai,,encrypted-key-2,["gpt-4"],gpt-4,,1,0,1774688528976,1774688528976[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m43:15[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:12[22m[39m
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m342:7[22m[39m
+    [90m340| [39m  [34mdescribe[39m([32m'DELETE /api/ai/providers/[id]'[39m[33m,[39m () [33m=>[39m {
+    [90m341| [39m    [34mbeforeEach[39m([35masync[39m () [33m=>[39m {
+    [90m342| [39m      [35mawait[39m mockDb[33m.[39m[34minsert[39m(aiProviders)[33m.[39m[34mvalues[39m([
+    [90m   | [39m      [31m^[39m
+    [90m343| [39m        {
+    [90m344| [39m          id[33m:[39m [32m'provider1'[39m[33m,[39m
+
+[31m[1mCaused by: LibsqlError[22m: SQLITE_CONSTRAINT: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m mapSqliteError node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js
+:[2m434:16[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m337:15[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT', extendedCode: 'SQLITE_CONSTRAINT_PRIMARYKEY', ra
+wCode: 1555 }[39m
+[31m[1mCaused by: SqliteError[22m: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m convertError node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m59:12[22m[39m
+[90m [2m鉂?[22m Statement.run node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m335:13[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m330:34[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT_PRIMARYKEY', rawCode: 1555 }[39m
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳痆9/13]鈳?[22m[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mPOST /api/ai/providers/
+[id]/test[2m > [22mshould test provider connection
+[31m[1mError[22m: Failed query: insert into "ai_providers" ("id", "name", "provider", "base_url", "api_key", "models
+", "default_model", "system_prompt", "is_active", "is_default", "created_at", "updated_at") values (?, ?, ?, ?, ?, ?, ?
+, ?, ?, ?, ?, ?)
+params: provider1,Test Provider,openai,,encrypted-key,["gpt-4"],gpt-4,,1,0,1774688528979,1774688528979[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m43:15[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:12[22m[39m
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m421:7[22m[39m
+    [90m419| [39m  [34mdescribe[39m([32m'POST /api/ai/providers/[id]/test'[39m[33m,[39m () [33m=>[39m {
+    [90m420| [39m    [34mbeforeEach[39m([35masync[39m () [33m=>[39m {
+    [90m421| [39m      [35mawait[39m mockDb[33m.[39m[34minsert[39m(aiProviders)[33m.[39m[34mvalues[39m({
+    [90m   | [39m      [31m^[39m
+    [90m422| [39m        id[33m:[39m [32m'provider1'[39m[33m,[39m
+    [90m423| [39m        name[33m:[39m [32m'Test Provider'[39m[33m,[39m
+
+[31m[1mCaused by: LibsqlError[22m: SQLITE_CONSTRAINT: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m mapSqliteError node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js
+:[2m434:16[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m337:15[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT', extendedCode: 'SQLITE_CONSTRAINT_PRIMARYKEY', ra
+wCode: 1555 }[39m
+[31m[1mCaused by: SqliteError[22m: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m convertError node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m59:12[22m[39m
+[90m [2m鉂?[22m Statement.run node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m335:13[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m330:34[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT_PRIMARYKEY', rawCode: 1555 }[39m
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[10/13]鈳?[22m[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mPOST /api/ai/providers/
+[id]/test[2m > [22mshould return 404 for non-existent provider
+[31m[1mError[22m: Failed query: insert into "ai_providers" ("id", "name", "provider", "base_url", "api_key", "models
+", "default_model", "system_prompt", "is_active", "is_default", "created_at", "updated_at") values (?, ?, ?, ?, ?, ?, ?
+, ?, ?, ?, ?, ?)
+params: provider1,Test Provider,openai,,encrypted-key,["gpt-4"],gpt-4,,1,0,1774688528982,1774688528982[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m43:15[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:12[22m[39m
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m421:7[22m[39m
+    [90m419| [39m  [34mdescribe[39m([32m'POST /api/ai/providers/[id]/test'[39m[33m,[39m () [33m=>[39m {
+    [90m420| [39m    [34mbeforeEach[39m([35masync[39m () [33m=>[39m {
+    [90m421| [39m      [35mawait[39m mockDb[33m.[39m[34minsert[39m(aiProviders)[33m.[39m[34mvalues[39m({
+    [90m   | [39m      [31m^[39m
+    [90m422| [39m        id[33m:[39m [32m'provider1'[39m[33m,[39m
+    [90m423| [39m        name[33m:[39m [32m'Test Provider'[39m[33m,[39m
+
+[31m[1mCaused by: LibsqlError[22m: SQLITE_CONSTRAINT: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m mapSqliteError node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js
+:[2m434:16[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m337:15[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT', extendedCode: 'SQLITE_CONSTRAINT_PRIMARYKEY', ra
+wCode: 1555 }[39m
+[31m[1mCaused by: SqliteError[22m: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m convertError node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m59:12[22m[39m
+[90m [2m鉂?[22m Statement.run node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m335:13[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m330:34[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT_PRIMARYKEY', rawCode: 1555 }[39m
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[11/13]鈳?[22m[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mPOST /api/ai/providers/
+[id]/default[2m > [22mshould set provider as default
+[31m[1mError[22m: Failed query: insert into "ai_providers" ("id", "name", "provider", "base_url", "api_key", "models
+", "default_model", "system_prompt", "is_active", "is_default", "created_at", "updated_at") values (?, ?, ?, ?, ?, ?, ?
+, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+params: provider1,Current Default,openai,,encrypted-key-1,["gpt-4"],gpt-4,,1,1,1774688528985,1774688528985,provider2,Ne
+w Default,openai,,encrypted-key-2,["gpt-4"],gpt-4,,1,0,1774688528985,1774688528985[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m43:15[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:12[22m[39m
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m471:7[22m[39m
+    [90m469| [39m  [34mdescribe[39m([32m'POST /api/ai/providers/[id]/default'[39m[33m,[39m () [33m=>[39m {
+    [90m470| [39m    [34mbeforeEach[39m([35masync[39m () [33m=>[39m {
+    [90m471| [39m      [35mawait[39m mockDb[33m.[39m[34minsert[39m(aiProviders)[33m.[39m[34mvalues[39m([
+    [90m   | [39m      [31m^[39m
+    [90m472| [39m        {
+    [90m473| [39m          id[33m:[39m [32m'provider1'[39m[33m,[39m
+
+[31m[1mCaused by: LibsqlError[22m: SQLITE_CONSTRAINT: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m mapSqliteError node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js
+:[2m434:16[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m337:15[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT', extendedCode: 'SQLITE_CONSTRAINT_PRIMARYKEY', ra
+wCode: 1555 }[39m
+[31m[1mCaused by: SqliteError[22m: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m convertError node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m59:12[22m[39m
+[90m [2m鉂?[22m Statement.run node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m335:13[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m330:34[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT_PRIMARYKEY', rawCode: 1555 }[39m
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[12/13]鈳?[22m[39m
+
+[41m[1m FAIL [22m[49m tests/api/ai-providers.test.ts[2m > [22mAI Providers API[2m > [22mPOST /api/ai/providers/
+[id]/default[2m > [22mshould return 404 for non-existent provider
+[31m[1mError[22m: Failed query: insert into "ai_providers" ("id", "name", "provider", "base_url", "api_key", "models
+", "default_model", "system_prompt", "is_active", "is_default", "created_at", "updated_at") values (?, ?, ?, ?, ?, ?, ?
+, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+params: provider1,Current Default,openai,,encrypted-key-1,["gpt-4"],gpt-4,,1,1,1774688528987,1774688528987,provider2,Ne
+w Default,openai,,encrypted-key-2,["gpt-4"],gpt-4,,1,0,1774688528987,1774688528987[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m43:15[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:12[22m[39m
+[36m [2m鉂?[22m tests/api/ai-providers.test.ts:[2m471:7[22m[39m
+    [90m469| [39m  [34mdescribe[39m([32m'POST /api/ai/providers/[id]/default'[39m[33m,[39m () [33m=>[39m {
+    [90m470| [39m    [34mbeforeEach[39m([35masync[39m () [33m=>[39m {
+    [90m471| [39m      [35mawait[39m mockDb[33m.[39m[34minsert[39m(aiProviders)[33m.[39m[34mvalues[39m([
+    [90m   | [39m      [31m^[39m
+    [90m472| [39m        {
+    [90m473| [39m          id[33m:[39m [32m'provider1'[39m[33m,[39m
+
+[31m[1mCaused by: LibsqlError[22m: SQLITE_CONSTRAINT: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m mapSqliteError node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js
+:[2m434:16[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m337:15[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT', extendedCode: 'SQLITE_CONSTRAINT_PRIMARYKEY', ra
+wCode: 1555 }[39m
+[31m[1mCaused by: SqliteError[22m: UNIQUE constraint failed: ai_providers.id[39m
+[90m [2m鉂?[22m convertError node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m59:12[22m[39m
+[90m [2m鉂?[22m Statement.run node_modules/.pnpm/libsql@0.5.22/node_modules/libsql/index.js:[2m335:13[22m[39m
+[90m [2m鉂?[22m executeStmt node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sqlite3.js:[
+2m330:34[22m[39m
+[90m [2m鉂?[22m Sqlite3Client.execute node_modules/.pnpm/@libsql+client@0.17.0/node_modules/@libsql/client/lib-esm/sql
+ite3.js:[2m82:16[22m[39m
+[90m [2m鉂?[22m node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/libsql/session.js
+:[2m123:60[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_mo
+dules/drizzle-orm/sqlite-core/session.js:[2m41:22[22m[39m
+[90m [2m鉂?[22m LibSQLPreparedQuery.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizz
+le-orm/libsql/session.js:[2m121:23[22m[39m
+[90m [2m鉂?[22m QueryPromise.run node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm/
+sqlite-core/query-builders/insert.js:[2m162:28[22m[39m
+[90m [2m鉂?[22m QueryPromise.execute node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-
+orm/sqlite-core/query-builders/insert.js:[2m174:54[22m[39m
+[90m [2m鉂?[22m QueryPromise.then node_modules/.pnpm/drizzle-orm@0.45.1_@libsql+client@0.17.0/node_modules/drizzle-orm
+/query-promise.js:[2m21:17[22m[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'SQLITE_CONSTRAINT_PRIMARYKEY', rawCode: 1555 }[39m
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆[13/13]鈳?[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m15 passed[39m[22m[90m (16)[39m
+[2m      Tests [22m [1m[31m13 failed[39m[22m[2m | [22m[1m[32m184 passed[39m[22m[90m (197)[39m
+[2m   Start at [22m 17:02:02
+[2m   Duration [22m 8.83s[2m (transform 4.47s, setup 7.73s, import 19.33s, tests 26.41s, environment 25.79s)[22m
+
+鈥塃LIFECYCLE鈥?Test failed. See above for more details.

@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ApiMock
 
-## Getting Started
+AI 智能 Mock 平台 - 通过自然语言生成真实语义的 Mock 数据
 
-First, run the development server:
+## 快速开始
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# 安装依赖
+pnpm install
+
+# 启动开发服务器
 pnpm dev
-# or
-bun dev
+
+# 运行测试
+pnpm test
+
+# 构建生产版本
+pnpm build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 项目结构
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── api/               # 后端 API
+│   │   └── projects/      # 项目管理 API
+│   └── [project]/         # Mock 服务路由
+│       └── [...path]/     # 动态路径匹配
+├── components/            # React 组件
+├── hooks/                 # 自定义 Hooks
+├── lib/                   # 工具库
+│   ├── api.ts            # API 响应工具
+│   ├── db.ts             # 数据库配置
+│   └── schema.ts         # 数据库 Schema
+└── types/                 # TypeScript 类型
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 测试 Mock 服务
 
-## Learn More
+```bash
+# 获取用户列表
+curl http://localhost:3000/demo-project/users
 
-To learn more about Next.js, take a look at the following resources:
+# 获取单个用户
+curl http://localhost:3000/demo-project/users/1
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 创建用户
+curl -X POST http://localhost:3000/demo-project/users
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 文档
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [PRD 文档](../memory/projects/apimock/PRD.md)
+- [API 规范](../memory/projects/apimock/docs/API.md)
+- [数据库设计](../memory/projects/apimock/docs/DATABASE.md)
+- [部署方案](../apimock-ai-solution/docs/DEPLOYMENT.md)

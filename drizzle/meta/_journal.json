@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1772893191882,
+      "tag": "0000_moaning_leopardon",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1772972386647,
+      "tag": "0001_fine_excalibur",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1774182016283,
+      "tag": "0002_white_shinko_yamashiro",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Sample JSON API",
+    "version": "1.0.0",
+    "description": "A sample API in JSON format for testing"
+  },
+  "paths": {
+    "/products": {
+      "get": {
+        "summary": "List products",
+        "operationId": "listProducts",
+        "tags": ["products"],
+        "responses": {
+          "200": {
+            "description": "List of products",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "integer" },
+                      "name": { "type": "string" },
+                      "price": { "type": "number" }
+                    }
+                  }
+                },
+                "example": [
+                  { "id": 1, "name": "Laptop", "price": 999.99 },
+                  { "id": 2, "name": "Mouse", "price": 29.99 }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create product",
+        "operationId": "createProduct",
+        "responses": {
+          "201": {
+            "description": "Product created"
+          }
+        }
+      }
+    },
+    "/products/{productId}": {
+      "get": {
+        "summary": "Get product by ID",
+        "operationId": "getProductById",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product details"
+          }
+        }
+      }
+    }
+  }
+}
