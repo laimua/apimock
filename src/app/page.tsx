@@ -97,7 +97,7 @@ export default function HomePage() {
                 立即开始
               </Link>
               <a
-                href="https://github.com"
+                href="https://github.com/laimua/apimock"
                 target="_blank"
                 className="w-full sm:w-auto px-6 sm:px-8 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 font-medium text-base sm:text-lg min-h-12 flex items-center justify-center"
               >

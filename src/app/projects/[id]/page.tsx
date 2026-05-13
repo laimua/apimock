@@ -549,8 +549,58 @@ export default function ProjectPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">加载中...</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        {/* Header skeleton */}
+        <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex h-16 items-center gap-4">
+              <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              <div className="ml-auto flex gap-3">
+                <div className="h-9 w-16 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+                <div className="h-9 w-20 bg-blue-200 dark:bg-blue-900/40 rounded-lg animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          {/* Project info skeleton */}
+          <div className="mb-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <div className="flex flex-col gap-4">
+              <div>
+                <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2" />
+                <div className="h-8 w-full max-w-md bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              </div>
+              <div className="flex gap-2">
+                <div className="h-9 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                <div className="h-9 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                <div className="h-9 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              </div>
+            </div>
+          </div>
+
+          {/* Tab skeleton */}
+          <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex gap-8">
+              <div className="h-10 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              <div className="h-10 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+            </div>
+          </div>
+
+          {/* Endpoint list skeleton */}
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-6 w-14 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-4 flex-1 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
@@ -700,6 +750,30 @@ export default function ProjectPage() {
                     分享
                   </Button>
                 </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    if (!confirm('确定要删除此项目吗？此操作不可恢复。')) return;
+                    try {
+                      await projectsApi.delete(projectId);
+                      success('项目已删除');
+                      router.push('/projects');
+                    } catch (err) {
+                      if (err instanceof ApiError) {
+                        toastError(err.message);
+                      } else {
+                        toastError('删除失败');
+                      }
+                    }
+                  }}
+                  className="flex-1 sm:flex-none min-h-9 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  删除
+                </Button>
               </div>
             </div>
           </CardBody>
