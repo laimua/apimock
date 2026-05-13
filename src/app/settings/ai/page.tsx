@@ -10,6 +10,7 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { ArrowLeft, Plus, Sparkles } from 'lucide-react';
 import ProviderList from '@/components/settings/ProviderList';
+import { PresetProvider } from '@/lib/ai-presets';
 import PresetProviders from '@/components/settings/PresetProviders';
 import AddProviderDialog from '@/components/settings/AddProviderDialog';
 
@@ -32,6 +33,7 @@ export default function AiSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
+  const [presetToApply, setPresetToApply] = useState<PresetProvider | null>(null);
 
   // 加载 providers
   const loadProviders = async () => {
@@ -184,6 +186,7 @@ export default function AiSettingsPage() {
             </h2>
             <PresetProviders onPresetSelected={(preset) => {
               setEditingProvider(null);
+              setPresetToApply(preset);
               setShowAddDialog(true);
             }} />
           </CardBody>
@@ -230,8 +233,10 @@ export default function AiSettingsPage() {
         onClose={() => {
           setShowAddDialog(false);
           setEditingProvider(null);
+          setPresetToApply(null);
         }}
         provider={editingProvider}
+        preset={presetToApply}
         onSave={editingProvider
           ? (data) => handleUpdateProvider(editingProvider.id, data)
           : handleAddProvider

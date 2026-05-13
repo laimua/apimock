@@ -28,6 +28,7 @@ interface AddProviderDialogProps {
   isOpen: boolean;
   onClose: () => void;
   provider?: Provider | null;
+  preset?: PresetProvider | null;
   onSave: (data: any) => Promise<void>;
 }
 
@@ -35,6 +36,7 @@ export default function AddProviderDialog({
   isOpen,
   onClose,
   provider,
+  preset,
   onSave,
 }: AddProviderDialogProps) {
   const [formData, setFormData] = useState({
@@ -65,20 +67,35 @@ export default function AddProviderDialog({
         isDefault: provider.isDefault,
       });
     } else if (isOpen) {
-      // 清空表单
-      setFormData({
-        name: '',
-        provider: 'openai',
-        baseUrl: '',
-        apiKey: '',
-        models: [],
-        defaultModel: '',
-        systemPrompt: '',
-        isDefault: false,
-      });
-      setSelectedPreset(null);
+      if (preset) {
+        // 从预设初始化
+        setSelectedPreset(preset);
+        setFormData({
+          name: preset.name,
+          provider: preset.provider,
+          baseUrl: preset.baseUrl || '',
+          apiKey: '',
+          models: preset.models,
+          defaultModel: preset.defaultModel,
+          systemPrompt: '',
+          isDefault: false,
+        });
+      } else {
+        // 清空表单
+        setFormData({
+          name: '',
+          provider: 'openai',
+          baseUrl: '',
+          apiKey: '',
+          models: [],
+          defaultModel: '',
+          systemPrompt: '',
+          isDefault: false,
+        });
+        setSelectedPreset(null);
+      }
     }
-  }, [provider, isOpen]);
+  }, [provider, preset, isOpen]);
 
   // 选择预设
   const handleSelectPreset = (preset: PresetProvider) => {
@@ -183,21 +200,19 @@ export default function AddProviderDialog({
             </select>
           </div>
 
-          {/* Base URL（仅兼容模式） */}
-          {formData.provider === 'openai-compatible' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                API 地址
-              </label>
-              <input
-                type="url"
-                value={formData.baseUrl}
-                onChange={(e) => setFormData({ ...formData, baseUrl: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="https://api.example.com/v1"
-              />
-            </div>
-          )}
+          {/* Base URL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              API 地址
+            </label>
+            <input
+              type="url"
+              value={formData.baseUrl}
+              onChange={(e) => setFormData({ ...formData, baseUrl: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="https://api.example.com/v1"
+            />
+          </div>
 
           {/* API Key */}
           <div>
