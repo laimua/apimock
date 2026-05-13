@@ -21,7 +21,7 @@ export const PRESET_PROVIDERS: PresetProvider[] = [
     description: 'OpenAI GPT 系列模型',
   },
   {
-    name: 'Claude (Anthropic)',
+    name: 'Claude',
     provider: 'anthropic',
     baseUrl: 'https://api.anthropic.com/v1',
     models: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
@@ -37,12 +37,12 @@ export const PRESET_PROVIDERS: PresetProvider[] = [
     description: 'DeepSeek 深度求索',
   },
   {
-    name: '智谱 GLM',
+    name: 'Google Gemini',
     provider: 'openai-compatible',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    models: ['glm-4-plus', 'glm-4-flash', 'glm-4'],
-    defaultModel: 'glm-4-flash',
-    description: '智谱清言 GLM 系列',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    models: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+    defaultModel: 'gemini-2.0-flash',
+    description: 'Google Gemini 系列',
   },
   {
     name: '通义千问',
@@ -53,12 +53,36 @@ export const PRESET_PROVIDERS: PresetProvider[] = [
     description: '阿里云通义千问',
   },
   {
+    name: '智谱 GLM',
+    provider: 'openai-compatible',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    models: ['glm-4-plus', 'glm-4-flash', 'glm-4'],
+    defaultModel: 'glm-4-flash',
+    description: '智谱清言 GLM 系列',
+  },
+  {
+    name: '字节豆包',
+    provider: 'openai-compatible',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    models: ['doubao-1.5-pro-32k', 'doubao-1.5-lite-32k', 'doubao-pro-32k', 'doubao-lite-32k'],
+    defaultModel: 'doubao-1.5-pro-32k',
+    description: '字节跳动豆包大模型',
+  },
+  {
     name: 'Moonshot Kimi',
     provider: 'openai-compatible',
     baseUrl: 'https://api.moonshot.cn/v1',
     models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
     defaultModel: 'moonshot-v1-8k',
     description: 'Moonshot AI Kimi',
+  },
+  {
+    name: 'MiniMax',
+    provider: 'openai-compatible',
+    baseUrl: 'https://api.minimax.chat/v1',
+    models: ['MiniMax-Text-01', 'abab-6.5s-chat', 'abab-5.5-chat'],
+    defaultModel: 'MiniMax-Text-01',
+    description: 'MiniMax 海螺 AI',
   },
 ];
 

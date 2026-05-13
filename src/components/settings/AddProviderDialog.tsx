@@ -53,6 +53,9 @@ export default function AddProviderDialog({
   const [loading, setLoading] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<PresetProvider | null>(null);
 
+  // 选中状态优先用内部 state，回退到外部 preset prop（避免 useEffect 延迟导致首帧不高亮）
+  const effectiveSelectedPreset = selectedPreset || preset;
+
   // 初始化表单
   useEffect(() => {
     if (provider) {
@@ -156,7 +159,7 @@ export default function AddProviderDialog({
                     type="button"
                     onClick={() => handleSelectPreset(preset)}
                     className={`p-2 text-xs rounded border text-left transition-all ${
-                      selectedPreset?.name === preset.name
+                      effectiveSelectedPreset?.name === preset.name
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
