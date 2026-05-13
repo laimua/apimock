@@ -4,7 +4,7 @@ AI 智能 Mock 平台 - 通过自然语言生成真实语义的 Mock 数据，�
 
 ## ✨ 功能特性
 
-- 🤖 **AI 智能 Mock** — 通过自然语言描述生成真实语义的 Mock 数据，支持多种 AI 模型（OpenAI、Claude、Gemini 等）
+- 🤖 **AI 智能 Mock** — 通过自然语言描述生成真实语义的 Mock 数据，支持 OpenAI、Claude、DeepSeek、Gemini、通义千问、智谱GLM、字节豆包、Moonshot、MiniMax 等多种模型，也支持 Ollama 等本地部署
 - 📥 **OpenAPI 导入** — 一键导入 OpenAPI/Swagger 规范，自动创建项目和端点
 - 🎭 **错误场景模拟** — 内置多种错误场景（超时、500、限流等），方便前端调试
 - 📊 **请求记录** — 实时记录所有 Mock 请求，支持查看请求详情和响应
@@ -87,7 +87,7 @@ src/
 # 单元测试 (Vitest) - 197 个用例
 pnpm test
 
-# E2E 测试 (Playwright) - 39+ 个用例
+# E2E 测试 (Playwright) - 54+ 个用例
 pnpm exec playwright test
 ```
 
@@ -103,6 +103,15 @@ curl http://localhost:3000/demo-project/users/1
 # 创建用户
 curl -X POST http://localhost:3000/demo-project/users
 ```
+
+## AI 模型配置
+
+项目支持多 AI Provider 管理，两种配置方式：
+
+1. **页面配置**（推荐）：访问 `/settings/ai` 添加和管理 AI 供应商
+2. **环境变量**：设置 `OPENAI_API_KEY` 即可使用
+
+支持的供应商：OpenAI、Claude、DeepSeek、Google Gemini、通义千问、智谱GLM、字节豆包、Moonshot Kimi、MiniMax，以及所有 OpenAI 兼容接口（Ollama、vLLM、LM Studio 等）。
 
 ## 环境变量
 
