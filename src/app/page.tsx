@@ -34,6 +34,12 @@ export default function HomePage() {
                 项目列表
               </Link>
               <Link
+                href="/settings/ai"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 font-medium"
+              >
+                AI 配置
+              </Link>
+              <Link
                 href="/projects/new"
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
               >
@@ -66,6 +72,13 @@ export default function HomePage() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 项目列表
+              </Link>
+              <Link
+                href="/settings/ai"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                AI 配置
               </Link>
               <Link
                 href="/projects/new"
