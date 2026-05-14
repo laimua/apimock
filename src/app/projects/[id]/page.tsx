@@ -1179,6 +1179,7 @@ export default function ProjectPage() {
           label: '添加端点',
           onClick: () => {
             setShowEmptyProjectGuide(false);
+            router.push(`/projects/${projectId}/endpoints/new`);
           },
         }}
         secondaryAction={{

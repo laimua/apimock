@@ -1,23 +1,24 @@
-import { createClient } from '@libsql/client';
+import Database from 'better-sqlite3';
 import { db } from '@/lib/db';
 
-const client = createClient({
-  url: process.env.TURSO_DATABASE_URL || 'file:./local.db',
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
+const sqlite = new Database(process.env.SQLITE_PATH || './data/apimock.db');
 
-async function checkTables() {
-  const result = await client.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;");
+function checkTables() {
+  const result = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;").all();
   console.log('Tables in database:');
-  result.rows.forEach((row: any) => console.log(`  - ${row.name}`));
+  result.forEach((row: any) => console.log(`  - ${row.name}`));
 
   // 检查 ai_providers 表是否存在
-  const aiProvidersCheck = await client.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ai_providers';");
-  if (aiProvidersCheck.rows.length > 0) {
+  const aiProvidersCheck = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ai_providers';").all();
+  if (aiProvidersCheck.length > 0) {
     console.log('\n✅ ai_providers table exists!');
   } else {
     console.log('\n❌ ai_providers table does NOT exist!');
   }
 }
 
-checkTables().catch(console.error);
+try {
+  checkTables();
+} catch (error) {
+  console.error(error);
+}

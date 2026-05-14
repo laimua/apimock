@@ -25,7 +25,8 @@
     "@codemirror/view": "^6.39.16",
     "@hono/zod-validator": "^0.7.6",
     "@lezer/highlight": "^1.2.3",
-    "@libsql/client": "^0.17.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.10.0",
     "clsx": "^2.1.0",
     "codemirror": "^6.0.2",
     "drizzle-orm": "^0.45.1",
@@ -39,6 +40,12 @@
     "react-dom": "19.2.3",
     "zod": "^4.3.6"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
+  },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
@@ -50,6 +57,7 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.1.4",
     "@vitest/ui": "^4.0.18",
+    "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.9",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",

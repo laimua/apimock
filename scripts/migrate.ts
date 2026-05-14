@@ -1,81 +1,24 @@
 /**
  * 数据库迁移脚本
- * 使用 Drizzle ORM
+ * 使用 Drizzle ORM + SQLite
  */
 
-import { drizzle } from 'drizzle-orm/libsql';
-import { createClient } from '@libsql/client';
-import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import Database from 'better-sqlite3';
 
 // ============================================
 // 数据库连接
 // ============================================
-const client = createClient({
-  url: process.env.TURSO_DATABASE_URL || 'file:./local.db',
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
-
-const db = drizzle(client);
-
-// ============================================
-// Schema 定义（与 schema.ts 保持一致）
-// ============================================
-export const projects = sqliteTable('projects', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  slug: text('slug').notNull().unique(),
-  description: text('description'),
-  basePath: text('base_path'),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  settings: text('settings', { mode: 'json' }).default({}),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-}, (table) => ({
-  slugIdx: uniqueIndex('projects_slug_idx').on(table.slug),
-}));
-
-export const endpoints = sqliteTable('endpoints', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  path: text('path').notNull(),
-  method: text('method', { enum: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'] }).notNull().default('GET'),
-  name: text('name'),
-  description: text('description'),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  delayMs: integer('delay_ms').default(0),
-  tags: text('tags', { mode: 'json' }).default([]),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-}, (table) => ({
-  endpointIdx: uniqueIndex('endpoints_lookup_idx').on(table.projectId, table.method, table.path),
-}));
-
-export const responses = sqliteTable('responses', {
-  id: text('id').primaryKey(),
-  endpointId: text('endpoint_id').notNull().references(() => endpoints.id, { onDelete: 'cascade' }),
-  name: text('name'),
-  description: text('description'),
-  statusCode: integer('status_code').notNull().default(200),
-  headers: text('headers', { mode: 'json' }).default({}),
-  body: text('body', { mode: 'json' }),
-  bodyTemplate: text('body_template'),
-  contentType: text('content_type').default('application/json'),
-  matchRules: text('match_rules', { mode: 'json' }).default({}),
-  isDefault: integer('is_default', { mode: 'boolean' }).default(false),
-  priority: integer('priority').default(0),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-});
+const sqlite = new Database(process.env.SQLITE_PATH || './data/apimock.db');
 
 // ============================================
 // 迁移函数
 // ============================================
-async function migrate() {
+function migrate() {
   console.log('🔄 Starting database migration...');
 
   try {
     // 创建表（如果不存在）
-    await client.execute(`
+    sqlite.exec(`
       CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -90,7 +33,7 @@ async function migrate() {
     `);
     console.log('✅ projects table created');
 
-    await client.execute(`
+    sqlite.exec(`
       CREATE TABLE IF NOT EXISTS endpoints (
         id TEXT PRIMARY KEY,
         project_id TEXT NOT NULL,
@@ -101,6 +44,9 @@ async function migrate() {
         is_active INTEGER NOT NULL DEFAULT 1,
         delay_ms INTEGER DEFAULT 0,
         tags TEXT DEFAULT '[]',
+        status_code INTEGER DEFAULT 200,
+        content_type TEXT DEFAULT 'application/json',
+        response_body TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
@@ -109,7 +55,26 @@ async function migrate() {
     `);
     console.log('✅ endpoints table created');
 
-    await client.execute(`
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS requests (
+        id TEXT PRIMARY KEY,
+        endpoint_id TEXT NOT NULL,
+        method TEXT NOT NULL,
+        path TEXT NOT NULL,
+        query TEXT,
+        headers TEXT,
+        body TEXT,
+        response_status INTEGER,
+        response_time INTEGER,
+        ip TEXT,
+        user_agent TEXT,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (endpoint_id) REFERENCES endpoints(id) ON DELETE CASCADE
+      )
+    `);
+    console.log('✅ requests table created');
+
+    sqlite.exec(`
       CREATE TABLE IF NOT EXISTS responses (
         id TEXT PRIMARY KEY,
         endpoint_id TEXT NOT NULL,
@@ -130,15 +95,35 @@ async function migrate() {
     `);
     console.log('✅ responses table created');
 
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS ai_providers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        base_url TEXT,
+        api_key TEXT NOT NULL,
+        models TEXT NOT NULL,
+        default_model TEXT,
+        system_prompt TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        is_default INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `);
+    console.log('✅ ai_providers table created');
+
     // 创建索引
-    await client.execute(`
+    sqlite.exec(`
       CREATE INDEX IF NOT EXISTS endpoints_lookup_idx ON endpoints(project_id, method, path)
     `);
     console.log('✅ indexes created');
 
     console.log('🎉 Migration completed successfully!');
+    sqlite.close();
   } catch (error) {
     console.error('❌ Migration failed:', error);
+    sqlite.close();
     process.exit(1);
   }
 }

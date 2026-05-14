@@ -3,8 +3,8 @@
  * Uses in-memory database for testing
  */
 
-import { drizzle } from 'drizzle-orm/libsql';
-import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import Database from 'better-sqlite3';
 import * as schema from '@/lib/schema';
 import { randomUUID } from 'crypto';
 
@@ -14,11 +14,9 @@ import { randomUUID } from 'crypto';
  */
 export function getTestDb(dbName?: string) {
   const name = dbName || randomUUID();
-  const client = createClient({
-    url: `file:memory-${name}.db`,
-  });
+  const sqlite = new Database(`:memory:`); // 使用内存数据库
 
-  return drizzle(client, { schema });
+  return drizzle(sqlite, { schema });
 }
 
 /**
