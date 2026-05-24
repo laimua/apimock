@@ -25,7 +25,10 @@ const CreateEndpointSchema = z.object({
   // 响应配置字段
   statusCode: z.number().min(100).max(599).optional(),
   contentType: z.string().optional(),
-  responseBody: z.any().optional(), // 接受任何类型
+  responseBody: z.any().refine(
+    (v) => v === undefined || v === null || JSON.stringify(v).length <= 1_000_000,
+    'responseBody too large (max 1MB)'
+  ).optional(),
 });
 
 // ============================================
@@ -65,9 +68,9 @@ export async function GET(
     conditions.push(eq(endpoints.method, method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS'));
   }
 
-  // 标签筛选（tags 是 JSON 字符串，需要用 LIKE）
+  // 标签筛选（tags 是 JSON 数组字符串，使用 json_each 精确匹配）
   if (tag) {
-    conditions.push(sql`${endpoints.tags} LIKE ${`%"${tag}"%`}`);
+    conditions.push(sql`${endpoints.id} IN (SELECT e.id FROM endpoints e, json_each(e.tags) WHERE e.project_id = ${projectId} AND json_each.value = ${tag})`);
   }
 
   const whereClause = conditions.length > 1 ? and(...conditions) : conditions[0];
@@ -214,10 +217,10 @@ export async function POST(
       tags: parsedTags,
       isActive: Boolean(newEndpoint.isActive), // 转换为布尔值
     }, 201);
-  } catch (err: any) {
-    if (err.name === 'ValidationError') {
-      return Errors.validation(err.issues);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'ValidationError') {
+      return Errors.validation((err as any).issues);
     }
-    return Errors.internal(err.message);
+    return Errors.internal(err instanceof Error ? err.message : String(err));
   }
 }

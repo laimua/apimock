@@ -103,7 +103,7 @@ export async function PATCH(
     };
 
     return success(safeProvider);
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof ValidationError) {
       return Errors.validation(err.issues);
     }
@@ -165,7 +165,7 @@ export async function DELETE(
     await db.delete(aiProviders).where(eq(aiProviders.id, id));
 
     return success({ id, deleted: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error deleting provider:', err);
     return Errors.internal('Failed to delete provider');
   }

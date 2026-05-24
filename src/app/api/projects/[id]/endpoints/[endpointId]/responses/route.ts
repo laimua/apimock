@@ -183,10 +183,10 @@ export async function POST(
       isActive: true,
       isDefault: newResponse.isDefault === 1,
     }, 201);
-  } catch (err: any) {
-    if (err.name === 'ValidationError') {
-      return Errors.validation(err.issues);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'ValidationError') {
+      return Errors.validation((err as any).issues);
     }
-    return Errors.internal(err.message);
+    return Errors.internal(err instanceof Error ? err.message : String(err));
   }
 }

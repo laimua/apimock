@@ -4,13 +4,14 @@
  */
 
 import { NextRequest } from 'next/server';
-import { success, Errors, validate } from '@/lib/api';
+import { success, Errors, validate, ValidationError } from '@/lib/api';
 import { z } from 'zod';
 import OpenAI from 'openai';
 import { db } from '@/lib/db';
 import { aiProviders } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { decrypt } from '@/lib/encryption';
+import { validateUrlSafe } from '@/lib/ssrf';
 import { DEFAULT_SYSTEM_PROMPT } from '@/lib/ai-presets';
 
 // ============================================
@@ -171,6 +172,14 @@ async function generateWithProvider(prompt: string, count: number, provider: any
   const models = JSON.parse(provider.models);
   const modelToUse = provider.defaultModel || models[0];
 
+  // SSRF 校验
+  if (provider.baseUrl) {
+    const check = validateUrlSafe(provider.baseUrl);
+    if (!check.safe) {
+      throw new Error(`Base URL rejected: ${check.reason}`);
+    }
+  }
+
   // 创建 OpenAI 客户端
   const openai = new OpenAI({
     apiKey,
@@ -282,16 +291,18 @@ export async function POST(request: NextRequest) {
     }
 
     return success(result);
-  } catch (err: any) {
-    if (err.name === 'ValidationError') {
+  } catch (err: unknown) {
+    if (err instanceof ValidationError) {
       return Errors.validation(err.issues);
     }
 
+    const msg = err instanceof Error ? err.message : String(err);
+
     // OpenAI API 错误
-    if (err.status) {
-      return Errors.internal(`AI API 错误: ${err.message}`);
+    if (err && typeof err === 'object' && 'status' in err) {
+      return Errors.internal(`AI API error: ${msg}`);
     }
 
-    return Errors.internal(err.message);
+    return Errors.internal(msg);
   }
 }

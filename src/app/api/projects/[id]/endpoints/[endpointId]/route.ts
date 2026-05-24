@@ -145,11 +145,11 @@ export async function PUT(
       responseBody: parsedResponseBody,
       isActive: Boolean(updated.isActive),
     });
-  } catch (err: any) {
-    if (err.name === 'ValidationError') {
-      return Errors.validation(err.issues);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'ValidationError') {
+      return Errors.validation((err as any).issues);
     }
-    return Errors.internal(err.message);
+    return Errors.internal(err instanceof Error ? err.message : String(err));
   }
 }
 

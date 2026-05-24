@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     }));
 
     return success(safeProviders);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error fetching providers:', err);
     return Errors.internal('Failed to fetch providers');
   }
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     };
 
     return success(safeProvider, 201);
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof ValidationError) {
       return Errors.validation(err.issues);
     }

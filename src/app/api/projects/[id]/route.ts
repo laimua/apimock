@@ -87,11 +87,11 @@ export async function PUT(
     // 返回更新后的数据
     const updated = await db.select().from(projects).where(eq(projects.id, id));
     return success(updated[0]);
-  } catch (err: any) {
-    if (err.name === 'ValidationError') {
-      return Errors.validation(err.issues);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'ValidationError') {
+      return Errors.validation((err as any).issues);
     }
-    return Errors.internal(err.message || String(err));
+    return Errors.internal(err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -115,8 +115,8 @@ export async function DELETE(
     await db.delete(projects).where(eq(projects.id, id));
 
     return success({ deleted: true });
-  } catch (err: any) {
-    return Errors.internal(err.message || String(err));
+  } catch (err: unknown) {
+    return Errors.internal(err instanceof Error ? err.message : String(err));
   }
 }
 

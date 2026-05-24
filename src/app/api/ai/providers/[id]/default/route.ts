@@ -47,7 +47,7 @@ export async function POST(
       isDefault: true,
       updatedAt: now,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error setting default provider:', err);
     return Errors.internal('Failed to set default provider');
   }

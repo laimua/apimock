@@ -9,6 +9,7 @@ import { db } from '@/lib/db';
 import { aiProviders } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { decrypt } from '@/lib/encryption';
+import { validateUrlSafe } from '@/lib/ssrf';
 import OpenAI from 'openai';
 import { DEFAULT_SYSTEM_PROMPT } from '@/lib/ai-presets';
 
@@ -42,6 +43,14 @@ export async function POST(
     // 解析 models
     const models = JSON.parse(provider.models);
     const modelToTest = provider.defaultModel || models[0];
+
+    // SSRF 校验
+    if (provider.baseUrl) {
+      const check = validateUrlSafe(provider.baseUrl);
+      if (!check.safe) {
+        return success({ success: false, error: `Base URL rejected: ${check.reason}` }, 200);
+      }
+    }
 
     // 创建 OpenAI 客户端
     const openai = new OpenAI({
@@ -80,15 +89,14 @@ export async function POST(
       model: modelToTest,
       response: response.substring(0, 200), // 截断过长响应
     });
-  } catch (err: any) {
-    console.error('Error testing provider:', err);
+  } catch (err: unknown) {
+    console.error('Error testing provider:', err instanceof Error ? err.message : 'Unknown error');
 
-    // OpenAI API 错误
-    if (err.status || err.code) {
+    if (err && typeof err === 'object' && ('status' in err || 'code' in err)) {
       return success(
         {
           success: false,
-          error: err.message || 'API request failed',
+          error: 'Provider API request failed. Check your API key and base URL.',
         },
         200
       );

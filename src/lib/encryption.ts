@@ -1,46 +1,79 @@
 /**
  * AES-256-GCM 加密工具
  * 用于加密存储 API Key 等敏感信息
+ *
+ * 新格式 (v2): salt:iv:authTag:encrypted  — 随机 salt
+ * 旧格式 (v1): iv:authTag:encrypted       — 静态 salt（向后兼容）
  */
 
 import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
-const KEY = process.env.ENCRYPTION_KEY || 'default-encryption-key-32bytes!';
+const LEGACY_SALT = 'salt';
+const SALT_LENGTH = 16;
+
+function getMasterKey(): Buffer {
+  const secret = process.env.ENCRYPTION_KEY;
+  if (!secret) {
+    throw new Error('ENCRYPTION_KEY environment variable is required. Set it before starting the server.');
+  }
+  return crypto.scryptSync(secret, LEGACY_SALT, 32);
+}
+
+function deriveKey(salt: Buffer): Buffer {
+  const secret = process.env.ENCRYPTION_KEY;
+  if (!secret) {
+    throw new Error('ENCRYPTION_KEY environment variable is required. Set it before starting the server.');
+  }
+  return crypto.scryptSync(secret, salt, 32);
+}
 
 /**
  * 加密文本
- * @param text 待加密的文本
- * @returns 加密后的字符串 (格式: iv:authTag:encrypted)
+ * 使用随机 salt，输出格式: salt:iv:authTag:encrypted (v2)
  */
 export function encrypt(text: string): string {
+  const salt = crypto.randomBytes(SALT_LENGTH);
   const iv = crypto.randomBytes(16);
-  const key = crypto.scryptSync(KEY, 'salt', 32);
+  const key = deriveKey(salt);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
 
   let encrypted = cipher.update(text, 'utf8', 'hex');
   encrypted += cipher.final('hex');
 
   const authTag = cipher.getAuthTag();
-  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+  return `${salt.toString('hex')}:${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
 }
 
 /**
  * 解密文本
- * @param encryptedData 加密的字符串
- * @returns 解密后的原文
- * @throws 如果解密失败
+ * 自动识别 v2 (4段: salt:iv:authTag:encrypted) 和 v1 (3段: iv:authTag:encrypted)
  */
 export function decrypt(encryptedData: string): string {
   const parts = encryptedData.split(':');
-  if (parts.length !== 3) {
+
+  let key: Buffer;
+  let iv: Buffer;
+  let authTag: Buffer;
+  let encrypted: string;
+
+  if (parts.length === 4) {
+    // v2: 随机 salt
+    const [saltHex, ivHex, authTagHex, enc] = parts;
+    key = deriveKey(Buffer.from(saltHex, 'hex'));
+    iv = Buffer.from(ivHex, 'hex');
+    authTag = Buffer.from(authTagHex, 'hex');
+    encrypted = enc;
+  } else if (parts.length === 3) {
+    // v1: 静态 salt（向后兼容已有数据）
+    const [ivHex, authTagHex, enc] = parts;
+    key = getMasterKey();
+    iv = Buffer.from(ivHex, 'hex');
+    authTag = Buffer.from(authTagHex, 'hex');
+    encrypted = enc;
+  } else {
     throw new Error('Invalid encrypted data format');
   }
-
-  const [ivHex, authTagHex, encrypted] = parts;
-  const iv = Buffer.from(ivHex, 'hex');
-  const authTag = Buffer.from(authTagHex, 'hex');
-  const key = crypto.scryptSync(KEY, 'salt', 32);
 
   const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);
@@ -48,7 +81,7 @@ export function decrypt(encryptedData: string): string {
   let decrypted = decipher.update(encrypted, 'hex', 'utf8');
   try {
     decrypted += decipher.final('utf8');
-  } catch (err) {
+  } catch {
     throw new Error('Decryption failed: invalid key or corrupted data');
   }
 

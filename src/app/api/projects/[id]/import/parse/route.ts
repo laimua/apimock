@@ -63,7 +63,7 @@ export async function POST(
       parseErrors: parseResult.errors,
     });
 
-  } catch (err: any) {
-    return Errors.internal(err.message);
+  } catch (err: unknown) {
+    return Errors.internal(err instanceof Error ? err.message : String(err));
   }
 }

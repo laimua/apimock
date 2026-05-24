@@ -165,11 +165,11 @@ export async function PATCH(
       .where(and(eq(responses.id, responseId), eq(responses.endpointId, endpointId)));
 
     return success(parseResponse(updatedList[0]));
-  } catch (err: any) {
-    if (err.name === 'ValidationError') {
-      return Errors.validation(err.issues);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'ValidationError') {
+      return Errors.validation((err as any).issues);
     }
-    return Errors.internal(err.message);
+    return Errors.internal(err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -204,7 +204,7 @@ export async function DELETE(
       .where(and(eq(responses.id, responseId), eq(responses.endpointId, endpointId)));
 
     return success({ message: 'Response deleted successfully' });
-  } catch (err: any) {
-    return Errors.internal(err.message);
+  } catch (err: unknown) {
+    return Errors.internal(err instanceof Error ? err.message : String(err));
   }
 }

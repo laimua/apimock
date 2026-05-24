@@ -106,8 +106,8 @@ async function batchCreateEndpoints(
       }
 
       result.created++;
-    } catch (e: any) {
-      result.errors.push(`${parsed.method} ${parsed.path}: ${e.message}`);
+    } catch (e: unknown) {
+      result.errors.push(`${parsed.method} ${parsed.path}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -165,10 +165,10 @@ export async function POST(
       parseErrors: parseResult.errors,
     }, 201);
 
-  } catch (err: any) {
-    if (err.name === 'ValidationError') {
-      return Errors.validation(err.issues);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'ValidationError') {
+      return Errors.validation((err as any).issues);
     }
-    return Errors.internal(err.message);
+    return Errors.internal(err instanceof Error ? err.message : String(err));
   }
 }

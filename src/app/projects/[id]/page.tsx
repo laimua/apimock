@@ -10,9 +10,11 @@ import { Badge } from '@/components/ui/Badge';
 import { ImportOpenAPI } from '@/components/ImportOpenAPI';
 import { useToast } from '@/components/ui/Toast';
 import { OnboardingModal } from '@/components/ui/OnboardingModal';
-
-// 可用的 HTTP 方法
-const METHODS: Endpoint['method'][] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
+import { useDebounce } from '@/lib/hooks';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { METHODS } from '@/lib/constants';
 
 // 分页组件
 interface PaginationProps {
@@ -251,6 +253,7 @@ function RequestDetailDialog({ request, isOpen, onClose }: RequestDetailDialogPr
             type="button"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+            aria-label="Close dialog"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -376,7 +379,6 @@ export default function ProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Tab 状态
   const [activeTab, setActiveTab] = useState<'endpoints' | 'requests'>('endpoints');
@@ -388,6 +390,7 @@ export default function ProjectPage() {
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState<'' | Endpoint['method']>('');
   const [tagFilter, setTagFilter] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
 
   // 请求记录状态
   const [requests, setRequests] = useState<RequestRecord[]>([]);
@@ -402,25 +405,22 @@ export default function ProjectPage() {
   // 引导弹窗状态
   const [showEmptyProjectGuide, setShowEmptyProjectGuide] = useState(false);
 
+  // 确认对话框状态
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showClearRequestsDialog, setShowClearRequestsDialog] = useState(false);
+
   async function copyToClipboard(text: string, label: string) {
     try {
       await navigator.clipboard.writeText(text);
       success(`已复制: ${label}`);
     } catch {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
       success(`已复制: ${label}`);
     }
   }
 
   useEffect(() => {
     loadData();
-  }, [projectId, page, search, methodFilter, tagFilter]);
+  }, [projectId, page, debouncedSearch, methodFilter, tagFilter]);
 
   useEffect(() => {
     if (activeTab === 'requests') {
@@ -430,14 +430,14 @@ export default function ProjectPage() {
 
   // 在空项目首次加载时显示引导
   useEffect(() => {
-    if (!loading && project && endpoints.length === 0 && !search && !methodFilter && !tagFilter) {
+    if (!loading && project && endpoints.length === 0 && !debouncedSearch && !methodFilter && !tagFilter) {
       // 延迟显示引导，避免与页面加载冲突
       const timer = setTimeout(() => {
         setShowEmptyProjectGuide(true);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [loading, project, endpoints.length, search, methodFilter, tagFilter]);
+  }, [loading, project, endpoints.length, debouncedSearch, methodFilter, tagFilter]);
 
   async function loadData() {
     try {
@@ -450,7 +450,7 @@ export default function ProjectPage() {
         endpointsApi.list(projectId, {
           page,
           pageSize,
-          search: search.trim(),
+          search: debouncedSearch.trim(),
           method: methodFilter,
           tag: tagFilter.trim(),
         }),
@@ -469,8 +469,8 @@ export default function ProjectPage() {
         setEndpoints(endpointArray);
         setTotal(endpointArray.length);
       }
-    } catch (err: any) {
-      setError(err.message || '加载失败');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '加载失败');
     } finally {
       setLoading(false);
     }
@@ -487,8 +487,8 @@ export default function ProjectPage() {
       });
       setRequests(data.items);
       setRequestsTotal(data.total);
-    } catch (err: any) {
-      toastError(err.message || '加载请求记录失败');
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : '加载请求记录失败');
     } finally {
       setRequestsLoading(false);
     }
@@ -496,16 +496,15 @@ export default function ProjectPage() {
 
   // 清空请求记录
   async function handleClearRequests() {
-    if (!confirm('确定要清空请求记录吗？')) return;
     try {
       await projectRequestsApi.clear(projectId, requestsEndpointFilter || undefined);
       success('请求记录已清空');
       loadRequests();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof ApiError) {
         toastError(err.message);
       } else {
-        toastError('清空失败');
+        toastError(err instanceof Error ? err.message : '清空失败');
       }
     }
   }
@@ -617,87 +616,16 @@ export default function ProjectPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              <Link href="/projects" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-sm flex items-center gap-1 flex-shrink-0">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                <span className="hidden sm:inline">项目列表</span>
-              </Link>
-              <span className="text-gray-300 dark:text-gray-600 hidden sm:inline">|</span>
-              <h1 className="font-semibold text-gray-900 dark:text-white truncate text-sm sm:text-base">{project.name}</h1>
-            </div>
-
-            {/* Desktop Actions */}
-            <div className="hidden sm:flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setIsImportOpen(true)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-sm flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                导入
-              </button>
-              <Link
-                href={`/projects/${projectId}/endpoints/new`}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
-              >
-                添加端点
-              </Link>
-            </div>
-
-            {/* Mobile menu button */}
-            <button
-              type="button"
-              className="sm:hidden p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                {mobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                )}
-              </svg>
-            </button>
-          </div>
-
-          {/* Mobile menu */}
-          {mobileMenuOpen && (
-            <div className="sm:hidden pb-4 flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsImportOpen(true);
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-sm flex items-center justify-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                导入 OpenAPI
-              </button>
-              <Link
-                href={`/projects/${projectId}/endpoints/new`}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm text-center"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                添加端点
-              </Link>
-            </div>
-          )}
-        </div>
-      </header>
 
       {/* Main */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Breadcrumb */}
+        <Breadcrumb items={[
+          { label: '首页', href: '/' },
+          { label: '项目列表', href: '/projects' },
+          { label: project.name },
+        ]} />
+
         {error && (
           <div className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg mb-6">
             {error}
@@ -753,20 +681,7 @@ export default function ProjectPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={async () => {
-                    if (!confirm('确定要删除此项目吗？此操作不可恢复。')) return;
-                    try {
-                      await projectsApi.delete(projectId);
-                      success('项目已删除');
-                      router.push('/projects');
-                    } catch (err) {
-                      if (err instanceof ApiError) {
-                        toastError(err.message);
-                      } else {
-                        toastError('删除失败');
-                      }
-                    }
-                  }}
+                  onClick={() => setShowDeleteDialog(true)}
                   className="flex-1 sm:flex-none min-h-9 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                 >
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -936,29 +851,6 @@ export default function ProjectPage() {
                     >
                       添加端点
                     </Link>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!confirm('确定要删除此项目吗？此操作不可恢复。')) return;
-                        try {
-                          await projectsApi.delete(projectId);
-                          success('项目已删除');
-                          router.push('/projects');
-                        } catch (err) {
-                          if (err instanceof ApiError) {
-                            toastError(err.message);
-                          } else {
-                            toastError('删除失败');
-                          }
-                        }
-                      }}
-                      className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 font-medium text-sm min-h-11"
-                    >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      删除项目
-                    </button>
                   </div>
                 </>
               )}
@@ -1019,7 +911,7 @@ export default function ProjectPage() {
                   </span>
                   <button
                     type="button"
-                    onClick={handleClearRequests}
+                    onClick={() => setShowClearRequestsDialog(true)}
                     className="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg font-medium transition-colors"
                   >
                     清空记录
@@ -1064,8 +956,17 @@ export default function ProjectPage() {
 
             {requestsLoading ? (
               <Card>
-                <CardBody className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  加载中...
+                <CardBody className="py-6">
+                  <div className="space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="flex items-center gap-4">
+                        <Skeleton className="h-6 w-14" />
+                        <Skeleton className="h-4 flex-1" />
+                        <Skeleton className="h-4 w-12" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                    ))}
+                  </div>
                 </CardBody>
               </Card>
             ) : requests.length === 0 ? (
@@ -1195,6 +1096,44 @@ export default function ProjectPage() {
           </svg>
         }
         onClose={() => setShowEmptyProjectGuide(false)}
+      />
+
+      {/* Delete Project Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        title="删除项目"
+        message="确定要删除此项目吗？此操作不可恢复。"
+        confirmText="删除"
+        variant="danger"
+        onConfirm={async () => {
+          setShowDeleteDialog(false);
+          try {
+            await projectsApi.delete(projectId);
+            success('项目已删除');
+            router.push('/projects');
+          } catch (err) {
+            if (err instanceof ApiError) {
+              toastError(err.message);
+            } else {
+              toastError('删除失败');
+            }
+          }
+        }}
+        onCancel={() => setShowDeleteDialog(false)}
+      />
+
+      {/* Clear Requests Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showClearRequestsDialog}
+        title="清空请求记录"
+        message="确定要清空请求记录吗？"
+        confirmText="清空"
+        variant="danger"
+        onConfirm={() => {
+          setShowClearRequestsDialog(false);
+          handleClearRequests();
+        }}
+        onCancel={() => setShowClearRequestsDialog(false)}
       />
     </div>
   );

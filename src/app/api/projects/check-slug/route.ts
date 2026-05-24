@@ -45,11 +45,11 @@ export async function GET(request: NextRequest) {
       slug: validated.slug,
       available: isAvailable,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Check slug API error:', err);
-    if (err.name === 'ZodError') {
-      return Errors.validation(err.issues);
+    if (err instanceof Error && err.name === 'ZodError') {
+      return Errors.validation((err as any).issues);
     }
-    return Errors.internal(err.message || String(err));
+    return Errors.internal(err instanceof Error ? err.message : String(err));
   }
 }

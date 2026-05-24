@@ -66,10 +66,10 @@ export async function POST(request: NextRequest) {
       ...newProject,
       isActive: Boolean(newProject.isActive),
     }, 201);
-  } catch (err: any) {
-    if (err.name === 'ValidationError') {
-      return Errors.validation(err.issues);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'ValidationError') {
+      return Errors.validation((err as any).issues);
     }
-    return Errors.internal(err.message || String(err));
+    return Errors.internal(err instanceof Error ? err.message : String(err));
   }
 }

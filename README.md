@@ -18,12 +18,13 @@ AI 智能 Mock 平台 - 通过自然语言生成真实语义的 Mock 数据，�
 |------|------|
 | [Next.js 16](https://nextjs.org/) | React 全栈框架 (App Router) |
 | [Drizzle ORM](https://orm.drizzle.team/) | 类型安全的数据库 ORM |
-| [LibSQL](https://libsql.org/) | SQLite 兼容数据库 |
+| [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) | SQLite 驱动（默认） |
+| [mysql2](https://github.com/sidorares/node-mysql2) | MySQL 驱动（可选） |
+| [Zod](https://zod.dev/) | API 参数校验 |
 | [Vitest](https://vitest.dev/) | 单元测试框架 |
 | [Playwright](https://playwright.dev/) | E2E 测试框架 |
-| [Hono](https://hono.dev/) | 路由参数验证 |
 | [CodeMirror](https://codemirror.net/) | JSON 编辑器 |
-| [Tailwind CSS](https://tailwindcss.com/) | UI 样式 |
+| [Tailwind CSS v4](https://tailwindcss.com/) | UI 样式 |
 
 ## 快速开始
 
@@ -71,12 +72,23 @@ src/
 │   ├── settings/                     # AI 供应商管理组件
 │   └── ui/                           # 通用 UI 组件
 └── lib/
-    ├── db.ts                         # 数据库配置
-    ├── schema.ts                     # Drizzle Schema
-    ├── encryption.ts                 # API Key 加密
+    ├── db.ts                         # 数据库驱动选择（sqlite/mysql）
+    ├── db-sqlite.ts                  # SQLite 驱动配置
+    ├── db-mysql.ts                   # MySQL 驱动配置
+    ├── schema.ts                     # Schema 导出
+    ├── schema-sqlite.ts              # SQLite Drizzle Schema
+    ├── schema-mysql.ts               # MySQL Drizzle Schema
+    ├── encryption.ts                 # API Key 加密（AES-256-GCM + 随机 salt）
+    ├── ssrf.ts                       # SSRF 防护（URL 安全校验）
+    ├── constants.ts                  # HTTP 方法、状态码常量
+    ├── hooks.ts                      # React hooks (useDebounce)
+    ├── api.ts                        # API 响应工具函数
+    ├── api-client.ts                 # 前端 API 客户端
+    ├── ai-presets.ts                 # AI 预设模型配置
     ├── openapi-parser.ts             # OpenAPI 解析器
     ├── error-scenarios.ts            # 错误场景定义
-    └── mock-templates.ts             # Mock 模板
+    ├── mock-templates.ts             # Mock 模板
+    └── utils.ts                      # 通用工具函数
 ```
 
 ## 测试
@@ -87,7 +99,7 @@ src/
 # 单元测试 (Vitest) - 197 个用例
 pnpm test
 
-# E2E 测试 (Playwright) - 54+ 个用例
+# E2E 测试 (Playwright) - 65+ 个用例
 pnpm exec playwright test
 ```
 
@@ -117,8 +129,13 @@ curl -X POST http://localhost:3000/demo-project/users
 
 参考 `.env.example` 文件配置：
 
-- `DATABASE_URL` — LibSQL 数据库连接地址
-- `ENCRYPTION_KEY` — API Key 加密密钥（32 字符）
+**数据库配置：**
+- `DB_TYPE` — 数据库类型：`sqlite`（默认）或 `mysql`
+- `SQLITE_PATH` — SQLite 数据库路径（默认 `./data/apimock.db`）
+- `MYSQL_HOST` / `MYSQL_PORT` / `MYSQL_USER` / `MYSQL_PASSWORD` / `MYSQL_DATABASE` — MySQL 连接参数
+
+**安全配置（必填）：**
+- `ENCRYPTION_KEY` — API Key 加密密钥，**启动时必须设置**，缺失会报错
 
 ## License
 

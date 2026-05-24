@@ -103,7 +103,7 @@ export async function GET(
     .offset(offset);
 
   // 获取端点信息（批量查询）
-  const uniqueEndpointIds = Array.from(new Set(requestList.map(r => r.endpointId)));
+  const uniqueEndpointIds = Array.from(new Set(requestList.map(r => r.endpointId).filter((id): id is string => id !== null)));
   const endpointMap = new Map<string, { path: string; method: string; name?: string }>();
 
   if (uniqueEndpointIds.length > 0) {
@@ -152,7 +152,7 @@ export async function GET(
       query: parsedQuery,
       headers: parsedHeaders,
       body: parsedBody,
-      endpoint: endpointMap.get(req.endpointId) || null,
+      endpoint: req.endpointId ? (endpointMap.get(req.endpointId) || null) : null,
     };
   });
 
