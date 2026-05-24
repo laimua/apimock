@@ -1,97 +1,17 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { useEffect } from 'react';
+import Link from 'next/link';
+import { Bot, Zap, Wrench } from 'lucide-react';
 
 export default function HomePage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-
-  // 设置页面标题
   useEffect(() => {
     document.title = 'ApiMock - AI 智能 Mock 平台';
   }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
-      {/* Header */}
-      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">M</span>
-              </div>
-              <span className="font-bold text-xl text-gray-900 dark:text-white">ApiMock</span>
-            </div>
-
-            {/* Desktop Navigation */}
-            <div className="hidden sm:flex items-center gap-4">
-              <Link
-                href="/projects"
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 font-medium"
-              >
-                项目列表
-              </Link>
-              <Link
-                href="/settings/ai"
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 font-medium"
-              >
-                AI 配置
-              </Link>
-              <Link
-                href="/projects/new"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
-              >
-                快速开始
-              </Link>
-            </div>
-
-            {/* Mobile menu button */}
-            <button
-              type="button"
-              className="sm:hidden p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                {mobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                )}
-              </svg>
-            </button>
-          </div>
-
-          {/* Mobile menu */}
-          {mobileMenuOpen && (
-            <div className="sm:hidden pb-4 flex flex-col gap-3">
-              <Link
-                href="/projects"
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 font-medium"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                项目列表
-              </Link>
-              <Link
-                href="/settings/ai"
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 font-medium"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                AI 配置
-              </Link>
-              <Link
-                href="/projects/new"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm text-center"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                快速开始
-              </Link>
-            </div>
-          )}
-        </div>
-      </header>
-
       {/* Hero Section */}
       <main>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24">
@@ -104,14 +24,21 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4">
               <Link
-                href="/projects/new"
+                href="/projects"
                 className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-base sm:text-lg min-h-12 flex items-center justify-center"
               >
-                立即开始
+                我的项目
+              </Link>
+              <Link
+                href="/projects/new"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 font-medium text-base sm:text-lg min-h-12 flex items-center justify-center"
+              >
+                快速开始
               </Link>
               <a
                 href="https://github.com/laimua/apimock"
                 target="_blank"
+                rel="noopener noreferrer"
                 className="w-full sm:w-auto px-6 sm:px-8 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 font-medium text-base sm:text-lg min-h-12 flex items-center justify-center"
               >
                 GitHub
@@ -119,23 +46,26 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Features */}
-          <div className="mt-12 sm:mt-16 lg:mt-24 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 px-4">
+          {/* Features — asymmetric layout */}
+          <div className="mt-12 sm:mt-16 lg:mt-24 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 px-4">
             <FeatureCard
-              icon="🤖"
+              icon={<Bot className="w-8 h-8 text-blue-600" />}
               title="AI 生成"
-              description="输入自然语言描述，AI 自动生成符合语义的 Mock 数据"
+              description="输入自然语言描述，AI 自动生成符合语义的 Mock 数据，包括路径、参数、响应体等。"
+              featured
             />
-            <FeatureCard
-              icon="⚡"
-              title="即时分享"
-              description="创建的 Mock API 可立即分享给团队，无需登录"
-            />
-            <FeatureCard
-              icon="🛠️"
-              title="开发者友好"
-              description="支持 OpenAPI 导入、动态规则、延迟模拟等高级功能"
-            />
+            <div className="grid grid-cols-1 gap-4 sm:gap-6">
+              <FeatureCard
+                icon={<Zap className="w-8 h-8 text-amber-500" />}
+                title="即时分享"
+                description="创建的 Mock API 可立即分享给团队，无需登录。"
+              />
+              <FeatureCard
+                icon={<Wrench className="w-8 h-8 text-emerald-600" />}
+                title="开发者友好"
+                description="支持 OpenAPI 导入、动态规则、延迟模拟等高级功能。"
+              />
+            </div>
           </div>
 
           {/* Demo */}
@@ -180,11 +110,11 @@ $ curl https://mock.apimock.io/demo-project/users
   );
 }
 
-function FeatureCard({ icon, title, description }: { icon: string; title: string; description: string }) {
+function FeatureCard({ icon, title, description, featured }: { icon: React.ReactNode; title: string; description: string; featured?: boolean }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
-      <div className="text-4xl mb-4">{icon}</div>
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{title}</h3>
+    <div className={`bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow ${featured ? 'flex flex-col justify-center md:p-8' : ''}`}>
+      <div className="mb-4">{icon}</div>
+      <h3 className={`text-lg font-semibold text-gray-900 dark:text-white mb-2 ${featured ? 'md:text-xl' : ''}`}>{title}</h3>
       <p className="text-gray-600 dark:text-gray-400">{description}</p>
     </div>
   );

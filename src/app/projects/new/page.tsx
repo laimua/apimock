@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { projectsApi, ApiError } from '@/lib/api-client';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { useToast } from '@/components/ui/Toast';
 import { OnboardingModal } from '@/components/ui/OnboardingModal';
 
@@ -231,21 +232,16 @@ export default function NewProjectPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center">
-            <Link href="/projects" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200">
-              ← 项目列表
-            </Link>
-          </div>
-        </div>
-      </header>
-
       {/* Main */}
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <Breadcrumb items={[
+          { label: '首页', href: '/' },
+          { label: '项目列表', href: '/projects' },
+          { label: '新建项目' },
+        ]} />
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">新建项目</h1>
 
+        <div className="max-w-2xl">
         <Card>
           <form onSubmit={handleSubmit}>
             <CardBody className="space-y-6">
@@ -406,6 +402,7 @@ export default function NewProjectPage() {
             </div>
           </form>
         </Card>
+        </div>
       </main>
 
       {/* 项目创建成功引导弹窗 */}

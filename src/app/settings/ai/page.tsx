@@ -8,7 +8,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { ArrowLeft, Plus, Sparkles } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import ProviderList from '@/components/settings/ProviderList';
 import { PresetProvider } from '@/lib/ai-presets';
 import PresetProviders from '@/components/settings/PresetProviders';
@@ -125,29 +127,8 @@ export default function AiSettingsPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            href="/"
-            className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            返回首页
-          </Link>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                AI 模型配置
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                管理用于生成 Mock 数据的 AI 模型
-              </p>
-            </div>
-          </div>
-        </div>
+        {/* Breadcrumb */}
+        <Breadcrumb items={[{ label: '首页', href: '/' }, { label: 'AI 模型配置' }]} />
 
         {/* Current Default Provider */}
         {defaultProvider && (
@@ -208,8 +189,10 @@ export default function AiSettingsPage() {
               </Button>
             </div>
             {loading ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                加载中...
+              <div className="space-y-4">
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <Skeleton className="h-16 w-3/4 rounded-lg" />
               </div>
             ) : providers.length === 0 ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">

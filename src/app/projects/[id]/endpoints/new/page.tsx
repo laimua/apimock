@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { JsonEditor } from '@/components/JsonEditor';
-
-const METHODS: Endpoint['method'][] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { METHODS, STATUS_CODES, COMMON_STATUS_CODES } from '@/lib/constants';
 
 // 常用路径模板
 const PATH_TEMPLATES = [
@@ -22,85 +22,6 @@ const PATH_TEMPLATES = [
   '/api/auth/register',
   '/api/products',
   '/api/orders',
-];
-
-// 常用 HTTP 状态码（快速选择）
-const COMMON_STATUS_CODES = [
-  { value: 200, label: '200', description: 'OK' },
-  { value: 201, label: '201', description: 'Created' },
-  { value: 204, label: '204', description: 'No Content' },
-  { value: 400, label: '400', description: 'Bad Request' },
-  { value: 401, label: '401', description: 'Unauthorized' },
-  { value: 403, label: '403', description: 'Forbidden' },
-  { value: 404, label: '404', description: 'Not Found' },
-  { value: 500, label: '500', description: 'Server Error' },
-];
-
-// 所有 HTTP 状态码（下拉框）
-const STATUS_CODES = [
-  { value: 100, label: '100 Continue' },
-  { value: 101, label: '101 Switching Protocols' },
-  { value: 102, label: '102 Processing' },
-  { value: 200, label: '200 OK' },
-  { value: 201, label: '201 Created' },
-  { value: 202, label: '202 Accepted' },
-  { value: 203, label: '203 Non-Authoritative Information' },
-  { value: 204, label: '204 No Content' },
-  { value: 205, label: '205 Reset Content' },
-  { value: 206, label: '206 Partial Content' },
-  { value: 207, label: '207 Multi-Status' },
-  { value: 208, label: '208 Already Reported' },
-  { value: 226, label: '226 IM Used' },
-  { value: 300, label: '300 Multiple Choices' },
-  { value: 301, label: '301 Moved Permanently' },
-  { value: 302, label: '302 Found' },
-  { value: 303, label: '303 See Other' },
-  { value: 304, label: '304 Not Modified' },
-  { value: 305, label: '305 Use Proxy' },
-  { value: 306, label: '306 (Unused)' },
-  { value: 307, label: '307 Temporary Redirect' },
-  { value: 308, label: '308 Permanent Redirect' },
-  { value: 400, label: '400 Bad Request' },
-  { value: 401, label: '401 Unauthorized' },
-  { value: 402, label: '402 Payment Required' },
-  { value: 403, label: '403 Forbidden' },
-  { value: 404, label: '404 Not Found' },
-  { value: 405, label: '405 Method Not Allowed' },
-  { value: 406, label: '406 Not Acceptable' },
-  { value: 407, label: '407 Proxy Authentication Required' },
-  { value: 408, label: '408 Request Timeout' },
-  { value: 409, label: '409 Conflict' },
-  { value: 410, label: '410 Gone' },
-  { value: 411, label: '411 Length Required' },
-  { value: 412, label: '412 Precondition Failed' },
-  { value: 413, label: '413 Payload Too Large' },
-  { value: 414, label: '414 URI Too Long' },
-  { value: 415, label: '415 Unsupported Media Type' },
-  { value: 416, label: '416 Range Not Satisfiable' },
-  { value: 417, label: '417 Expectation Failed' },
-  { value: 418, label: "418 I'm a teapot" },
-  { value: 421, label: '421 Misdirected Request' },
-  { value: 422, label: '422 Unprocessable Entity' },
-  { value: 423, label: '423 Locked' },
-  { value: 424, label: '424 Failed Dependency' },
-  { value: 425, label: '425 Too Early' },
-  { value: 426, label: '426 Upgrade Required' },
-  { value: 428, label: '428 Precondition Required' },
-  { value: 429, label: '429 Too Many Requests' },
-  { value: 431, label: '431 Request Header Fields Too Large' },
-  { value: 451, label: '451 Unavailable For Legal Reasons' },
-  { value: 500, label: '500 Internal Server Error' },
-  { value: 501, label: '501 Not Implemented' },
-  { value: 502, label: '502 Bad Gateway' },
-  { value: 503, label: '503 Service Unavailable' },
-  { value: 504, label: '504 Gateway Timeout' },
-  { value: 505, label: '505 HTTP Version Not Supported' },
-  { value: 506, label: '506 Variant Also Negotiates' },
-  { value: 507, label: '507 Insufficient Storage' },
-  { value: 508, label: '508 Loop Detected' },
-  { value: 509, label: '509 Bandwidth Limit Exceeded' },
-  { value: 510, label: '510 Not Extended' },
-  { value: 511, label: '511 Network Authentication Required' },
 ];
 
 // 常用 Content-Type
@@ -367,24 +288,18 @@ export default function NewEndpointPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center">
-            <Link href={`/projects/${projectId}`} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-sm flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              返回项目
-            </Link>
-          </div>
-        </div>
-      </header>
-
       {/* Main */}
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <Breadcrumb items={[
+          { label: '首页', href: '/' },
+          { label: '项目列表', href: '/projects' },
+          { label: project?.name || '项目', href: `/projects/${projectId}` },
+          { label: '添加端点' },
+        ]} />
+
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">添加端点</h1>
 
+        <div className="max-w-2xl">
         <Card>
           <form id="endpoint-form" onSubmit={handleSubmit}>
             <CardBody className="space-y-4 sm:space-y-6">
@@ -393,14 +308,14 @@ export default function NewEndpointPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   请求方法
                 </label>
-                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 sm:gap-2">
+                <div className="flex flex-wrap gap-2">
                   {METHODS.map((method) => (
                     <button
                       key={method}
                       type="button"
                       onClick={() => setForm((prev) => ({ ...prev, method }))}
                       disabled={loading}
-                      className={`p-1.5 sm:p-2 rounded-lg border-2 transition-colors disabled:opacity-50 text-xs sm:text-sm ${
+                      className={`px-3 py-1.5 rounded-lg border-2 transition-colors disabled:opacity-50 ${
                         form.method === method
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
                           : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
@@ -684,6 +599,7 @@ export default function NewEndpointPage() {
             </div>
           </CardBody>
         </Card>
+        </div>
 
         {/* 操作按钮 */}
         <div className="flex flex-col sm:flex-row justify-end gap-3">

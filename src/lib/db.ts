@@ -1,24 +1,25 @@
 /**
- * 数据库配置
- * 使用 Drizzle ORM + SQLite
+ * 数据库配置 - 根据 DB_TYPE 选择驱动
  */
 
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import Database from 'better-sqlite3';
-import * as schema from '@/lib/schema';
-import * as fs from 'fs';
-import * as path from 'path';
+import { db as sqliteDb, getDb as sqliteGetDb } from './db-sqlite';
 
-const dbPath = process.env.SQLITE_PATH || './data/apimock.db';
+let _db: typeof sqliteDb;
+let _getDb: typeof sqliteGetDb;
 
-// 确保数据库目录存在
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+const dbType = (process.env.DB_TYPE || 'sqlite').toLowerCase();
+
+if (dbType === 'mysql') {
+  // Dynamic import must be async but module-level await is valid in ESM
+  // Using require as synchronous fallback for CommonJS compatibility
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const mod = require('./db-mysql');
+  _db = mod.db;
+  _getDb = mod.getDb;
+} else {
+  _db = sqliteDb;
+  _getDb = sqliteGetDb;
 }
 
-export const db = drizzle(new Database(dbPath), { schema, logger: true });
-
-export function getDb() {
-  return db;
-}
+export const db = _db;
+export function getDb() { return _getDb(); }

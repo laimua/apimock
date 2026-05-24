@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { projects, endpoints, responses, requests } from '@/lib/schema';
+import type { Endpoint, Response } from '@/lib/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
@@ -33,7 +34,7 @@ function sanitizeHeaders(headers: Headers): Record<string, string> {
 // 异步记录请求
 // ============================================
 async function recordRequest(
-  endpointId: string,
+  endpointId: string | null,
   method: string,
   path: string,
   query: Record<string, string>,
@@ -66,26 +67,155 @@ async function recordRequest(
 }
 
 // ============================================
+// 解析响应体
+// ============================================
+function parseJsonSafe(raw: string | null | undefined): unknown {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
+// ============================================
+// matchRules 匹配评估
+// ============================================
+type MatchRules = { query?: Record<string, string>; header?: Record<string, string> };
+
+function parseMatchRules(raw: string | null | undefined): MatchRules {
+  if (!raw || raw === '{}' || raw === '') return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'object' && parsed !== null) return parsed;
+  } catch { /* ignore */ }
+  return {};
+}
+
+function hasRules(rules: MatchRules): boolean {
+  const qLen = Object.keys(rules.query || {}).length;
+  const hLen = Object.keys(rules.header || {}).length;
+  return qLen + hLen > 0;
+}
+
+function matchRule(
+  rules: MatchRules,
+  requestQuery: Record<string, string>,
+  requestHeaders: Record<string, string>
+): boolean {
+  if (rules.query) {
+    for (const [key, value] of Object.entries(rules.query)) {
+      if (requestQuery[key] !== value) return false;
+    }
+  }
+  if (rules.header) {
+    const lowerHeaders: Record<string, string> = {};
+    for (const [k, v] of Object.entries(requestHeaders)) {
+      lowerHeaders[k.toLowerCase()] = v;
+    }
+    for (const [key, value] of Object.entries(rules.header)) {
+      if (lowerHeaders[key.toLowerCase()] !== value) return false;
+    }
+  }
+  return true;
+}
+
+type ResponseSource = { statusCode: number | null; contentType: string | null; headers: string | null; body: string | null } | null;
+
+function toResponseObj(endpoint: Endpoint, resp: ResponseSource): { endpoint: Endpoint; response: { statusCode: number; contentType: string; headers: Record<string, string>; body: unknown }; delay: number } {
+  let parsedHeaders: Record<string, string> = {};
+  if (resp?.headers) {
+    try {
+      parsedHeaders = typeof resp.headers === 'string'
+        ? JSON.parse(resp.headers)
+        : resp.headers;
+    } catch {
+      parsedHeaders = {};
+    }
+  }
+  return {
+    endpoint,
+    response: {
+      statusCode: resp?.statusCode || 200,
+      contentType: resp?.contentType || 'application/json',
+      headers: parsedHeaders,
+      body: parseJsonSafe(resp?.body),
+    },
+    delay: endpoint.delayMs || 0,
+  };
+}
+
+// ============================================
+// 构建 endpoint 的 mock 响应
+// ============================================
+async function buildEndpointResponse(
+  endpoint: Endpoint,
+  requestQuery: Record<string, string>,
+  requestHeaders: Record<string, string>
+): Promise<{ endpoint: Endpoint; response: { statusCode: number; contentType: string; headers: Record<string, string>; body: unknown }; delay: number }> {
+  // 优先使用端点级别的响应配置
+  if (endpoint.responseBody !== null && endpoint.responseBody !== undefined) {
+    return toResponseObj(endpoint, {
+      statusCode: endpoint.statusCode,
+      contentType: endpoint.contentType,
+      headers: '{}',
+      body: endpoint.responseBody,
+    });
+  }
+
+  // 查找 responses 表
+  const responseList = await db
+    .select()
+    .from(responses)
+    .where(eq(responses.endpointId, endpoint.id))
+    .orderBy(desc(responses.priority));
+
+  if (responseList.length === 0) {
+    return toResponseObj(endpoint, null);
+  }
+
+  // 分组：规则匹配 > 默认 > 无规则
+  let matched: Response | null = null;
+  let fallback: Response | null = null;
+
+  for (const resp of responseList) {
+    const rules = parseMatchRules(resp.matchRules);
+
+    if (hasRules(rules)) {
+      if (!matched && matchRule(rules, requestQuery, requestHeaders)) {
+        matched = resp;
+      }
+    } else if (resp.isDefault) {
+      if (!fallback) fallback = resp;
+    } else if (!fallback) {
+      fallback = resp;
+    }
+  }
+
+  return toResponseObj(endpoint, matched || fallback);
+}
+
+// ============================================
 // Mock 路由匹配
 // ============================================
 async function findEndpoint(
   projectSlug: string,
   method: string,
-  requestPath: string
-): Promise<{ endpoint: any; response: any; delay: number } | null> {
-  // 根据 slug 查找项目
+  requestPath: string,
+  requestQuery: Record<string, string>,
+  requestHeaders: Record<string, string>
+): Promise<{ endpoint: Endpoint; response: { statusCode: number; contentType: string; headers: Record<string, string>; body: unknown }; delay: number } | null> {
   const projectList = await db
     .select()
     .from(projects)
     .where(eq(projects.slug, projectSlug));
 
-  if (projectList.length === 0) {
-    return null;
-  }
+  if (projectList.length === 0) return null;
 
   const project = projectList[0];
+  if (!project.isActive) return null;
 
-  // 查找精确匹配的端点
+  // 精确匹配
   const exactMatchList = await db
     .select()
     .from(endpoints)
@@ -99,88 +229,11 @@ async function findEndpoint(
 
   if (exactMatchList.length > 0) {
     const endpoint = exactMatchList[0];
-    if (!endpoint.isActive) {
-      return null;
-    }
-
-    // 优先使用端点级别的响应配置
-    if (endpoint.responseBody !== null && endpoint.responseBody !== undefined) {
-      let parsedBody: unknown = null;
-      try {
-        parsedBody = JSON.parse(endpoint.responseBody);
-      } catch {
-        parsedBody = endpoint.responseBody;
-      }
-
-      return {
-        endpoint,
-        response: {
-          statusCode: endpoint.statusCode || 200,
-          contentType: endpoint.contentType || 'application/json',
-          headers: {},
-          body: parsedBody,
-        },
-        delay: endpoint.delayMs || 0,
-      };
-    }
-
-    // 如果端点没有配置响应，则查找 responses 表
-    const responseList = await db
-      .select()
-      .from(responses)
-      .where(eq(responses.endpointId, endpoint.id))
-      .orderBy(desc(responses.isDefault), desc(responses.priority));
-
-    if (responseList.length > 0) {
-      const resp = responseList[0];
-      // 解析 headers
-      let parsedHeaders: Record<string, string> = {};
-      if (resp.headers) {
-        try {
-          parsedHeaders = typeof resp.headers === 'string'
-            ? JSON.parse(resp.headers)
-            : resp.headers;
-        } catch {
-          parsedHeaders = {};
-        }
-      }
-
-      // 解析 body
-      let parsedBody: unknown = null;
-      if (resp.body) {
-        try {
-          parsedBody = JSON.parse(resp.body);
-        } catch {
-          parsedBody = resp.body;
-        }
-      }
-
-      return {
-        endpoint,
-        response: {
-          statusCode: resp.statusCode || 200,
-          contentType: resp.contentType || 'application/json',
-          headers: parsedHeaders,
-          body: parsedBody,
-        },
-        delay: endpoint.delayMs || 0,
-      };
-    }
-
-    // 默认响应
-    return {
-      endpoint,
-      response: {
-        statusCode: 200,
-        contentType: 'application/json',
-        headers: {},
-        body: null,
-      },
-      delay: endpoint.delayMs || 0,
-    };
+    if (!endpoint.isActive) return null;
+    return buildEndpointResponse(endpoint, requestQuery, requestHeaders);
   }
 
-  // 模糊匹配（处理路径参数）
+  // 模糊匹配（路径参数）
   const allEndpointsList = await db
     .select()
     .from(endpoints)
@@ -190,96 +243,15 @@ async function findEndpoint(
 
   for (const endpoint of allEndpointsList) {
     if (!endpoint.isActive) continue;
-
     const routeParts = endpoint.path.split('/');
-
     if (routeParts.length !== requestParts.length) continue;
 
-    let match = true;
-    for (let i = 0; i < routeParts.length; i++) {
-      if (routeParts[i].startsWith(':')) continue; // 参数匹配
-      if (routeParts[i] !== requestParts[i]) {
-        match = false;
-        break;
-      }
-    }
+    const isMatch = routeParts.every(
+      (part, i) => part.startsWith(':') || part === requestParts[i]
+    );
 
-    if (match) {
-      // 优先使用端点级别的响应配置
-      if (endpoint.responseBody !== null && endpoint.responseBody !== undefined) {
-        let parsedBody: unknown = null;
-        try {
-          parsedBody = JSON.parse(endpoint.responseBody);
-        } catch {
-          parsedBody = endpoint.responseBody;
-        }
-
-        return {
-          endpoint,
-          response: {
-            statusCode: endpoint.statusCode || 200,
-            contentType: endpoint.contentType || 'application/json',
-            headers: {},
-            body: parsedBody,
-          },
-          delay: endpoint.delayMs || 0,
-        };
-      }
-
-      // 如果端点没有配置响应，则查找 responses 表
-      const responseList = await db
-        .select()
-        .from(responses)
-        .where(eq(responses.endpointId, endpoint.id))
-        .orderBy(desc(responses.isDefault), desc(responses.priority));
-
-      if (responseList.length > 0) {
-        const resp = responseList[0];
-        // 解析 headers
-        let parsedHeaders: Record<string, string> = {};
-        if (resp.headers) {
-          try {
-            parsedHeaders = typeof resp.headers === 'string'
-              ? JSON.parse(resp.headers)
-              : resp.headers;
-          } catch {
-            parsedHeaders = {};
-          }
-        }
-
-        // 解析 body
-        let parsedBody: unknown = null;
-        if (resp.body) {
-          try {
-            parsedBody = JSON.parse(resp.body);
-          } catch {
-            parsedBody = resp.body;
-          }
-        }
-
-        return {
-          endpoint,
-          response: {
-            statusCode: resp.statusCode || 200,
-            contentType: resp.contentType || 'application/json',
-            headers: parsedHeaders,
-            body: parsedBody,
-          },
-          delay: endpoint.delayMs || 0,
-        };
-      }
-
-      // 默认响应
-      return {
-        endpoint,
-        response: {
-          statusCode: 200,
-          contentType: 'application/json',
-          headers: {},
-          body: null,
-        },
-        delay: endpoint.delayMs || 0,
-      };
+    if (isMatch) {
+      return buildEndpointResponse(endpoint, requestQuery, requestHeaders);
     }
   }
 
@@ -329,13 +301,19 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
     }
   }
 
+  // 构建请求 headers map（小写 key）
+  const requestHeaders: Record<string, string> = {};
+  request.headers.forEach((value, key) => {
+    requestHeaders[key] = value;
+  });
+
   // 查找匹配的 Mock
-  const mock = await findEndpoint(projectSlug, method, requestPath);
+  const mock = await findEndpoint(projectSlug, method, requestPath, query, requestHeaders);
 
   if (!mock) {
     // 记录未找到的请求
     void recordRequest(
-      '',
+      null,
       method,
       requestPath,
       query,
@@ -375,9 +353,13 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
     'X-Mock-Endpoint': mock.endpoint.path,
   };
 
-  // 合并自定义响应头
+  // 合并自定义响应头（过滤 CORS 头，防止覆盖安全策略）
   if (mock.response.headers) {
-    Object.assign(headers, mock.response.headers);
+    for (const [key, value] of Object.entries(mock.response.headers)) {
+      if (!key.toLowerCase().startsWith('access-control-')) {
+        headers[key] = value;
+      }
+    }
   }
 
   // 处理 content-type
