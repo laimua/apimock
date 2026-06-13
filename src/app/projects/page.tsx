@@ -8,7 +8,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useDebounce } from '@/lib/hooks';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { Search, X, FolderOpen, Edit2, Trash2, Loader2 } from 'lucide-react';
+import { Search, X, FolderOpen, Edit2, Trash2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -21,6 +21,8 @@ export default function ProjectsPage() {
   }>({ isOpen: false, project: null });
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
 
   useEffect(() => {
     loadProjects();
@@ -61,6 +63,9 @@ export default function ProjectsPage() {
       project.slug.toLowerCase().includes(query)
     );
   });
+
+  const totalPages = Math.ceil(filteredProjects.length / pageSize);
+  const pagedProjects = filteredProjects.slice((page - 1) * pageSize, page * pageSize);
 
   if (loading) {
     return (
@@ -114,7 +119,7 @@ export default function ProjectsPage() {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
               placeholder="搜索项目名称或标识符..."
               className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
             />
@@ -178,7 +183,7 @@ export default function ProjectsPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {filteredProjects.map((project) => (
+            {pagedProjects.map((project) => (
               <div key={project.id} className="relative group">
                 <Link href={`/projects/${project.id}`}>
                   <Card className="hover:shadow-md transition-shadow h-full">
@@ -229,6 +234,33 @@ export default function ProjectsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* 分页 */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              共 {filteredProjects.length} 个项目，第 {page}/{totalPages} 页
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page <= 1}
+                className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                上一页
+              </button>
+              <button
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
+                disabled={page >= totalPages}
+                className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                下一页
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </main>

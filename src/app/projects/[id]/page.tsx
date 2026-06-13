@@ -857,7 +857,7 @@ export default function ProjectPage() {
             </CardBody>
           </Card>
         ) : (
-          <div className="space-y-2">
+          <div className="flex flex-col gap-3">
             {endpoints.map((endpoint) => (
               <Link key={endpoint.id} href={`/projects/${projectId}/endpoints/${endpoint.id}`}>
                 <Card className="hover:shadow-md transition-shadow">
