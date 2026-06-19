@@ -3,19 +3,26 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Plus } from 'lucide-react';
+import { Menu, X, Plus, Github } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
+import { trackEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 
 const navLinks = [
   { href: '/projects', label: 'Projects' },
   { href: '/settings/ai', label: 'AI Settings' },
 ];
 
+const GITHUB_REPO_URL = 'https://github.com/laimua/apimock';
+
 export default function GlobalHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
   const isActive = (href: string) => pathname.startsWith(href);
+
+  const handleGithubClick = () => {
+    trackEvent(ANALYTICS_EVENTS.GITHUB_STAR_CLICK, { source: 'header' });
+  };
 
   return (
     <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-50">
@@ -42,6 +49,16 @@ export default function GlobalHeader() {
                 {link.label}
               </Link>
             ))}
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleGithubClick}
+              aria-label="GitHub repository"
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+            >
+              <Github className="w-5 h-5" />
+            </a>
             <ThemeToggle />
             <Link
               href="/projects/new"
@@ -53,6 +70,16 @@ export default function GlobalHeader() {
           </nav>
 
           <div className="flex items-center gap-2 sm:hidden">
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleGithubClick}
+              aria-label="GitHub repository"
+              className="p-2 text-gray-600 dark:text-gray-400"
+            >
+              <Github className="w-5 h-5" />
+            </a>
             <ThemeToggle />
             <button
               className="p-2 text-gray-600 dark:text-gray-400"

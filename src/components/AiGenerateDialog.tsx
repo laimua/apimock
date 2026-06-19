@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Cpu } from 'lucide-react';
+import { trackEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 
 interface AiGenerateDialogProps {
   isOpen: boolean;
@@ -106,6 +107,11 @@ export function AiGenerateDialog({
 
       const { data } = await res.json();
       onGenerated(data);
+      // 埋点：AI 生成成功（仅记 provider + count，不含 prompt 内容）
+      trackEvent(ANALYTICS_EVENTS.AI_GENERATE_CALLED, {
+        provider: selectedProviderId || 'default',
+        success: true,
+      });
       handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : '生成失败，请重试');
