@@ -1,25 +1,22 @@
 /**
  * 数据库配置 - 根据 DB_TYPE 选择驱动
+ *
+ * 静态导入两个驱动，按 DB_TYPE 在运行时选择。
+ * 两者均为 dependencies，加载即安全；避免 require() 在 ESM 生产 bundle 中未定义。
+ *
+ * 类型说明：mysql 是 async、sqlite 是 sync，但所有调用点都 `await`，
+ * 故将 mysql 强转为 sqlite 类型以保持调用方签名一致。运行时 await 对 sync 值也成立。
  */
 
 import { db as sqliteDb, getDb as sqliteGetDb } from './db-sqlite';
+import { db as mysqlDb, getDb as mysqlGetDb } from './db-mysql';
 
-let _db: typeof sqliteDb;
-let _getDb: typeof sqliteGetDb;
+type Db = typeof sqliteDb;
 
-const dbType = (process.env.DB_TYPE || 'sqlite').toLowerCase();
+const useMysql = (process.env.DB_TYPE || 'sqlite').toLowerCase() === 'mysql';
 
-if (dbType === 'mysql') {
-  // Dynamic import must be async but module-level await is valid in ESM
-  // Using require as synchronous fallback for CommonJS compatibility
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const mod = require('./db-mysql');
-  _db = mod.db;
-  _getDb = mod.getDb;
-} else {
-  _db = sqliteDb;
-  _getDb = sqliteGetDb;
+export const db: Db = useMysql ? (mysqlDb as unknown as Db) : sqliteDb;
+
+export function getDb(): Db {
+  return useMysql ? (mysqlGetDb() as unknown as Db) : sqliteGetDb();
 }
-
-export const db = _db;
-export function getDb() { return _getDb(); }
