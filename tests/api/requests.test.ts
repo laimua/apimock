@@ -137,7 +137,7 @@ describe('Requests API', () => {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      await mockDb.insert(endpoints).values(endpoint2);
+      await mockDb.insert(endpoints).values(endpoint2 as typeof endpoints.$inferInsert);
 
       const request2 = {
         id: 'req3',

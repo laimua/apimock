@@ -4,19 +4,22 @@
  */
 
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
-import * as schema from '@/lib/schema';
+import * as schema from '@/lib/schema-sqlite';
 import { randomUUID } from 'crypto';
+
+export type TestDb = BetterSQLite3Database<typeof schema>;
 
 /**
  * Get or create test database connection
  * Uses in-memory database with a unique name for each test file
  */
-export function getTestDb(dbName?: string) {
+export function getTestDb(dbName?: string): TestDb {
   const name = dbName || randomUUID();
   const sqlite = new Database(`:memory:`); // 使用内存数据库
 
-  return drizzle(sqlite, { schema });
+  return drizzle<typeof schema>(sqlite, { schema });
 }
 
 /**
@@ -83,6 +86,8 @@ export async function setupTestDb(dbName?: string) {
       created_at INTEGER NOT NULL
     )
   `);
+  await db.run(`CREATE INDEX requests_endpoint_idx ON requests(endpoint_id)`);
+  await db.run(`CREATE INDEX requests_created_idx ON requests(created_at)`);
 
   await db.run(`
     CREATE TABLE responses (
@@ -102,6 +107,7 @@ export async function setupTestDb(dbName?: string) {
       updated_at INTEGER NOT NULL
     )
   `);
+  await db.run(`CREATE INDEX responses_endpoint_idx ON responses(endpoint_id)`);
 
   await db.run(`
     CREATE TABLE ai_providers (
@@ -132,6 +138,3 @@ export async function clearTestDb(db: ReturnType<typeof getTestDb>) {
   await db.run('DELETE FROM endpoints');
   await db.run('DELETE FROM projects');
 }
-
-// Export types
-export type TestDb = ReturnType<typeof getTestDb>;

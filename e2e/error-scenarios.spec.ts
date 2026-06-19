@@ -55,7 +55,7 @@ test.describe('Error Scenarios', () => {
 
       // 验证状态码更新为 500
       const statusCodeSelect = page.locator('select[value="500"], option[value="500"]:checked');
-      await expect(statusCodeSelect).isVisible();
+      await expect(statusCodeSelect).toBeVisible();
 
       // 验证响应体包含错误信息
       const responseBodyEditor = page.locator('textarea').filter({ hasText: 'INTERNAL_SERVER_ERROR' }).or(
@@ -178,14 +178,10 @@ test.describe('Error Scenarios', () => {
       await timeoutButton.click();
 
       // 验证延迟设置
-      const delayInput = page.locator('input[type="number"][value*="5000"], input[placeholder*="延迟"]').or(
-        page.locator('input').filter({ hasAttribute: 'type', value: 'number' })
-      );
+      const delayInput = page.locator('input[type="number"][value*="5000"], input[placeholder*="延迟"]');
 
       // 验证延迟值为 5000ms
-      const hasDelay5000 = await page.locator('input[type="number"]').filter({
-        hasValue: '5000',
-      }).count() > 0;
+      const hasDelay5000 = await page.locator('input[type="number"][value="5000"]').count() > 0;
       expect(hasDelay5000).toBeTruthy();
 
       // 验证响应体包含超时错误

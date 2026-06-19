@@ -284,7 +284,7 @@ describe('Endpoints API', () => {
         updatedAt: Date.now(),
       };
 
-      await mockDb.insert(endpoints).values(endpoint);
+      await mockDb.insert(endpoints).values(endpoint as typeof endpoints.$inferInsert);
 
       const request = new Request(`http://localhost/api/projects/${testProject.id}/endpoints/${endpoint.id}`);
       const response = await GET_ONE(request as any, {
@@ -327,7 +327,7 @@ describe('Endpoints API', () => {
         updatedAt: Date.now(),
       };
 
-      await mockDb.insert(endpoints).values(endpoint);
+      await mockDb.insert(endpoints).values(endpoint as typeof endpoints.$inferInsert);
 
       const updateData = {
         name: 'Updated name',
@@ -367,7 +367,7 @@ describe('Endpoints API', () => {
         updatedAt: Date.now(),
       };
 
-      await mockDb.insert(endpoints).values(endpoint);
+      await mockDb.insert(endpoints).values(endpoint as typeof endpoints.$inferInsert);
 
       const updateData = { method: 'POST' };
 
@@ -416,7 +416,7 @@ describe('Endpoints API', () => {
         updatedAt: Date.now(),
       };
 
-      await mockDb.insert(endpoints).values(endpoint);
+      await mockDb.insert(endpoints).values(endpoint as typeof endpoints.$inferInsert);
 
       const request = new Request(`http://localhost/api/projects/${testProject.id}/endpoints/${endpoint.id}`, {
         method: 'DELETE',

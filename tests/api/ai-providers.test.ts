@@ -23,6 +23,7 @@ vi.mock('@/lib/db', () => ({
 // Mock OpenAI for testing
 vi.mock('openai', () => ({
   default: class {
+    public chat: unknown;
     constructor() {
       this.chat = {
         completions: {

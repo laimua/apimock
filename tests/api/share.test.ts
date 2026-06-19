@@ -74,7 +74,7 @@ describe('Share API', () => {
       },
     ];
 
-    await mockDb.insert(endpoints).values(endpointsData);
+    await mockDb.insert(endpoints).values(endpointsData as (typeof endpoints.$inferInsert)[]);
     testEndpoints = endpointsData;
   });
 
@@ -128,7 +128,7 @@ describe('Share API', () => {
         },
       ];
 
-      await mockDb.insert(endpoints).values(additionalEndpoints);
+      await mockDb.insert(endpoints).values(additionalEndpoints as (typeof endpoints.$inferInsert)[]);
 
       const request = new Request('http://localhost/api/share/test-project');
       const response = await GET(request as any, {
