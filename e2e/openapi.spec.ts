@@ -140,7 +140,7 @@ test.describe('OpenAPI Import', () => {
     const parseResult = await parseResponse.json();
     expect(parseResult.success).toBe(true);
     
-    const methods = new Set(parseResult.data.endpoints.map((e: any) => e.method));
+    const methods = new Set((parseResult.data.endpoints as Array<{ method: string }>).map((e) => e.method));
     expect(methods.size).toBeGreaterThan(1); // 应该有多种 HTTP 方法
   });
 });

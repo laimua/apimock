@@ -16,7 +16,7 @@ test.describe('AI Generation', () => {
     expect(result.data).toBeDefined();
 
     // 验证返回的数据结构
-    const data = result.data as any;
+    const data = result.data as { code: unknown; message: unknown; data: { list: Array<{ id: string; name: string }>; total: number } };
     expect(data.code).toBeDefined();
     expect(data.message).toBeDefined();
     expect(data.data).toBeDefined();

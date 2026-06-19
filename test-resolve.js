@@ -1,5 +1,5 @@
 // Test resolveRefs behavior
-const { resolveRefs } = require('./src/lib/openapi-parser.ts');
+import { resolveRefs } from './src/lib/openapi-parser.ts';
 
 const doc = {
   components: {
@@ -10,5 +10,5 @@ const doc = {
   data: [{ $ref: '#/components/schemas/Item' }],
 };
 
-const result = resolveRefs(doc);
+const result = resolveRefs(doc as never);
 console.log('Result:', JSON.stringify(result, null, 2));

@@ -9,6 +9,9 @@ export default function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
 
   useEffect(() => {
+    // SSR-safe hydration flag for next-themes — setState in effect 是该模式的
+    // 标准写法，用于避免 server/client 主题闪烁
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 

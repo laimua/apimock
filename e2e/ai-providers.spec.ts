@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('AI Providers API', () => {
-  let createdProviderId: string;
+  let createdProviderId: string | undefined;
 
   test.afterEach(async ({ page }) => {
     // 清理：删除测试创建的 provider
     if (createdProviderId) {
       await page.request.delete(`/api/ai/providers/${createdProviderId}?confirmed=true`);
-      createdProviderId = undefined as any;
+      createdProviderId = undefined;
     }
   });
 
@@ -128,9 +128,9 @@ test.describe('AI Providers API', () => {
     }
 
     // 找到我们创建的
-    const found = result.data.find((p: any) => p.id === createdProviderId);
+    const found = (result.data as Array<{ id: string; name: string }>).find((p) => p.id === createdProviderId);
     expect(found).toBeDefined();
-    expect(found.name).toBe('List Test Provider');
+    expect(found?.name).toBe('List Test Provider');
   });
 
   // ============================================
@@ -234,11 +234,11 @@ test.describe('AI Providers API', () => {
     // 验证已删除
     const listRes = await page.request.get('/api/ai/providers');
     const list = await listRes.json();
-    const found = list.data.find((p: any) => p.id === providerId);
+    const found = (list.data as Array<{ id: string }>).find((p) => p.id === providerId);
     expect(found).toBeUndefined();
 
     // 标记为已清理，afterEach 不再重复删除
-    createdProviderId = undefined as any;
+    createdProviderId = undefined;
   });
 
   test('should return 404 for deleting non-existent provider', async ({ page }) => {
@@ -286,7 +286,7 @@ test.describe('AI Providers API', () => {
     // 验证列表中只有一个默认
     const listRes = await page.request.get('/api/ai/providers');
     const list = await listRes.json();
-    const defaults = list.data.filter((p: any) => p.isDefault);
+    const defaults = (list.data as Array<{ isDefault: number; id: string }>).filter((p) => p.isDefault);
     expect(defaults.length).toBe(1);
     expect(defaults[0].id).toBe(createdProviderId);
 

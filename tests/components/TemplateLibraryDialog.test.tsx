@@ -37,7 +37,7 @@ vi.mock('@/lib/mock-templates', () => ({
       description: '产品数据模板',
     },
   },
-  formatTemplateContent: (template: any) => JSON.stringify(template.content, null, 2),
+  formatTemplateContent: (template: { content: unknown }) => JSON.stringify(template.content, null, 2),
 }));
 
 describe('TemplateLibraryDialog', () => {

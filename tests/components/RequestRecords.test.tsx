@@ -27,13 +27,15 @@ vi.mock('@/components/ui/Toast', () => ({
 
 // Mock Badge
 vi.mock('@/components/ui/Badge', () => ({
-  Badge: ({ method }: any) => <span data-testid={`badge-${method}`}>{method}</span>,
+  Badge: ({ method }: { method: string }) => <span data-testid={`badge-${method}`}>{method}</span>,
 }));
 
 // Mock Skeleton
 vi.mock('@/components/ui/Skeleton', () => ({
-  Skeleton: ({ className }: any) => <div className={className} data-testid="skeleton" />,
+  Skeleton: ({ className }: { className?: string }) => <div className={className} data-testid="skeleton" />,
 }));
+
+const listMock = apiClient.requestsApi.list as unknown as ReturnType<typeof vi.fn>;
 
 const mockRequests = [
   {
@@ -59,7 +61,7 @@ const mockRequests = [
 describe('RequestRecords', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiClient.requestsApi.list as any).mockResolvedValue({
+    listMock.mockResolvedValue({
       requests: mockRequests,
       total: 1,
       limit: 50,
@@ -82,7 +84,7 @@ describe('RequestRecords', () => {
   });
 
   it('should render empty state when no requests', async () => {
-    (apiClient.requestsApi.list as any).mockResolvedValue({
+    listMock.mockResolvedValue({
       requests: [],
       total: 0,
       limit: 50,
@@ -105,7 +107,7 @@ describe('RequestRecords', () => {
   });
 
   it('should not show clear button when there are no requests', async () => {
-    (apiClient.requestsApi.list as any).mockResolvedValue({
+    listMock.mockResolvedValue({
       requests: [],
       total: 0,
       limit: 50,
@@ -135,7 +137,8 @@ describe('RequestRecords', () => {
   });
 
   it('should call clear API when confirmed', async () => {
-    (apiClient.requestsApi.clear as any).mockResolvedValue(undefined);
+    const clearMock = apiClient.requestsApi.clear as unknown as ReturnType<typeof vi.fn>;
+    clearMock.mockResolvedValue(undefined);
 
     render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
 

@@ -3,6 +3,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ResponseRuleEditor } from '@/components/ResponseRuleEditor';
 import * as apiClient from '@/lib/api-client';
 
+const listMock = apiClient.responsesApi.list as unknown as ReturnType<typeof vi.fn>;
+const deleteMock = apiClient.responsesApi.delete as unknown as ReturnType<typeof vi.fn>;
+
 // Mock the api-client
 vi.mock('@/lib/api-client', () => ({
   responsesApi: {
@@ -29,7 +32,7 @@ vi.mock('@/components/ui/Toast', () => ({
 
 // Mock JsonEditor
 vi.mock('@/components/JsonEditor', () => ({
-  JsonEditor: ({ value, onChange, readOnly }: any) => (
+  JsonEditor: ({ value, onChange, readOnly }: { value: string; onChange: (v: string) => void; readOnly?: boolean }) => (
     <textarea
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -59,7 +62,7 @@ const mockResponses = [
 describe('ResponseRuleEditor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiClient.responsesApi.list as any).mockResolvedValue(mockResponses);
+    listMock.mockResolvedValue(mockResponses);
   });
 
   it('should render loading state initially', () => {
@@ -77,7 +80,7 @@ describe('ResponseRuleEditor', () => {
   });
 
   it('should render empty state when no responses', async () => {
-    (apiClient.responsesApi.list as any).mockResolvedValue([]);
+    listMock.mockResolvedValue([]);
 
     render(<ResponseRuleEditor projectId="project-1" endpointId="endpoint-1" />);
 
@@ -149,7 +152,7 @@ describe('ResponseRuleEditor', () => {
   });
 
   it('should call delete API when confirmed', async () => {
-    (apiClient.responsesApi.delete as any).mockResolvedValue(undefined);
+    deleteMock.mockResolvedValue(undefined);
 
     render(<ResponseRuleEditor projectId="project-1" endpointId="endpoint-1" />);
 
@@ -212,7 +215,7 @@ describe('ResponseRuleEditor', () => {
   });
 
   it('should display warning when no default response exists', async () => {
-    (apiClient.responsesApi.list as any).mockResolvedValue([
+    listMock.mockResolvedValue([
       {
         ...mockResponses[0],
         isDefault: false,
