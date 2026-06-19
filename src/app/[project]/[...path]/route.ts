@@ -13,6 +13,7 @@ import { nanoid } from 'nanoid';
 import { isBodyTooLarge, utf8ByteLength } from '@/lib/body-size-limit';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/client-ip';
+import { getCachedProject } from '@/lib/project-cache';
 
 // Mock 服务限流：100 req/min/IP
 const MOCK_RATE_LIMIT = 100;
@@ -221,14 +222,9 @@ async function findEndpoint(
   requestQuery: Record<string, string>,
   requestHeaders: Record<string, string>
 ): Promise<{ endpoint: Endpoint; response: { statusCode: number; contentType: string; headers: Record<string, string>; body: unknown }; delay: number } | null> {
-  const projectList = await db
-    .select()
-    .from(projects)
-    .where(eq(projects.slug, projectSlug));
-
-  if (projectList.length === 0) return null;
-
-  const project = projectList[0];
+  // Slug → project 缓存（TTL 60s，mock 热路径减一次 DB roundtrip）
+  const project = await getCachedProject(projectSlug);
+  if (!project) return null;
   if (!project.isActive) return null;
 
   // 精确匹配
