@@ -3,7 +3,7 @@
  * POST /api/ai/generate - 根据用户描述生成 JSON Mock 数据
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { success, Errors, validate, ValidationError } from '@/lib/api';
 import { z } from 'zod';
 import OpenAI from 'openai';
@@ -13,6 +13,12 @@ import { eq } from 'drizzle-orm';
 import { decrypt } from '@/lib/encryption';
 import { validateUrlSafe } from '@/lib/ssrf';
 import { DEFAULT_SYSTEM_PROMPT } from '@/lib/ai-presets';
+import { rateLimit } from '@/lib/rate-limit';
+import { generateMockData } from '@/lib/mock-data-templates';
+import { getClientIp } from '@/lib/client-ip';
+
+// AI generate 限流：10 req/min/IP（成本控制）
+const AI_RATE_LIMIT = 10;
 
 // ============================================
 // Schema
@@ -85,83 +91,6 @@ function parseAIResponse(content: string): unknown {
 }
 
 // ============================================
-// 工具函数：生成模拟数据（当没有 API Key 时）
-// ============================================
-function generateMockData(prompt: string, count: number) {
-  // 根据关键词推断数据类型
-  const lowerPrompt = prompt.toLowerCase();
-
-  if (lowerPrompt.includes('用户') || lowerPrompt.includes('user')) {
-    return {
-      code: 0,
-      message: 'success',
-      data: {
-        list: Array.from({ length: count }, (_, i) => ({
-          id: i + 1,
-          name: ['张伟', '李娜', '王芳', '刘洋', '陈静'][i % 5],
-          email: `user${i + 1}@example.com`,
-          phone: `138${String(i).padStart(8, '0')}`,
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 1}`,
-          status: ['active', 'inactive'][i % 2],
-          createdAt: new Date(Date.now() - i * 86400000).toISOString(),
-        })),
-        total: count,
-      },
-    };
-  }
-
-  if (lowerPrompt.includes('商品') || lowerPrompt.includes('产品') || lowerPrompt.includes('product')) {
-    return {
-      code: 0,
-      message: 'success',
-      data: {
-        list: Array.from({ length: count }, (_, i) => ({
-          id: i + 1,
-          name: `商品 ${i + 1}`,
-          price: (Math.random() * 1000 + 10).toFixed(2),
-          stock: Math.floor(Math.random() * 100),
-          status: ['on_sale', 'out_of_stock'][i % 2],
-          createdAt: new Date(Date.now() - i * 86400000).toISOString(),
-        })),
-        total: count,
-      },
-    };
-  }
-
-  if (lowerPrompt.includes('订单') || lowerPrompt.includes('order')) {
-    return {
-      code: 0,
-      message: 'success',
-      data: {
-        list: Array.from({ length: count }, (_, i) => ({
-          id: i + 1,
-          orderNo: `ORD${Date.now() - i * 1000}${i}`,
-          amount: (Math.random() * 5000 + 50).toFixed(2),
-          status: ['pending', 'paid', 'shipped', 'completed'][i % 4],
-          createdAt: new Date(Date.now() - i * 3600000).toISOString(),
-        })),
-        total: count,
-      },
-    };
-  }
-
-  // 默认通用数据
-  return {
-    code: 0,
-    message: 'success',
-    data: {
-      list: Array.from({ length: count }, (_, i) => ({
-        id: i + 1,
-        name: `Item ${i + 1}`,
-        description: `Description ${i + 1}`,
-        createdAt: new Date(Date.now() - i * 86400000).toISOString(),
-      })),
-      total: count,
-    },
-  };
-}
-
-// ============================================
 // 使用配置的 Provider 生成数据
 // ============================================
 async function generateWithProvider(prompt: string, count: number, provider: typeof aiProviders.$inferSelect) {
@@ -222,6 +151,23 @@ async function generateWithProvider(prompt: string, count: number, provider: typ
 // ============================================
 export async function POST(request: NextRequest) {
   try {
+    // 限流：10 req/min/IP
+    const ip = getClientIp(request.headers) ?? 'unknown';
+    const rl = rateLimit(`ai:${ip}`, AI_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too Many Requests. AI generate limit: 10/min/IP.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': String(AI_RATE_LIMIT),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(Math.ceil(rl.resetAt / 1000)),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const { prompt, count, providerId } = validate(GenerateSchema, body);
 

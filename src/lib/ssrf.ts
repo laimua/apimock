@@ -24,17 +24,25 @@ function ipv4ToInt(octets: number[]): number {
 }
 
 function isPrivateIP(ip: string): boolean {
-  // IPv6 loopback
-  if (ip === '::1' || ip === '::') return true;
+  // IPv6 loopback（含/不含方括号）
+  const normalized = ip.replace(/^\[|\]$/g, '');
+  if (normalized === '::1' || normalized === '::') return true;
   // IPv4-mapped IPv6
-  const v4Match = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  const v4Str = v4Match ? v4Match[1] : ip;
+  const v4Match = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  const v4Str = v4Match ? v4Match[1] : normalized;
   const parts = v4Str.split('.').map(Number);
   if (parts.length !== 4 || parts.some(p => isNaN(p))) return false;
 
   const int = ipv4ToInt(parts);
   return PRIVATE_RANGES.some(r => int >= r.start && int <= r.end);
 }
+
+const BLOCKED_HOSTNAMES = new Set([
+  'localhost',
+  'ip6-localhost',
+  'ip6-loopback',
+  'metadata.google.internal', // GCP metadata
+]);
 
 /**
  * 校验 URL 是否安全（不指向私有地址）
@@ -53,6 +61,10 @@ export function validateUrlSafe(urlStr: string): { safe: boolean; reason?: strin
   }
 
   const hostname = url.hostname.toLowerCase();
+
+  if (BLOCKED_HOSTNAMES.has(hostname)) {
+    return { safe: false, reason: `Hostname "${hostname}" is blocked` };
+  }
 
   if (isPrivateIP(hostname)) {
     return { safe: false, reason: 'Private IP addresses are not allowed' };

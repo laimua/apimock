@@ -4,12 +4,18 @@
  * 支持所有 HTTP 方法
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { db } from '@/lib/db';
 import { projects, endpoints, responses, requests } from '@/lib/schema';
 import type { Endpoint, Response, HttpMethod } from '@/lib/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { isBodyTooLarge, utf8ByteLength } from '@/lib/body-size-limit';
+import { rateLimit } from '@/lib/rate-limit';
+import { getClientIp } from '@/lib/client-ip';
+
+// Mock 服务限流：100 req/min/IP
+const MOCK_RATE_LIMIT = 100;
 
 // ============================================
 // 敏感信息脱敏
@@ -28,6 +34,16 @@ function sanitizeHeaders(headers: Headers): Record<string, string> {
   });
 
   return sanitized;
+}
+
+// ============================================
+// Body 大小限制
+// ============================================
+function makePayloadTooLarge(): NextResponse {
+  return NextResponse.json(
+    { error: 'Payload Too Large', message: 'Request body exceeds 1MB limit' },
+    { status: 413 }
+  );
 }
 
 // ============================================
@@ -284,21 +300,54 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
     query[key] = value;
   });
 
-  // 获取 IP 和 User-Agent
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim()
-    || request.headers.get('x-real-ip')
-    || null;
+  // 获取 IP 和 User-Agent（防伪造：取 X-Real-IP 或 X-Forwarded-For 链尾）
+  const ip = getClientIp(request.headers);
   const userAgent = request.headers.get('user-agent');
 
-  // 获取请求体（用于记录）
+  // 限流：100 req/min/IP
+  const clientIp = ip || 'unknown';
+  const rl = rateLimit(`mock:${clientIp}`, MOCK_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Too Many Requests', message: 'Rate limit exceeded. Try again later.' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': String(MOCK_RATE_LIMIT),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(Math.ceil(rl.resetAt / 1000)),
+          ...getCorsHeaders(),
+        },
+      }
+    );
+  }
+
+  // Body 大小守卫（fast-path）：检查 content-length，避免全量读取
+  const declaredContentLength = parseInt(request.headers.get('content-length') ?? '', 10);
+  if (!Number.isNaN(declaredContentLength) && isBodyTooLarge(declaredContentLength)) {
+    return makePayloadTooLarge();
+  }
+
+  // 获取请求体（用于记录）+ 大小守卫（覆盖所有 content-type）
   let requestBody: unknown = null;
   const contentType = request.headers.get('content-type');
   if (contentType?.includes('application/json')) {
     try {
-      requestBody = await request.clone().json();
+      const cloned = request.clone();
+      const rawText = await cloned.text();
+      if (isBodyTooLarge(utf8ByteLength(rawText))) {
+        return makePayloadTooLarge();
+      }
+      requestBody = JSON.parse(rawText);
     } catch {
       // 忽略解析错误
     }
+  } else if (method !== 'GET' && method !== 'HEAD' && declaredContentLength > 0) {
+    // 非 JSON 请求：仅当 content-length 超标时拒绝（不全量读 body）
+    if (isBodyTooLarge(declaredContentLength)) {
+      return makePayloadTooLarge();
+    }
+    // 不读取 body（不必要且浪费内存）；如需记录可后续按需 stream
   }
 
   // 构建请求 headers map（小写 key）
@@ -312,7 +361,7 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
 
   if (!mock) {
     // 记录未找到的请求
-    void recordRequest(
+    after(() => recordRequest(
       null,
       method,
       requestPath,
@@ -323,7 +372,7 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
       Date.now() - startTime,
       ip,
       userAgent
-    );
+    ));
 
     return NextResponse.json(
       {
@@ -371,8 +420,8 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
   const responseTime = Date.now() - startTime;
   const responseStatus = mock.response.statusCode;
 
-  // 异步记录请求（不阻塞响应）
-  void recordRequest(
+  // 异步记录请求（响应返回后执行，serverless 下保证完成）
+  after(() => recordRequest(
     mock.endpoint.id,
     method,
     requestPath,
@@ -383,7 +432,7 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
     responseTime,
     ip,
     userAgent
-  );
+  ));
 
   // 对于非 JSON 内容类型，返回原始文本
   if (responseContentType !== 'application/json') {
