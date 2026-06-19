@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { GET, POST } from '@/app/api/projects/[id]/endpoints/route';
 import { GET as GET_ONE, PUT, DELETE } from '@/app/api/projects/[id]/endpoints/[endpointId]/route';
-import { getTestDb, setupTestDb, clearTestDb, cleanupTestDb } from '../setup';
+import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects, endpoints } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
