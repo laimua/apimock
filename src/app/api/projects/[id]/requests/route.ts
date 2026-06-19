@@ -8,7 +8,7 @@ import { NextRequest } from 'next/server';
 import { success, Errors } from '@/lib/api';
 import { db } from '@/lib/db';
 import { projects, endpoints, requests } from '@/lib/schema';
-import { eq, and, desc, gte, lte, sql, inArray, or, type SQL } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, sql, inArray, type SQL } from 'drizzle-orm';
 
 // ============================================
 // GET /api/projects/[id]/requests

@@ -1,5 +1,4 @@
-import { sqliteTable, AnySQLiteColumn, uniqueIndex, foreignKey, text, integer } from "drizzle-orm/sqlite-core"
-  import { sql } from "drizzle-orm"
+import { sqliteTable, uniqueIndex, text, integer } from "drizzle-orm/sqlite-core"
 
 export const endpoints = sqliteTable("endpoints", {
 	id: text().primaryKey().notNull(),

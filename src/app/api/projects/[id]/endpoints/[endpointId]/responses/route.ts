@@ -30,21 +30,6 @@ const CreateResponseSchema = z.object({
   priority: z.number().min(0).max(1000).default(0),
 });
 
-const UpdateResponseSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
-  description: z.string().optional(),
-  statusCode: z.number().min(100).max(599).optional(),
-  contentType: z.string().optional(),
-  headers: z.record(z.string(), z.string()).optional(),
-  body: z.any().optional(),
-  matchRules: z.object({
-    query: z.record(z.string(), z.string()).optional(),
-    header: z.record(z.string(), z.string()).optional(),
-  }).optional(),
-  isDefault: z.boolean().optional(),
-  priority: z.number().min(0).max(1000).optional(),
-});
-
 // ============================================
 // GET /api/projects/[id]/endpoints/[endpointId]/responses
 // ============================================

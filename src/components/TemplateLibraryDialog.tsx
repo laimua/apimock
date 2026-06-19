@@ -94,8 +94,6 @@ export function TemplateLibraryDialog({
 
   if (!isOpen) return null;
 
-  const categories: (TemplateCategory | 'all')[] = ['all', ...Object.keys(TEMPLATE_CATEGORIES) as TemplateCategory[]];
-
   const filteredTemplates = selectedCategory === 'all'
     ? MOCK_TEMPLATES
     : MOCK_TEMPLATES.filter((t) => t.category === selectedCategory);

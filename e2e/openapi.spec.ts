@@ -4,7 +4,6 @@ import { readFileSync } from 'fs';
 
 test.describe('OpenAPI Import', () => {
   let projectId: string;
-  let projectSlug: string;
 
   test.beforeEach(async ({ page }) => {
     // 使用更唯一的项目名（时间戳 + 随机字符串）
@@ -23,7 +22,6 @@ test.describe('OpenAPI Import', () => {
     }
     
     projectId = result.data.id;
-    projectSlug = result.data.slug;
   });
 
   test('should import YAML OpenAPI file', async ({ page }) => {

@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { projectsApi, endpointsApi, projectRequestsApi, Project, Endpoint, ApiError, ListEndpointsResponse, RequestRecord, ListProjectRequestsResponse } from '@/lib/api-client';
-import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { projectsApi, endpointsApi, projectRequestsApi, Project, Endpoint, ApiError, ListEndpointsResponse, RequestRecord } from '@/lib/api-client';
+import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { ImportOpenAPI } from '@/components/ImportOpenAPI';

@@ -29,7 +29,7 @@ const CreateProviderSchema = z.object({
 // ============================================
 // GET /api/ai/providers
 // ============================================
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const providers = await db.query.aiProviders.findMany({
       orderBy: [desc(aiProviders.isDefault), desc(aiProviders.createdAt)],

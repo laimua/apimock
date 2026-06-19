@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import Link from 'next/link';
 import { endpointsApi, projectsApi, ApiError, Endpoint, Project } from '@/lib/api-client';
 import { applyErrorScenario, type ErrorScenario } from '@/lib/error-scenarios';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
@@ -149,7 +148,6 @@ export default function EditEndpointPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
@@ -351,7 +349,6 @@ export default function EditEndpointPage() {
 
   async function handleDelete() {
     try {
-      setDeleting(true);
       await endpointsApi.delete(projectId, endpointId);
       success('端点已删除');
       router.push(`/projects/${projectId}`);
@@ -362,8 +359,6 @@ export default function EditEndpointPage() {
         toastError('删除失败');
       }
       setShowDeleteDialog(false);
-    } finally {
-      setDeleting(false);
     }
   }
 

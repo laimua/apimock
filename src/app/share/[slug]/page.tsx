@@ -569,7 +569,7 @@ export default function SharePage() {
 
       const shareData = await response.json();
       setData(shareData);
-    } catch (err) {
+    } catch {
       setError('网络错误，请稍后重试');
     } finally {
       setLoading(false);

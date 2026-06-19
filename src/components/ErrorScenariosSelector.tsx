@@ -7,7 +7,6 @@ import {
   ERROR_SCENARIOS,
   ERROR_SCENARIO_CATEGORIES,
   getErrorScenariosByCategory,
-  applyErrorScenario,
   type ErrorScenario,
   type ErrorScenarioType,
 } from '@/lib/error-scenarios';

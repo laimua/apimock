@@ -16,7 +16,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: projectId } = await params;
+    const { id: _projectId } = await params;
+    void _projectId;
 
     // 解析 multipart/form-data
     const formData = await request.formData();

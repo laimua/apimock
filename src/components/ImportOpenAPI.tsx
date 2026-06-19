@@ -133,7 +133,7 @@ export function ImportOpenAPI({
         throw new Error(errorData.error || '导入失败，请重试');
       }
 
-      const { data } = await res.json();
+      await res.json();
       onSuccess();
       handleClose();
     } catch (err) {

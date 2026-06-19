@@ -36,6 +36,7 @@ export default function ProviderList({
   onDelete,
   onSetDefault,
 }: ProviderListProps) {
+  void onSetDefault; // API 形参保留，待后续接入"设为默认"按钮
   return (
     <div className="space-y-3">
       {providers.map((provider) => (

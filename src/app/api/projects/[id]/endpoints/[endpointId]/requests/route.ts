@@ -12,14 +12,6 @@ import { endpoints, requests } from '@/lib/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
 // ============================================
-// Schema
-// ============================================
-const GetRequestsSchema = z.object({
-  limit: z.string().optional().transform((val) => (val ? parseInt(val) : 50)),
-  offset: z.string().optional().transform((val) => (val ? parseInt(val) : 0)),
-});
-
-// ============================================
 // GET /api/projects/[id]/endpoints/[endpointId]/requests
 // ============================================
 export async function GET(

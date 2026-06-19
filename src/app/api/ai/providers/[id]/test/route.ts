@@ -36,7 +36,7 @@ export async function POST(
     let apiKey: string;
     try {
       apiKey = decrypt(provider.apiKey);
-    } catch (err) {
+    } catch {
       return Errors.internal('Failed to decrypt API key');
     }
 

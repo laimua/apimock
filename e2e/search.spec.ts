@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Search Functionality', () => {
-  let testProjects: Array<{ id: string; name: string; slug: string }> = [];
+  const testProjects: Array<{ id: string; name: string; slug: string }> = [];
 
   test.beforeAll(async ({ request }) => {
     // 创建多个测试项目用于搜索测试
@@ -149,12 +149,12 @@ test.describe('Search Functionality', () => {
       // 输入第一个字母
       await searchInput.fill('u');
       await page.waitForTimeout(300);
-      let count = await page.locator('a[href*="/projects/"]').count();
+      const count = await page.locator('a[href*="/projects/"]').count();
 
       // 输入更多字母
       await searchInput.fill('us');
       await page.waitForTimeout(300);
-      let newCount = await page.locator('a[href*="/projects/"]').count();
+      const newCount = await page.locator('a[href*="/projects/"]').count();
 
       // 结果数量应该变化（减少或保持不变）
       expect(newCount).toBeLessThanOrEqual(count);
@@ -181,7 +181,7 @@ test.describe('Search Functionality', () => {
 
   test.describe('Project Detail Page - Endpoint Search', () => {
     let projectId: string;
-    let testEndpoints: Array<{ id: string; path: string; method: string }> = [];
+    const testEndpoints: Array<{ id: string; path: string; method: string }> = [];
 
     test.beforeAll(async ({ request }) => {
       // 创建测试项目和端点
@@ -298,7 +298,7 @@ test.describe('Search Functionality', () => {
       await expect(searchInput).toBeFocused();
     });
 
-    test('should not trigger excessive API calls during typing', async ({ page, request }) => {
+    test('should not trigger excessive API calls during typing', async ({ page }) => {
       await page.goto('/projects');
 
       const searchInput = page.locator('input[placeholder*="搜索项目名称或标识符"]');

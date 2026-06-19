@@ -454,10 +454,7 @@ export async function HEAD(
   return handleMock(request, project, path.join('/'));
 }
 
-export async function OPTIONS(
-  request: NextRequest,
-  { params }: { params: Promise<{ project: string; path: string[] }> }
-) {
+export async function OPTIONS() {
   // OPTIONS 预检请求，直接返回 CORS 头
   return new NextResponse(null, {
     status: 204,

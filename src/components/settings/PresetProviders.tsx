@@ -4,7 +4,6 @@
 
 'use client';
 
-import { Button } from '@/components/ui/Button';
 import { PRESET_PROVIDERS, PresetProvider } from '@/lib/ai-presets';
 
 interface PresetProvidersProps {

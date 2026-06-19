@@ -177,9 +177,6 @@ test.describe('Error Scenarios', () => {
 
       await timeoutButton.click();
 
-      // 验证延迟设置
-      const delayInput = page.locator('input[type="number"][value*="5000"], input[placeholder*="延迟"]');
-
       // 验证延迟值为 5000ms
       const hasDelay5000 = await page.locator('input[type="number"][value="5000"]').count() > 0;
       expect(hasDelay5000).toBeTruthy();

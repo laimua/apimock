@@ -40,7 +40,7 @@ export default function TestConnectionButton({ providerId }: TestConnectionButto
           message: json.data?.error || '连接失败',
         });
       }
-    } catch (err) {
+    } catch {
       setResult({
         success: false,
         message: '请求失败',
