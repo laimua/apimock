@@ -5,6 +5,11 @@
 import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { relations } from 'drizzle-orm';
 
+/**
+ * HTTP method union — 与 endpoints.method 列 enum 一致
+ */
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+
 // ============================================
 // 项目表
 // ============================================

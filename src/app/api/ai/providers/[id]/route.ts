@@ -58,7 +58,7 @@ export async function PATCH(
     }
 
     const now = Date.now();
-    const updates: any = {
+    const updates: Partial<typeof aiProviders.$inferInsert> = {
       updatedAt: now,
     };
 

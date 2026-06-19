@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { projects, endpoints, responses, requests } from '@/lib/schema';
-import type { Endpoint, Response } from '@/lib/schema';
+import type { Endpoint, Response, HttpMethod } from '@/lib/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
@@ -200,7 +200,7 @@ async function buildEndpointResponse(
 // ============================================
 async function findEndpoint(
   projectSlug: string,
-  method: string,
+  method: HttpMethod,
   requestPath: string,
   requestQuery: Record<string, string>,
   requestHeaders: Record<string, string>
@@ -223,7 +223,7 @@ async function findEndpoint(
       and(
         eq(endpoints.projectId, project.id),
         eq(endpoints.path, requestPath),
-        eq(endpoints.method, method as any)
+        eq(endpoints.method, method)
       )
     );
 
@@ -237,7 +237,7 @@ async function findEndpoint(
   const allEndpointsList = await db
     .select()
     .from(endpoints)
-    .where(and(eq(endpoints.projectId, project.id), eq(endpoints.method, method as any)));
+    .where(and(eq(endpoints.projectId, project.id), eq(endpoints.method, method)));
 
   const requestParts = requestPath.split('/');
 
@@ -273,7 +273,7 @@ function getCorsHeaders(): Record<string, string> {
 // 通用处理函数
 // ============================================
 async function handleMock(request: NextRequest, projectSlug: string, path: string) {
-  const method = request.method;
+  const method = request.method as HttpMethod;
   const requestPath = '/' + path;
   const startTime = Date.now();
 

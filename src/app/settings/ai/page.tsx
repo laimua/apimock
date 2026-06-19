@@ -14,7 +14,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import ProviderList from '@/components/settings/ProviderList';
 import { PresetProvider } from '@/lib/ai-presets';
 import PresetProviders from '@/components/settings/PresetProviders';
-import AddProviderDialog from '@/components/settings/AddProviderDialog';
+import AddProviderDialog, { type ProviderFormData } from '@/components/settings/AddProviderDialog';
 
 interface Provider {
   id: string;
@@ -57,7 +57,7 @@ export default function AiSettingsPage() {
   }, []);
 
   // 添加 provider
-  const handleAddProvider = async (providerData: any) => {
+  const handleAddProvider = async (providerData: ProviderFormData) => {
     try {
       const res = await fetch('/api/ai/providers', {
         method: 'POST',
@@ -75,7 +75,7 @@ export default function AiSettingsPage() {
   };
 
   // 更新 provider
-  const handleUpdateProvider = async (id: string, data: any) => {
+  const handleUpdateProvider = async (id: string, data: ProviderFormData) => {
     try {
       const res = await fetch(`/api/ai/providers/${id}`, {
         method: 'PATCH',

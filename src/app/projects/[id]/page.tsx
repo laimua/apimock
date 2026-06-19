@@ -296,7 +296,7 @@ function RequestDetailDialog({ request, isOpen, onClose }: RequestDetailDialogPr
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">端点信息</p>
               <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
-                <Badge method={request.endpoint.method as any} />
+                <Badge method={request.endpoint.method} />
                 <code className="font-mono text-sm text-gray-700 dark:text-gray-300">
                   {request.endpoint.path}
                 </code>
@@ -994,7 +994,7 @@ export default function ProjectPage() {
                   >
                     <CardBody className="py-3">
                       <div className="flex items-center gap-4 flex-wrap">
-                        <Badge method={req.method as any} />
+                        <Badge method={req.method} />
                         <code className="font-mono text-sm text-gray-700 dark:text-gray-300">
                           {req.path}
                         </code>

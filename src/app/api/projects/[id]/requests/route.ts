@@ -8,7 +8,7 @@ import { NextRequest } from 'next/server';
 import { success, Errors } from '@/lib/api';
 import { db } from '@/lib/db';
 import { projects, endpoints, requests } from '@/lib/schema';
-import { eq, and, desc, gte, lte, sql, inArray, or } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, sql, inArray, or, type SQL } from 'drizzle-orm';
 
 // ============================================
 // GET /api/projects/[id]/requests
@@ -66,7 +66,7 @@ export async function GET(
   }
 
   // 构建查询条件
-  const conditions: any[] = [];
+  const conditions: SQL[] = [];
   conditions.push(inArray(requests.endpointId, targetEndpointIds));
 
   // 添加时间筛选

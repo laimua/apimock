@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   } catch (err: unknown) {
     console.error('Check slug API error:', err);
     if (err instanceof Error && err.name === 'ZodError') {
-      return Errors.validation((err as any).issues);
+      return Errors.validation((err as unknown as { issues: z.ZodIssue[] }).issues);
     }
     return Errors.internal(err instanceof Error ? err.message : String(err));
   }

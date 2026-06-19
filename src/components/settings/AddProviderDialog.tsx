@@ -24,12 +24,14 @@ interface Provider {
   updatedAt: number;
 }
 
+export type ProviderFormData = Omit<Provider, 'id' | 'createdAt' | 'updatedAt'> & { apiKey: string };
+
 interface AddProviderDialogProps {
   isOpen: boolean;
   onClose: () => void;
   provider?: Provider | null;
   preset?: PresetProvider | null;
-  onSave: (data: any) => Promise<void>;
+  onSave: (data: ProviderFormData) => Promise<void>;
 }
 
 export default function AddProviderDialog({
@@ -39,16 +41,16 @@ export default function AddProviderDialog({
   preset,
   onSave,
 }: AddProviderDialogProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Omit<ProviderFormData, 'isActive'>>({
     name: '',
-    provider: 'openai' as 'openai' | 'anthropic' | 'openai-compatible',
+    provider: 'openai',
     baseUrl: '',
     apiKey: '',
-    models: [] as string[],
+    models: [],
     defaultModel: '',
     systemPrompt: '',
     isDefault: false,
-  });
+  } satisfies Omit<ProviderFormData, 'isActive'>);
 
   const [loading, setLoading] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<PresetProvider | null>(null);
@@ -121,7 +123,7 @@ export default function AddProviderDialog({
     setLoading(true);
 
     try {
-      await onSave(formData);
+      await onSave({ ...formData, isActive: true });
     } finally {
       setLoading(false);
     }
@@ -194,7 +196,7 @@ export default function AddProviderDialog({
             </label>
             <select
               value={formData.provider}
-              onChange={(e) => setFormData({ ...formData, provider: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, provider: e.target.value as Provider['provider'] })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="openai">OpenAI</option>

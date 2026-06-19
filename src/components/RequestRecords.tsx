@@ -144,7 +144,7 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
                     className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <Badge method={req.method as any} />
+                      <Badge method={req.method} />
                       <span className="font-mono text-sm text-gray-700 dark:text-gray-300 truncate">{req.path}</span>
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(req.responseStatus)}`}>
                         {req.responseStatus}
@@ -186,7 +186,7 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
                       </div>
 
                       {/* Query Parameters */}
-                      {(hasQuery(req) as any) ? (
+                      {hasQuery(req) ? (
                         <div>
                           <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Query Parameters:</h4>
                           <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-xs overflow-x-auto">
@@ -196,7 +196,7 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
                       ) : undefined}
 
                       {/* Headers */}
-                      {(hasHeaders(req) as any) ? (
+                      {hasHeaders(req) ? (
                         <div>
                           <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Headers:</h4>
                           <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-xs overflow-x-auto">
@@ -206,7 +206,7 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
                       ) : undefined}
 
                       {/* Body */}
-                      {(req.body as any) && (
+                      {req.body != null && req.body !== '' && (
                         <div>
                           <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Request Body:</h4>
                           <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-xs overflow-x-auto">

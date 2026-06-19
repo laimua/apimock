@@ -164,7 +164,7 @@ function generateMockData(prompt: string, count: number) {
 // ============================================
 // 使用配置的 Provider 生成数据
 // ============================================
-async function generateWithProvider(prompt: string, count: number, provider: any) {
+async function generateWithProvider(prompt: string, count: number, provider: typeof aiProviders.$inferSelect) {
   // 解密 API Key
   const apiKey = decrypt(provider.apiKey);
 

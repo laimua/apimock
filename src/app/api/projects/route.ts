@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }, 201);
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'ValidationError') {
-      return Errors.validation((err as any).issues);
+      return Errors.validation((err as unknown as { issues: z.ZodIssue[] }).issues);
     }
     return Errors.internal(err instanceof Error ? err.message : String(err));
   }

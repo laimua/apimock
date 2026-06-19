@@ -5,10 +5,12 @@
 
 import { NextRequest } from 'next/server';
 import { success, Errors } from '@/lib/api';
+import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import { parseAndExtract, detectFormat, type ParsedEndpoint } from '@/lib/openapi-parser';
 import { db } from '@/lib/db';
 import { endpoints, responses, projects } from '@/lib/schema';
+import type { HttpMethod } from '@/lib/schema';
 import { eq, and } from 'drizzle-orm';
 
 // ============================================
@@ -53,7 +55,7 @@ async function batchCreateEndpoints(
           and(
             eq(endpoints.projectId, projectId),
             eq(endpoints.path, parsed.path),
-            eq(endpoints.method, parsed.method as any)
+            eq(endpoints.method, parsed.method as HttpMethod)
           )
         );
 
@@ -170,7 +172,7 @@ export async function POST(
 
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'ValidationError') {
-      return Errors.validation((err as any).issues);
+      return Errors.validation((err as unknown as { issues: z.ZodIssue[] }).issues);
     }
     return Errors.internal(err instanceof Error ? err.message : String(err));
   }
