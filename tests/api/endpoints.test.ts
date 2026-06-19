@@ -146,6 +146,40 @@ describe('Endpoints API', () => {
       expect(data.data).toHaveLength(1);
       expect(data.data[0].path).toBe('/users');
     });
+
+    it('should return 409 when creating duplicate method+path', async () => {
+      // 预先建一个 GET /users
+      await mockDb.insert(endpoints).values({
+        id: 'existing-ep',
+        projectId: testProject.id,
+        path: '/users',
+        method: 'GET',
+        name: null,
+        description: null,
+        isActive: 1,
+        delayMs: 0,
+        tags: '[]',
+        statusCode: 200,
+        contentType: 'application/json',
+        responseBody: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      } as typeof endpoints.$inferInsert);
+
+      const request = new Request(`http://localhost/api/projects/${testProject.id}/endpoints`, {
+        method: 'POST',
+        body: JSON.stringify({ path: '/users', method: 'GET', name: 'dup' }),
+      });
+
+      const response = await POST(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(409);
+      expect(data.success).toBe(false);
+      expect(data.error.message).toContain('already exists');
+    });
   });
 
   describe('POST /api/projects/[id]/endpoints', () => {

@@ -208,13 +208,14 @@ export async function POST(request: NextRequest) {
       return success(mockData);
     }
 
-    // 使用环境变量配置的 OpenAI
+    // 使用环境变量配置的 OpenAI（模型名走环境变量，默认 gpt-4o-mini）
     const openai = new OpenAI({ apiKey });
+    const fallbackModel = process.env.OPENAI_FALLBACK_MODEL || 'gpt-4o-mini';
 
     const userPrompt = `请生成 ${count} 条数据：\n${prompt}`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: fallbackModel,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },

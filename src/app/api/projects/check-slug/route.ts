@@ -6,7 +6,7 @@
 import { NextRequest } from 'next/server';
 import { success, Errors } from '@/lib/api';
 import { z } from 'zod';
-import { getDb } from '@/lib/db';
+import { db } from '@/lib/db';
 import { projects } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
     const validated = CheckSlugSchema.parse({ slug });
 
     // 检查 slug 是否已存在
-    const db = getDb();
     const existingProjects = await db
       .select()
       .from(projects)

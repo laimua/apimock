@@ -169,6 +169,25 @@ export async function POST(
       return Errors.notFound('Project');
     }
 
+    // 预检重复（避免 unique 约束冲突抛裸 500）
+    const duplicate = await db
+      .select({ id: endpoints.id })
+      .from(endpoints)
+      .where(
+        and(
+          eq(endpoints.projectId, projectId),
+          eq(endpoints.method, data.method),
+          eq(endpoints.path, data.path)
+        )
+      )
+      .limit(1);
+    if (duplicate.length > 0) {
+      return Errors.conflict(
+        `Endpoint ${data.method} ${data.path} already exists in this project`,
+        { endpointId: duplicate[0].id }
+      );
+    }
+
     const endpointId = nanoid();
     const now = Date.now();
 

@@ -54,6 +54,7 @@ export const Errors = {
   badRequest: (message: string, details?: unknown) => error('BAD_REQUEST', message, 400, details),
   unauthorized: () => error('UNAUTHORIZED', 'Unauthorized', 401),
   forbidden: () => error('FORBIDDEN', 'Forbidden', 403),
+  conflict: (message: string, details?: unknown) => error('CONFLICT', message, 409, details),
   internal: (message = 'Internal server error') => error('INTERNAL_ERROR', message, 500),
   validation: (issues: z.ZodIssue[]) => error('VALIDATION_ERROR', 'Validation failed', 400, issues),
 };

@@ -80,6 +80,34 @@ describe('Projects API', () => {
       expect(data.data[0].name).toBe('Project 1');
       expect(data.data[1].name).toBe('Project 2');
     });
+
+    it('should paginate when page/pageSize provided', async () => {
+      const now = Date.now();
+      await mockDb.insert(projects).values(
+        Array.from({ length: 5 }, (_, i) => ({
+          id: `proj-${i}`,
+          name: `Project ${i}`,
+          slug: `project-${i}`,
+          description: null,
+          basePath: null,
+          isActive: 1,
+          settings: '{}',
+          createdAt: now + i,
+          updatedAt: now + i,
+        }))
+      );
+
+      const request = new Request('http://localhost/api/projects?page=2&pageSize=2');
+      const response = await GET(asReq(request));
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.data.items).toHaveLength(2);
+      expect(data.data.total).toBe(5);
+      expect(data.data.page).toBe(2);
+      expect(data.data.pageSize).toBe(2);
+    });
   });
 
   describe('POST /api/projects', () => {

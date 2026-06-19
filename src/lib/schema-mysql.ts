@@ -76,7 +76,7 @@ export const responses = mysqlTable('responses', {
   statusCode: bigint('status_code', { mode: 'number' }).notNull().default(200),
   headers: text('headers').default('{}'),
   body: longtext('body'),
-  bodyTemplate: longtext('body_template'),
+  // body_template 字段在代码中从未使用，schema 层已移除；DB 已存在的列保留无害
   contentType: varchar('content_type', { length: 100 }).default('application/json'),
   matchRules: text('match_rules').default('{}'),
   isDefault: tinyint('is_default').default(0),

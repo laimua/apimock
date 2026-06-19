@@ -81,7 +81,7 @@ export const responses = sqliteTable('responses', {
   statusCode: integer('status_code').notNull().default(200),
   headers: text('headers').default('{}'),
   body: text('body'),
-  bodyTemplate: text('body_template'),
+  // body_template 字段在代码中从未使用，schema 层已移除；DB 已存在的列保留无害
   contentType: text('content_type').default('application/json'),
   matchRules: text('match_rules').default('{}'),
   isDefault: integer('is_default').default(0),
