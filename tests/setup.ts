@@ -7,7 +7,6 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
 import * as schema from '@/lib/schema-sqlite';
-import { randomUUID } from 'crypto';
 
 export type TestDb = BetterSQLite3Database<typeof schema>;
 
@@ -15,8 +14,7 @@ export type TestDb = BetterSQLite3Database<typeof schema>;
  * Get or create test database connection
  * Uses in-memory database with a unique name for each test file
  */
-export function getTestDb(dbName?: string): TestDb {
-  const name = dbName || randomUUID();
+export function getTestDb(): TestDb {
   const sqlite = new Database(`:memory:`); // 使用内存数据库
 
   return drizzle<typeof schema>(sqlite, { schema });
@@ -26,7 +24,8 @@ export function getTestDb(dbName?: string): TestDb {
  * Setup test database with migrations
  */
 export async function setupTestDb(dbName?: string) {
-  const db = getTestDb(dbName);
+  void dbName; // 接受参数以兼容历史调用，实际使用 :memory:
+  const db = getTestDb();
 
   // Drop tables first to ensure clean schema
   await db.run('DROP TABLE IF EXISTS ai_providers');

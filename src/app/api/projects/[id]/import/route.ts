@@ -87,11 +87,14 @@ async function batchCreateEndpoints(
       // 创建响应
       for (const response of parsed.responses) {
         const responseId = nanoid();
+        const bodyObj = (response.body && typeof response.body === 'object' && !Array.isArray(response.body))
+          ? response.body as Record<string, unknown>
+          : null;
         const newResponse = {
           id: responseId,
           endpointId,
           name: `${response.statusCode}`,
-          description: response.body?.description || `Response ${response.statusCode}`,
+          description: (typeof bodyObj?.description === 'string' ? bodyObj.description : '') || `Response ${response.statusCode}`,
           statusCode: response.statusCode,
           headers: '{}',
           body: JSON.stringify(response.body),

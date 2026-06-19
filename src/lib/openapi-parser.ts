@@ -1,6 +1,12 @@
 import yaml from 'js-yaml';
 
 /**
+ * JSON 值类型（递归）——OpenAPI 文档本质是 JSON 树
+ */
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+type JsonObject = { [key: string]: JsonValue };
+
+/**
  * Parsed endpoint representation
  */
 export interface ParsedEndpoint {
@@ -10,7 +16,7 @@ export interface ParsedEndpoint {
   description?: string;
   responses: {
     statusCode: number;
-    body?: any;
+    body?: JsonValue;
   }[];
 }
 
@@ -33,12 +39,12 @@ const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head'
  * @param format - Format type: 'yaml' or 'json'
  * @returns Parsed OpenAPI document object
  */
-export function parseOpenAPIFile(content: string, format: 'yaml' | 'json'): any {
+export function parseOpenAPIFile(content: string, format: 'yaml' | 'json'): JsonValue {
   try {
     if (format === 'yaml') {
-      return yaml.load(content);
+      return yaml.load(content) as JsonValue;
     } else {
-      return JSON.parse(content);
+      return JSON.parse(content) as JsonValue;
     }
   } catch (error) {
     throw new Error(`Failed to parse ${format.toUpperCase()}: ${error instanceof Error ? error.message : String(error)}`);
@@ -48,11 +54,11 @@ export function parseOpenAPIFile(content: string, format: 'yaml' | 'json'): any 
 /**
  * T5: Resolve all $ref references in the document
  * Recursively finds and resolves JSON References like #/components/schemas/Xxx
- * @param doc - OpenAPI document object
- * @returns Document with all references resolved
+ * @param doc - OpenAPI document node
+ * @returns Node with all references resolved
  */
-export function resolveRefs(doc: any): any {
-  if (!doc || typeof doc !== 'object') {
+export function resolveRefs(doc: JsonValue): JsonValue {
+  if (doc === null || typeof doc !== 'object') {
     return doc;
   }
 
@@ -71,7 +77,7 @@ export function resolveRefs(doc: any): any {
   }
 
   // Recursively resolve refs in object properties
-  const result: any = {};
+  const result: JsonObject = {};
   for (const [key, value] of Object.entries(doc)) {
     result[key] = resolveRefs(value);
   }
@@ -81,13 +87,13 @@ export function resolveRefs(doc: any): any {
 /**
  * Resolve a JSON Pointer reference (e.g., #/components/schemas/User)
  */
-function resolveRefPointer(rootDoc: any, pointer: string): any {
+function resolveRefPointer(rootDoc: JsonValue, pointer: string): JsonValue {
   // Remove leading # and split by /
   const parts = pointer.substring(1).split('/').filter(Boolean);
 
-  let current: any = rootDoc;
+  let current: JsonValue = rootDoc;
   for (const part of parts) {
-    if (current && typeof current === 'object' && part in current) {
+    if (current && typeof current === 'object' && !Array.isArray(current) && part in current) {
       current = current[part];
     } else {
       // Reference not found, return original
@@ -104,21 +110,26 @@ function resolveRefPointer(rootDoc: any, pointer: string): any {
  * @param doc - Parsed OpenAPI document
  * @returns Array of parsed endpoints
  */
-export function extractPaths(doc: any): ParsedEndpoint[] {
+export function extractPaths(doc: JsonValue): ParsedEndpoint[] {
   const endpoints: ParsedEndpoint[] = [];
 
-  if (!doc?.paths || typeof doc.paths !== 'object') {
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) {
+    return endpoints;
+  }
+  const paths = (doc as JsonObject).paths;
+  if (!paths || typeof paths !== 'object' || Array.isArray(paths)) {
     return endpoints;
   }
 
-  for (const [path, pathItem] of Object.entries(doc.paths)) {
-    if (!pathItem || typeof pathItem !== 'object') continue;
+  for (const [path, pathItem] of Object.entries(paths)) {
+    if (!pathItem || typeof pathItem !== 'object' || Array.isArray(pathItem)) continue;
+    const pathObj = pathItem as JsonObject;
 
     for (const method of HTTP_METHODS) {
-      if (method in pathItem) {
-        const operation = pathItem[method as keyof typeof pathItem];
-        if (operation && typeof operation === 'object') {
-          endpoints.push(extractEndpoint(path, method.toUpperCase(), operation));
+      if (method in pathObj) {
+        const operation = pathObj[method];
+        if (operation && typeof operation === 'object' && !Array.isArray(operation)) {
+          endpoints.push(extractEndpoint(path, method.toUpperCase(), operation as JsonObject));
         }
       }
     }
@@ -130,22 +141,27 @@ export function extractPaths(doc: any): ParsedEndpoint[] {
 /**
  * Extract a single endpoint from an operation object
  */
-function extractEndpoint(path: string, method: string, operation: any): ParsedEndpoint {
+function extractEndpoint(path: string, method: string, operation: JsonObject): ParsedEndpoint {
   const responses: ParsedEndpoint['responses'] = [];
 
-  if (operation.responses && typeof operation.responses === 'object') {
-    for (const [status, response] of Object.entries(operation.responses)) {
+  const opResponses = operation.responses;
+  if (opResponses && typeof opResponses === 'object' && !Array.isArray(opResponses)) {
+    for (const [status, response] of Object.entries(opResponses as JsonObject)) {
       const statusCode = status === 'default' ? 200 : parseInt(status, 10);
-      const body = extractResponseBody(response as any);
+      const body = extractResponseBody(response);
       responses.push({ statusCode, body });
     }
   }
 
+  const summary = operation.summary;
+  const operationId = operation.operationId;
+  const description = operation.description;
+
   return {
     path,
     method,
-    name: operation.summary || operation.operationId,
-    description: operation.description,
+    name: typeof summary === 'string' ? summary : (typeof operationId === 'string' ? operationId : undefined),
+    description: typeof description === 'string' ? description : undefined,
     responses,
   };
 }
@@ -153,26 +169,28 @@ function extractEndpoint(path: string, method: string, operation: any): ParsedEn
 /**
  * Extract response body from response object
  */
-function extractResponseBody(response: any): any {
-  if (!response || typeof response !== 'object') {
+function extractResponseBody(response: JsonValue): JsonValue | undefined {
+  if (!response || typeof response !== 'object' || Array.isArray(response)) {
     return undefined;
   }
+  const responseObj = response as JsonObject;
 
-  const content = response.content;
-  if (content && typeof content === 'object') {
+  const content = responseObj.content;
+  if (content && typeof content === 'object' && !Array.isArray(content)) {
+    const contentObj = content as JsonObject;
     // Try to get application/json first
-    const jsonContent = content['application/json'];
-    if (jsonContent?.schema) {
+    const jsonContent = contentObj['application/json'] as JsonObject | undefined;
+    if (jsonContent?.schema !== undefined) {
       return jsonContent.schema;
     }
     // Fallback to first content type
-    const firstContent = Object.values(content)[0] as any;
-    if (firstContent?.schema) {
+    const firstContent = Object.values(contentObj)[0] as JsonObject | undefined;
+    if (firstContent?.schema !== undefined) {
       return firstContent.schema;
     }
   }
 
-  return response.schema;
+  return responseObj.schema;
 }
 
 /**
@@ -190,7 +208,7 @@ export function parseAndExtract(content: string, format: 'yaml' | 'json'): OpenA
   };
 
   // Step 1: Parse file content
-  let doc: any;
+  let doc: JsonValue;
   try {
     doc = parseOpenAPIFile(content, format);
   } catch (error) {

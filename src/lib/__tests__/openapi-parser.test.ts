@@ -9,7 +9,10 @@ import {
   extractPaths,
   parseAndExtract,
   detectFormat,
+  type JsonValue,
 } from '../openapi-parser';
+
+type Obj = Record<string, unknown>;
 
 describe('parseOpenAPIFile', () => {
   describe('JSON format', () => {
@@ -19,9 +22,9 @@ describe('parseOpenAPIFile', () => {
         "info": { "title": "Test API", "version": "1.0.0" },
         "paths": {}
       }`;
-      const result = parseOpenAPIFile(jsonContent, 'json');
+      const result = parseOpenAPIFile(jsonContent, 'json') as Obj;
       expect(result.openapi).toBe('3.0.0');
-      expect(result.info.title).toBe('Test API');
+      expect((result.info as Obj).title).toBe('Test API');
     });
 
     it('should parse JSON array', () => {
@@ -45,9 +48,9 @@ info:
   version: 1.0.0
 paths: {}
       `;
-      const result = parseOpenAPIFile(yamlContent, 'yaml');
+      const result = parseOpenAPIFile(yamlContent, 'yaml') as Obj;
       expect(result.openapi).toBe('3.0.0');
-      expect(result.info.title).toBe('Test API');
+      expect((result.info as Obj).title).toBe('Test API');
     });
 
     it('should parse YAML with nested objects', () => {
@@ -60,9 +63,10 @@ info:
     email: support@test.com
 paths: {}
       `;
-      const result = parseOpenAPIFile(yamlContent, 'yaml');
-      expect(result.info.contact.name).toBe('Support');
-      expect(result.info.contact.email).toBe('support@test.com');
+      const result = parseOpenAPIFile(yamlContent, 'yaml') as Obj;
+      const contact = (result.info as Obj).contact as Obj;
+      expect(contact.name).toBe('Support');
+      expect(contact.email).toBe('support@test.com');
     });
 
     it('should parse YAML arrays', () => {
@@ -117,13 +121,16 @@ describe('resolveRefs', () => {
       },
     };
 
-    const result = resolveRefs(doc);
+    const result = resolveRefs(doc) as Obj;
     // Verify the ref was resolved at the schema level
-    const schema = result.paths['/users'].get.responses['200'].content['application/json'].schema;
+    const paths = result.paths as Obj;
+    const schema = (((paths['/users'] as Obj).get as Obj).responses as Obj)['200'] as Obj;
+    const jsonContent = (schema.content as Obj)['application/json'] as Obj;
+    const resolvedSchema = jsonContent.schema;
     // The function returns a new object with refs resolved
-    expect(schema).toBeDefined();
+    expect(resolvedSchema).toBeDefined();
     // Check that we get the resolved structure (not just $ref)
-    expect(typeof schema).toBe('object');
+    expect(typeof resolvedSchema).toBe('object');
   });
 
   it('should resolve nested $ref', () => {
@@ -151,14 +158,16 @@ describe('resolveRefs', () => {
       },
     };
 
-    const result = resolveRefs(doc);
+    const result = resolveRefs(doc as unknown as JsonValue) as Obj;
+    const schemas = ((result.components as Obj).schemas as Obj);
+    const extended = schemas.ExtendedUser as Obj;
     // Verify the schema structure is preserved
-    expect(result.components.schemas.ExtendedUser).toBeDefined();
-    expect(result.components.schemas.ExtendedUser.allOf).toBeDefined();
-    expect(Array.isArray(result.components.schemas.ExtendedUser.allOf)).toBe(true);
-    expect(result.components.schemas.ExtendedUser.allOf).toHaveLength(2);
+    expect(extended).toBeDefined();
+    expect(extended.allOf).toBeDefined();
+    expect(Array.isArray(extended.allOf)).toBe(true);
+    expect(extended.allOf).toHaveLength(2);
     // The second item (non-ref) should be preserved
-    expect(result.components.schemas.ExtendedUser.allOf[1].type).toBe('object');
+    expect(((extended.allOf as Obj[])[1] as Obj).type).toBe('object');
   });
 
   it('should handle arrays with $ref', () => {
@@ -171,13 +180,14 @@ describe('resolveRefs', () => {
       data: [{ $ref: '#/components/schemas/Item' }, { $ref: '#/components/schemas/Item' }],
     };
 
-    const result = resolveRefs(doc);
+    const result = resolveRefs(doc) as Obj;
+    const data = result.data as unknown[];
     // Verify the refs were resolved in the array
-    expect(Array.isArray(result.data)).toBe(true);
-    expect(result.data).toHaveLength(2);
+    expect(Array.isArray(data)).toBe(true);
+    expect(data).toHaveLength(2);
     // The refs should be resolved to the Item schema
-    expect(result.data[0]).toBeDefined();
-    expect(result.data[1]).toBeDefined();
+    expect(data[0]).toBeDefined();
+    expect(data[1]).toBeDefined();
   });
 
   it('should preserve non-resolvable $ref', () => {
@@ -185,7 +195,7 @@ describe('resolveRefs', () => {
       data: { $ref: '#/components/schemas/NotFound' },
     };
 
-    const result = resolveRefs(doc);
+    const result = resolveRefs(doc) as Obj;
     expect(result.data).toEqual({ $ref: '#/components/schemas/NotFound' });
   });
 
@@ -517,9 +527,10 @@ describe('Integration tests', () => {
     const result = parseAndExtract(JSON.stringify(doc), 'json');
     expect(result.endpoints).toHaveLength(1);
     // Verify the response body has the resolved schema structure
-    expect(result.endpoints[0].responses[0].body).toBeDefined();
-    expect(result.endpoints[0].responses[0].body.type).toBe('array');
-    expect(result.endpoints[0].responses[0].body.items).toBeDefined();
+    const body = result.endpoints[0].responses[0].body as Obj | undefined;
+    expect(body).toBeDefined();
+    expect(body?.type).toBe('array');
+    expect(body?.items).toBeDefined();
   });
 
   it('should handle OpenAPI 2.0 (Swagger) format', () => {
