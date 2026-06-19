@@ -15,7 +15,7 @@ if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-export const db = drizzle(new Database(dbPath), { schema, logger: true });
+export const db = drizzle(new Database(dbPath), { schema, logger: process.env.NODE_ENV !== 'production' });
 
 export function getDb() {
   return db;

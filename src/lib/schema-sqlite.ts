@@ -2,13 +2,13 @@
  * SQLite Schema 定义
  */
 
-import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core';
-import { relations } from 'drizzle-orm';
+import { sqliteTable, text, integer, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
 
 /**
  * HTTP method union — 与 endpoints.method 列 enum 一致
  */
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+import { relations } from 'drizzle-orm';
 
 // ============================================
 // 项目表
@@ -65,7 +65,10 @@ export const requests = sqliteTable('requests', {
   ip: text('ip'),
   userAgent: text('user_agent'),
   createdAt: integer('created_at').notNull(),
-});
+}, (table) => ({
+  endpointIdx: index('requests_endpoint_idx').on(table.endpointId),
+  createdIdx: index('requests_created_idx').on(table.createdAt),
+}));
 
 // ============================================
 // 响应表
@@ -85,7 +88,9 @@ export const responses = sqliteTable('responses', {
   priority: integer('priority').default(0),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
-});
+}, (table) => ({
+  endpointIdx: index('responses_endpoint_idx').on(table.endpointId),
+}));
 
 // ============================================
 // 关系定义

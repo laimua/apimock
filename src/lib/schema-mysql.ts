@@ -2,7 +2,7 @@
  * MySQL Schema 定义
  */
 
-import { mysqlTable, varchar, text, longtext, bigint, tinyint, uniqueIndex } from 'drizzle-orm/mysql-core';
+import { mysqlTable, varchar, text, longtext, bigint, tinyint, uniqueIndex, index } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
 // ============================================
@@ -60,7 +60,10 @@ export const requests = mysqlTable('requests', {
   ip: varchar('ip', { length: 45 }),
   userAgent: text('user_agent'),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-});
+}, (table) => ({
+  endpointIdx: index('requests_endpoint_idx').on(table.endpointId),
+  createdIdx: index('requests_created_idx').on(table.createdAt),
+}));
 
 // ============================================
 // 响应表
@@ -80,7 +83,9 @@ export const responses = mysqlTable('responses', {
   priority: bigint('priority', { mode: 'number' }).default(0),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
-});
+}, (table) => ({
+  endpointIdx: index('responses_endpoint_idx').on(table.endpointId),
+}));
 
 // ============================================
 // 关系定义

@@ -6,12 +6,13 @@
  * DELETE /api/projects/[id] - 删除项目
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { success, Errors, validate } from '@/lib/api';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { projects } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+import { DEMO_PROJECT_SLUG } from '@/lib/demo-seed';
 
 // ============================================
 // Schema
@@ -109,6 +110,17 @@ export async function DELETE(
     const existing = await db.select().from(projects).where(eq(projects.id, id));
     if (existing.length === 0) {
       return Errors.notFound('Project');
+    }
+
+    // demo-project 不可删（防止恶意清空 demo 站）
+    if (existing[0].slug === DEMO_PROJECT_SLUG) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Demo project (${DEMO_PROJECT_SLUG}) is protected and cannot be deleted`,
+        },
+        { status: 403 }
+      );
     }
 
     // 删除项目（级联删除端点和响应）

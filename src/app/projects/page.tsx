@@ -9,6 +9,7 @@ import { useDebounce } from '@/lib/hooks';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Search, X, FolderOpen, Edit2, Trash2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { DEMO_PROJECT_SLUG } from '@/lib/demo-seed';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -183,14 +184,26 @@ export default function ProjectsPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {pagedProjects.map((project) => (
+            {pagedProjects.map((project) => {
+              const isDemo = project.slug === DEMO_PROJECT_SLUG;
+              return (
               <div key={project.id} className="relative group">
                 <Link href={`/projects/${project.id}`}>
                   <Card className="hover:shadow-md transition-shadow h-full">
                     <CardBody>
-                      <h3 className="font-semibold text-gray-900 dark:text-white mb-2 pr-8 text-base sm:text-lg">
-                        {project.name}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-2 pr-8">
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-base sm:text-lg">
+                          {project.name}
+                        </h3>
+                        {isDemo && (
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                            title="此项目为自动创建的示例，不可删除"
+                          >
+                            示例
+                          </span>
+                        )}
+                      </div>
                       <p className="text-gray-500 dark:text-gray-400 text-sm mb-4 line-clamp-2">
                         {project.description || '暂无描述'}
                       </p>
@@ -217,13 +230,15 @@ export default function ProjectsPage() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      if (isDemo) return;
                       setDeleteDialog({ isOpen: true, project });
                     }}
-                    disabled={deletingId === project.id}
-                    aria-label="删除项目"
+                    disabled={deletingId === project.id || isDemo}
+                    aria-label={isDemo ? '示例项目不可删除' : '删除项目'}
+                    title={isDemo ? '示例项目不可删除' : '删除项目'}
                     className="p-1.5 sm:p-2 rounded-md bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-600
                       text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20
-                      disabled:opacity-50 disabled:cursor-not-allowed min-h-9 min-w-9 flex items-center justify-center"
+                      disabled:opacity-30 disabled:cursor-not-allowed min-h-9 min-w-9 flex items-center justify-center"
                   >
                     {deletingId === project.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -233,7 +248,8 @@ export default function ProjectsPage() {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
