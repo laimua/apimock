@@ -96,10 +96,10 @@ src/
 项目包含两层测试：
 
 ```bash
-# 单元测试 (Vitest) - 197 个用例
+# 单元测试 (Vitest) - 283 个用例
 pnpm test
 
-# E2E 测试 (Playwright) - 65+ 个用例
+# E2E 测试 (Playwright) - 115+ 个用例
 pnpm exec playwright test
 ```
 
