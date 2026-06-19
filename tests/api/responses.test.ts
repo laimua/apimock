@@ -4,11 +4,14 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
+import { type NextRequest } from 'next/server';
 import { GET as GET_LIST, POST } from '@/app/api/projects/[id]/endpoints/[endpointId]/responses/route';
 import { GET as GET_ONE, PATCH, DELETE } from '@/app/api/projects/[id]/endpoints/[endpointId]/responses/[responseId]/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects, endpoints, responses } from '@/lib/schema';
 import { eq, and } from 'drizzle-orm';
+
+const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 
 let mockDb: ReturnType<typeof getTestDb>;
 
@@ -23,9 +26,9 @@ beforeAll(async () => {
 });
 
 describe('Responses API', () => {
-  let testProject: any;
-  let testEndpoint: any;
-  let testResponse: any;
+  let testProject: typeof projects.$inferInsert;
+  let testEndpoint: typeof endpoints.$inferInsert;
+  let testResponse: typeof responses.$inferInsert;
 
   beforeEach(async () => {
     await clearTestDb(mockDb);
@@ -86,7 +89,7 @@ describe('Responses API', () => {
   describe('GET /api/projects/[id]/endpoints/[endpointId]/responses', () => {
     it('should return list of responses', async () => {
       const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/responses');
-      const response = await GET_LIST(request as any, {
+      const response = await GET_LIST(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
       });
       const data = await response.json();
@@ -103,7 +106,7 @@ describe('Responses API', () => {
       await mockDb.delete(responses).where(eq(responses.endpointId, testEndpoint.id));
 
       const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/responses');
-      const response = await GET_LIST(request as any, {
+      const response = await GET_LIST(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
       });
       const data = await response.json();
@@ -149,7 +152,7 @@ describe('Responses API', () => {
       await mockDb.insert(responses).values(responsesData);
 
       const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/responses');
-      const response = await GET_LIST(request as any, {
+      const response = await GET_LIST(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
       });
       const data = await response.json();
@@ -162,7 +165,7 @@ describe('Responses API', () => {
 
     it('should return 404 for non-existent endpoint', async () => {
       const request = new Request('http://localhost/api/projects/proj1/endpoints/non-existent/responses');
-      const response = await GET_LIST(request as any, {
+      const response = await GET_LIST(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: 'non-existent' }),
       });
       const data = await response.json();
@@ -186,7 +189,7 @@ describe('Responses API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any, {
+      const response = await POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
       });
       const data = await response.json();
@@ -217,7 +220,7 @@ describe('Responses API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any, {
+      const response = await POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
       });
       const data = await response.json();
@@ -241,7 +244,7 @@ describe('Responses API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any, {
+      const response = await POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
       });
       const data = await response.json();
@@ -262,7 +265,7 @@ describe('Responses API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any, {
+      const response = await POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
       });
       const data = await response.json();
@@ -275,7 +278,7 @@ describe('Responses API', () => {
   describe('GET /api/projects/[id]/endpoints/[endpointId]/responses/[responseId]', () => {
     it('should return single response', async () => {
       const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/responses/resp1');
-      const response = await GET_ONE(request as any, {
+      const response = await GET_ONE(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id, responseId: testResponse.id }),
       });
       const data = await response.json();
@@ -289,7 +292,7 @@ describe('Responses API', () => {
 
     it('should return 404 for non-existent response', async () => {
       const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/responses/non-existent');
-      const response = await GET_ONE(request as any, {
+      const response = await GET_ONE(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id, responseId: 'non-existent' }),
       });
       const data = await response.json();
@@ -312,7 +315,7 @@ describe('Responses API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await PATCH(request as any, {
+      const response = await PATCH(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id, responseId: testResponse.id }),
       });
       const data = await response.json();
@@ -334,7 +337,7 @@ describe('Responses API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await PATCH(request as any, {
+      const response = await PATCH(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id, responseId: testResponse.id }),
       });
       const data = await response.json();
@@ -350,7 +353,7 @@ describe('Responses API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await PATCH(request as any, {
+      const response = await PATCH(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id, responseId: 'non-existent' }),
       });
       const data = await response.json();
@@ -366,7 +369,7 @@ describe('Responses API', () => {
         method: 'DELETE',
       });
 
-      const response = await DELETE(request as any, {
+      const response = await DELETE(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id, responseId: testResponse.id }),
       });
       const data = await response.json();
@@ -384,7 +387,7 @@ describe('Responses API', () => {
         method: 'DELETE',
       });
 
-      const response = await DELETE(request as any, {
+      const response = await DELETE(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id, responseId: 'non-existent' }),
       });
       const data = await response.json();

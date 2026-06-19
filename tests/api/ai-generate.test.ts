@@ -4,9 +4,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { type NextRequest } from 'next/server';
 import { POST } from '@/app/api/ai/generate/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { aiProviders } from '@/lib/schema';
+
+const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 
 let mockDb: ReturnType<typeof getTestDb>;
 
@@ -69,7 +72,7 @@ describe('AI Generate API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -107,7 +110,7 @@ describe('AI Generate API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -125,7 +128,7 @@ describe('AI Generate API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -143,7 +146,7 @@ describe('AI Generate API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -160,7 +163,7 @@ describe('AI Generate API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -173,7 +176,7 @@ describe('AI Generate API', () => {
         body: 'invalid json',
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(500);

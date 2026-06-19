@@ -4,11 +4,14 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
+import { type NextRequest } from 'next/server';
 import { POST as IMPORT_POST } from '@/app/api/projects/[id]/import/route';
 import { POST as PARSE_POST } from '@/app/api/projects/[id]/import/parse/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects, endpoints, responses } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+
+const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 
 let mockDb: ReturnType<typeof getTestDb>;
 
@@ -75,7 +78,7 @@ beforeAll(async () => {
 });
 
 describe('Import API', () => {
-  let testProject: any;
+  let testProject: typeof projects.$inferInsert;
 
   beforeEach(async () => {
     await clearTestDb(mockDb);
@@ -109,7 +112,7 @@ describe('Import API', () => {
         body: formData,
       });
 
-      const response = await IMPORT_POST(request as any, {
+      const response = await IMPORT_POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -155,7 +158,7 @@ describe('Import API', () => {
         body: formData,
       });
 
-      const response = await IMPORT_POST(request as any, {
+      const response = await IMPORT_POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -175,7 +178,7 @@ describe('Import API', () => {
         body: formData,
       });
 
-      const response = await IMPORT_POST(request as any, {
+      const response = await IMPORT_POST(asReq(request), {
         params: Promise.resolve({ id: 'non-existent' }),
       });
       const data = await response.json();
@@ -192,7 +195,7 @@ describe('Import API', () => {
         body: formData,
       });
 
-      const response = await IMPORT_POST(request as any, {
+      const response = await IMPORT_POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -210,7 +213,7 @@ describe('Import API', () => {
         body: formData,
       });
 
-      const response = await IMPORT_POST(request as any, {
+      const response = await IMPORT_POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -228,7 +231,7 @@ describe('Import API', () => {
         body: formData,
       });
 
-      const response = await IMPORT_POST(request as any, {
+      const response = await IMPORT_POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -249,7 +252,7 @@ describe('Import API', () => {
         body: formData,
       });
 
-      const response = await PARSE_POST(request as any, {
+      const response = await PARSE_POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -276,7 +279,7 @@ describe('Import API', () => {
         body: formData,
       });
 
-      const response = await PARSE_POST(request as any, {
+      const response = await PARSE_POST(asReq(request), {
         params: Promise.resolve({ id: 'non-existent' }),
       });
       const data = await response.json();
@@ -295,7 +298,7 @@ describe('Import API', () => {
         body: formData,
       });
 
-      const response = await PARSE_POST(request as any, {
+      const response = await PARSE_POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -313,7 +316,7 @@ describe('Import API', () => {
         body: formData,
       });
 
-      const response = await PARSE_POST(request as any, {
+      const response = await PARSE_POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -331,7 +334,7 @@ describe('Import API', () => {
         body: formData,
       });
 
-      const response = await PARSE_POST(request as any, {
+      const response = await PARSE_POST(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();

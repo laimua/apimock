@@ -4,10 +4,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
+import { type NextRequest } from 'next/server';
 import { GET } from '@/app/api/share/[slug]/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects, endpoints } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+
+const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 
 let mockDb: ReturnType<typeof getTestDb>;
 
@@ -22,8 +25,8 @@ beforeAll(async () => {
 });
 
 describe('Share API', () => {
-  let testProject: any;
-  let testEndpoints: any[] = [];
+  let testProject: typeof projects.$inferInsert;
+  let testEndpoints: typeof endpoints.$inferInsert[] = [];
 
   beforeEach(async () => {
     await clearTestDb(mockDb);
@@ -75,7 +78,7 @@ describe('Share API', () => {
     ];
 
     await mockDb.insert(endpoints).values(endpointsData as (typeof endpoints.$inferInsert)[]);
-    testEndpoints = endpointsData;
+    testEndpoints = endpointsData as (typeof endpoints.$inferInsert)[];
   });
 
   afterEach(async () => {
@@ -85,7 +88,7 @@ describe('Share API', () => {
   describe('GET /api/share/[slug]', () => {
     it('should return public project and endpoints', async () => {
       const request = new Request('http://localhost/api/share/test-project');
-      const response = await GET(request as any, {
+      const response = await GET(asReq(request), {
         params: Promise.resolve({ slug: testProject.slug }),
       });
       const data = await response.json();
@@ -102,7 +105,7 @@ describe('Share API', () => {
 
     it('should return 404 for non-existent slug', async () => {
       const request = new Request('http://localhost/api/share/non-existent');
-      const response = await GET(request as any, {
+      const response = await GET(asReq(request), {
         params: Promise.resolve({ slug: 'non-existent' }),
       });
       const data = await response.json();
@@ -131,7 +134,7 @@ describe('Share API', () => {
       await mockDb.insert(endpoints).values(additionalEndpoints as (typeof endpoints.$inferInsert)[]);
 
       const request = new Request('http://localhost/api/share/test-project');
-      const response = await GET(request as any, {
+      const response = await GET(asReq(request), {
         params: Promise.resolve({ slug: testProject.slug }),
       });
       const data = await response.json();
@@ -146,7 +149,7 @@ describe('Share API', () => {
       await mockDb.delete(endpoints).where(eq(endpoints.projectId, testProject.id));
 
       const request = new Request('http://localhost/api/share/test-project');
-      const response = await GET(request as any, {
+      const response = await GET(asReq(request), {
         params: Promise.resolve({ slug: testProject.slug }),
       });
       const data = await response.json();

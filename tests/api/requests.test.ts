@@ -4,11 +4,14 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
+import { type NextRequest } from 'next/server';
 import { GET as GET_PROJECT_REQUESTS, DELETE as DELETE_PROJECT_REQUESTS } from '@/app/api/projects/[id]/requests/route';
 import { GET as GET_ENDPOINT_REQUESTS, DELETE as DELETE_ENDPOINT_REQUESTS } from '@/app/api/projects/[id]/endpoints/[endpointId]/requests/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects, endpoints, requests } from '@/lib/schema';
 import { eq, and } from 'drizzle-orm';
+
+const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 
 let mockDb: ReturnType<typeof getTestDb>;
 
@@ -23,9 +26,9 @@ beforeAll(async () => {
 });
 
 describe('Requests API', () => {
-  let testProject: any;
-  let testEndpoint: any;
-  let testRequests: any[] = [];
+  let testProject: typeof projects.$inferInsert;
+  let testEndpoint: typeof endpoints.$inferInsert;
+  let testRequests: typeof requests.$inferInsert[] = [];
 
   beforeEach(async () => {
     await clearTestDb(mockDb);
@@ -95,7 +98,7 @@ describe('Requests API', () => {
   describe('GET /api/projects/[id]/requests', () => {
     it('should return requests for a project', async () => {
       const request = new Request('http://localhost/api/projects/proj1/requests');
-      const response = await GET_PROJECT_REQUESTS(request as any, {
+      const response = await GET_PROJECT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -111,7 +114,7 @@ describe('Requests API', () => {
 
     it('should support pagination', async () => {
       const request = new Request('http://localhost/api/projects/proj1/requests?page=1&pageSize=1');
-      const response = await GET_PROJECT_REQUESTS(request as any, {
+      const response = await GET_PROJECT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -153,7 +156,7 @@ describe('Requests API', () => {
       await mockDb.insert(requests).values(request2);
 
       const httpRequest = new Request(`http://localhost/api/projects/proj1/requests?endpointId=${testEndpoint.id}`);
-      const response = await GET_PROJECT_REQUESTS(httpRequest as any, {
+      const response = await GET_PROJECT_REQUESTS(asReq(httpRequest), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -164,7 +167,7 @@ describe('Requests API', () => {
 
     it('should return 404 for non-existent project', async () => {
       const request = new Request('http://localhost/api/projects/non-existent/requests');
-      const response = await GET_PROJECT_REQUESTS(request as any, {
+      const response = await GET_PROJECT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: 'non-existent' }),
       });
       const data = await response.json();
@@ -189,7 +192,7 @@ describe('Requests API', () => {
       await mockDb.insert(projects).values(otherProject);
 
       const request = new Request(`http://localhost/api/projects/proj2/requests?endpointId=${testEndpoint.id}`);
-      const response = await GET_PROJECT_REQUESTS(request as any, {
+      const response = await GET_PROJECT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: otherProject.id }),
       });
       const data = await response.json();
@@ -202,7 +205,7 @@ describe('Requests API', () => {
       await mockDb.delete(requests).where(eq(requests.endpointId, testEndpoint.id));
 
       const request = new Request('http://localhost/api/projects/proj1/requests');
-      const response = await GET_PROJECT_REQUESTS(request as any, {
+      const response = await GET_PROJECT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -219,7 +222,7 @@ describe('Requests API', () => {
         method: 'DELETE',
       });
 
-      const response = await DELETE_PROJECT_REQUESTS(request as any, {
+      const response = await DELETE_PROJECT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -237,7 +240,7 @@ describe('Requests API', () => {
         method: 'DELETE',
       });
 
-      const response = await DELETE_PROJECT_REQUESTS(request as any, {
+      const response = await DELETE_PROJECT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
       const data = await response.json();
@@ -250,7 +253,7 @@ describe('Requests API', () => {
   describe('GET /api/projects/[id]/endpoints/[endpointId]/requests', () => {
     it('should return requests for an endpoint', async () => {
       const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/requests');
-      const response = await GET_ENDPOINT_REQUESTS(request as any, {
+      const response = await GET_ENDPOINT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
       });
       const data = await response.json();
@@ -264,7 +267,7 @@ describe('Requests API', () => {
 
     it('should support limit and offset', async () => {
       const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/requests?limit=1&offset=0');
-      const response = await GET_ENDPOINT_REQUESTS(request as any, {
+      const response = await GET_ENDPOINT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
       });
       const data = await response.json();
@@ -277,7 +280,7 @@ describe('Requests API', () => {
 
     it('should return 404 for non-existent endpoint', async () => {
       const request = new Request('http://localhost/api/projects/proj1/endpoints/non-existent/requests');
-      const response = await GET_ENDPOINT_REQUESTS(request as any, {
+      const response = await GET_ENDPOINT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: 'non-existent' }),
       });
       const data = await response.json();
@@ -293,7 +296,7 @@ describe('Requests API', () => {
         method: 'DELETE',
       });
 
-      const response = await DELETE_ENDPOINT_REQUESTS(request as any, {
+      const response = await DELETE_ENDPOINT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
       });
       const data = await response.json();
@@ -311,7 +314,7 @@ describe('Requests API', () => {
         method: 'DELETE',
       });
 
-      const response = await DELETE_ENDPOINT_REQUESTS(request as any, {
+      const response = await DELETE_ENDPOINT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: 'non-existent' }),
       });
       const data = await response.json();

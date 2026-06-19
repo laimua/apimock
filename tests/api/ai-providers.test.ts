@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
+import { type NextRequest } from 'next/server';
 import { GET, POST } from '@/app/api/ai/providers/route';
 import { PATCH, DELETE } from '@/app/api/ai/providers/[id]/route';
 import { POST as TEST_POST } from '@/app/api/ai/providers/[id]/test/route';
@@ -11,6 +12,8 @@ import { POST as DEFAULT_POST } from '@/app/api/ai/providers/[id]/default/route'
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { aiProviders } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+
+const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 
 let mockDb: ReturnType<typeof getTestDb>;
 
@@ -59,7 +62,7 @@ describe('AI Providers API', () => {
   describe('GET /api/ai/providers', () => {
     it('should return empty array when no providers exist', async () => {
       const request = new Request('http://localhost/api/ai/providers');
-      const response = await GET(request as any);
+      const response = await GET(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -100,7 +103,7 @@ describe('AI Providers API', () => {
       ]);
 
       const request = new Request('http://localhost/api/ai/providers');
-      const response = await GET(request as any);
+      const response = await GET(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -144,7 +147,7 @@ describe('AI Providers API', () => {
       ]);
 
       const request = new Request('http://localhost/api/ai/providers');
-      const response = await GET(request as any);
+      const response = await GET(asReq(request));
       const data = await response.json();
 
       expect(data.data[0].isDefault).toBe(true);
@@ -167,7 +170,7 @@ describe('AI Providers API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(201);
@@ -195,7 +198,7 @@ describe('AI Providers API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -216,7 +219,7 @@ describe('AI Providers API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(data.success).toBe(true);
@@ -239,7 +242,7 @@ describe('AI Providers API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(201);
@@ -257,7 +260,7 @@ describe('AI Providers API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -295,7 +298,7 @@ describe('AI Providers API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await PATCH(request as any, {
+      const response = await PATCH(asReq(request), {
         params: Promise.resolve({ id: 'provider1' }),
       });
       const data = await response.json();
@@ -314,7 +317,7 @@ describe('AI Providers API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await PATCH(request as any, {
+      const response = await PATCH(asReq(request), {
         params: Promise.resolve({ id: 'non-existent' }),
       });
       const data = await response.json();
@@ -334,7 +337,7 @@ describe('AI Providers API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await PATCH(request as any, {
+      const response = await PATCH(asReq(request), {
         params: Promise.resolve({ id: 'provider1' }),
       });
       const data = await response.json();
@@ -384,7 +387,7 @@ describe('AI Providers API', () => {
         method: 'DELETE',
       });
 
-      const response = await DELETE(request as any, {
+      const response = await DELETE(asReq(request), {
         params: Promise.resolve({ id: 'provider1' }),
       });
       const data = await response.json();
@@ -399,7 +402,7 @@ describe('AI Providers API', () => {
         method: 'DELETE',
       });
 
-      const response = await DELETE(request as any, {
+      const response = await DELETE(asReq(request), {
         params: Promise.resolve({ id: 'provider1' }),
       });
       const data = await response.json();
@@ -414,7 +417,7 @@ describe('AI Providers API', () => {
         method: 'DELETE',
       });
 
-      const response = await DELETE(request as any, {
+      const response = await DELETE(asReq(request), {
         params: Promise.resolve({ id: 'non-existent' }),
       });
       const data = await response.json();
@@ -449,7 +452,7 @@ describe('AI Providers API', () => {
         method: 'POST',
       });
 
-      const response = await TEST_POST(request as any, {
+      const response = await TEST_POST(asReq(request), {
         params: Promise.resolve({ id: 'provider1' }),
       });
       const data = await response.json();
@@ -466,7 +469,7 @@ describe('AI Providers API', () => {
         method: 'POST',
       });
 
-      const response = await TEST_POST(request as any, {
+      const response = await TEST_POST(asReq(request), {
         params: Promise.resolve({ id: 'non-existent' }),
       });
       const data = await response.json();
@@ -516,7 +519,7 @@ describe('AI Providers API', () => {
         method: 'POST',
       });
 
-      const response = await DEFAULT_POST(request as any, {
+      const response = await DEFAULT_POST(asReq(request), {
         params: Promise.resolve({ id: 'provider2' }),
       });
       const data = await response.json();
@@ -535,7 +538,7 @@ describe('AI Providers API', () => {
         method: 'POST',
       });
 
-      const response = await DEFAULT_POST(request as any, {
+      const response = await DEFAULT_POST(asReq(request), {
         params: Promise.resolve({ id: 'non-existent' }),
       });
       const data = await response.json();

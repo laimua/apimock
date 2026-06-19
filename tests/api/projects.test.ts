@@ -4,10 +4,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { type NextRequest } from 'next/server';
 import { POST, GET } from '@/app/api/projects/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+
+const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 
 let mockDb: ReturnType<typeof getTestDb>;
 
@@ -93,7 +96,7 @@ describe('Projects API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(201);
@@ -116,7 +119,7 @@ describe('Projects API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(data.data.slug).toBe('my-test-api-project');
@@ -136,7 +139,7 @@ describe('Projects API', () => {
           body: JSON.stringify({ name: testCase.name }),
         });
 
-        const response = await POST(request as any);
+        const response = await POST(asReq(request));
         const data = await response.json();
 
         expect(data.data.slug).toBe(testCase.expectedSlug);
@@ -153,7 +156,7 @@ describe('Projects API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(201);
@@ -172,7 +175,7 @@ describe('Projects API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -190,7 +193,7 @@ describe('Projects API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -207,7 +210,7 @@ describe('Projects API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -220,7 +223,7 @@ describe('Projects API', () => {
         body: 'invalid json',
       });
 
-      const response = await POST(request as any);
+      const response = await POST(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(500);

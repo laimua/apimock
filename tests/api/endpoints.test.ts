@@ -4,11 +4,14 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { type NextRequest } from 'next/server';
 import { GET, POST } from '@/app/api/projects/[id]/endpoints/route';
 import { GET as GET_ONE, PUT, DELETE } from '@/app/api/projects/[id]/endpoints/[endpointId]/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects, endpoints } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+
+const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 
 let mockDb: ReturnType<typeof getTestDb>;
 
@@ -24,7 +27,7 @@ beforeAll(async () => {
 });
 
 describe('Endpoints API', () => {
-  let testProject: any;
+  let testProject: typeof projects.$inferInsert;
 
   beforeEach(async () => {
     await clearTestDb(mockDb);
@@ -54,7 +57,7 @@ describe('Endpoints API', () => {
   describe('GET /api/projects/[id]/endpoints', () => {
     it('should return empty array when no endpoints exist', async () => {
       const request = new Request(`http://localhost/api/projects/${testProject.id}/endpoints`);
-      const response = await GET(request as any, { params: Promise.resolve({ id: testProject.id }) });
+      const response = await GET(asReq(request), { params: Promise.resolve({ id: testProject.id }) });
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -95,7 +98,7 @@ describe('Endpoints API', () => {
       ]);
 
       const request = new Request(`http://localhost/api/projects/${testProject.id}/endpoints`);
-      const response = await GET(request as any, { params: Promise.resolve({ id: testProject.id }) });
+      const response = await GET(asReq(request), { params: Promise.resolve({ id: testProject.id }) });
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -108,7 +111,7 @@ describe('Endpoints API', () => {
 
     it('should return 404 for non-existent project', async () => {
       const request = new Request('http://localhost/api/projects/non-existent/endpoints');
-      const response = await GET(request as any, { params: Promise.resolve({ id: 'non-existent' }) });
+      const response = await GET(asReq(request), { params: Promise.resolve({ id: 'non-existent' }) });
       const data = await response.json();
 
       expect(response.status).toBe(404);
@@ -138,7 +141,7 @@ describe('Endpoints API', () => {
       ]);
 
       const request = new Request(`http://localhost/api/projects/${testProject.id}/endpoints`);
-      const response = await GET(request as any, { params: Promise.resolve({ id: testProject.id }) });
+      const response = await GET(asReq(request), { params: Promise.resolve({ id: testProject.id }) });
       const data = await response.json();
 
       expect(data.data).toHaveLength(1);
@@ -162,7 +165,7 @@ describe('Endpoints API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any, { params: Promise.resolve({ id: testProject.id }) });
+      const response = await POST(asReq(request), { params: Promise.resolve({ id: testProject.id }) });
       const data = await response.json();
 
       expect(response.status).toBe(201);
@@ -187,7 +190,7 @@ describe('Endpoints API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any, { params: Promise.resolve({ id: testProject.id }) });
+      const response = await POST(asReq(request), { params: Promise.resolve({ id: testProject.id }) });
       const data = await response.json();
 
       expect(response.status).toBe(201);
@@ -206,7 +209,7 @@ describe('Endpoints API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any, { params: Promise.resolve({ id: testProject.id }) });
+      const response = await POST(asReq(request), { params: Promise.resolve({ id: testProject.id }) });
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -226,7 +229,7 @@ describe('Endpoints API', () => {
           body: JSON.stringify(requestBody),
         });
 
-        const response = await POST(request as any, { params: Promise.resolve({ id: testProject.id }) });
+        const response = await POST(asReq(request), { params: Promise.resolve({ id: testProject.id }) });
         const data = await response.json();
 
         expect(response.status).toBe(201);
@@ -245,7 +248,7 @@ describe('Endpoints API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any, { params: Promise.resolve({ id: testProject.id }) });
+      const response = await POST(asReq(request), { params: Promise.resolve({ id: testProject.id }) });
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -260,7 +263,7 @@ describe('Endpoints API', () => {
         body: JSON.stringify(requestBody),
       });
 
-      const response = await POST(request as any, { params: Promise.resolve({ id: 'non-existent' }) });
+      const response = await POST(asReq(request), { params: Promise.resolve({ id: 'non-existent' }) });
       const data = await response.json();
 
       expect(response.status).toBe(404);
@@ -287,7 +290,7 @@ describe('Endpoints API', () => {
       await mockDb.insert(endpoints).values(endpoint as typeof endpoints.$inferInsert);
 
       const request = new Request(`http://localhost/api/projects/${testProject.id}/endpoints/${endpoint.id}`);
-      const response = await GET_ONE(request as any, {
+      const response = await GET_ONE(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: endpoint.id }),
       });
       const data = await response.json();
@@ -301,7 +304,7 @@ describe('Endpoints API', () => {
 
     it('should return 404 for non-existent endpoint', async () => {
       const request = new Request(`http://localhost/api/projects/${testProject.id}/endpoints/non-existent`);
-      const response = await GET_ONE(request as any, {
+      const response = await GET_ONE(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: 'non-existent' }),
       });
       const data = await response.json();
@@ -340,7 +343,7 @@ describe('Endpoints API', () => {
         body: JSON.stringify(updateData),
       });
 
-      const response = await PUT(request as any, {
+      const response = await PUT(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: endpoint.id }),
       });
       const data = await response.json();
@@ -376,7 +379,7 @@ describe('Endpoints API', () => {
         body: JSON.stringify(updateData),
       });
 
-      const response = await PUT(request as any, {
+      const response = await PUT(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: endpoint.id }),
       });
       const data = await response.json();
@@ -390,7 +393,7 @@ describe('Endpoints API', () => {
         body: JSON.stringify({ name: 'Updated' }),
       });
 
-      const response = await PUT(request as any, {
+      const response = await PUT(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: 'non-existent' }),
       });
       const data = await response.json();
@@ -422,7 +425,7 @@ describe('Endpoints API', () => {
         method: 'DELETE',
       });
 
-      const response = await DELETE(request as any, {
+      const response = await DELETE(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: endpoint.id }),
       });
       const data = await response.json();
@@ -437,7 +440,7 @@ describe('Endpoints API', () => {
         method: 'DELETE',
       });
 
-      const response = await DELETE(request as any, {
+      const response = await DELETE(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: 'non-existent' }),
       });
       const data = await response.json();

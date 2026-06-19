@@ -4,10 +4,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
+import { type NextRequest } from 'next/server';
 import { GET } from '@/app/api/projects/check-slug/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+
+const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 
 let mockDb: ReturnType<typeof getTestDb>;
 
@@ -34,7 +36,7 @@ describe('Check Slug API', () => {
   describe('GET /api/projects/check-slug', () => {
     it('should return available: true for new slug', async () => {
       const request = new Request('http://localhost/api/projects/check-slug?slug=new-project');
-      const response = await GET(request as any);
+      const response = await GET(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -58,7 +60,7 @@ describe('Check Slug API', () => {
       });
 
       const request = new Request('http://localhost/api/projects/check-slug?slug=existing-project');
-      const response = await GET(request as any);
+      const response = await GET(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -69,7 +71,7 @@ describe('Check Slug API', () => {
 
     it('should handle missing slug parameter', async () => {
       const request = new Request('http://localhost/api/projects/check-slug');
-      const response = await GET(request as any);
+      const response = await GET(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -78,7 +80,7 @@ describe('Check Slug API', () => {
 
     it('should validate slug format', async () => {
       const request = new Request('http://localhost/api/projects/check-slug?slug=a'.repeat(300));
-      const response = await GET(request as any);
+      const response = await GET(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -87,7 +89,7 @@ describe('Check Slug API', () => {
 
     it('should handle empty slug', async () => {
       const request = new Request('http://localhost/api/projects/check-slug?slug=');
-      const response = await GET(request as any);
+      const response = await GET(asReq(request));
       const data = await response.json();
 
       expect(response.status).toBe(400);
