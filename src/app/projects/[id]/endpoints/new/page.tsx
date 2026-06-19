@@ -129,7 +129,7 @@ export default function NewEndpointPage() {
     }
   }
 
-  function useTemplate(templatePath: string) {
+  function applyPathTemplate(templatePath: string) {
     setForm((prev) => ({ ...prev, path: templatePath }));
     setErrors((prev) => ({ ...prev, path: undefined }));
     setTouched((prev) => ({ ...prev, path: true }));
@@ -379,7 +379,7 @@ export default function NewEndpointPage() {
                       <button
                         key={template}
                         type="button"
-                        onClick={() => useTemplate(template)}
+                        onClick={() => applyPathTemplate(template)}
                         disabled={loading}
                         className="px-2 py-1 text-xs font-mono bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded text-gray-700 dark:text-gray-300 disabled:opacity-50 transition-colors"
                       >

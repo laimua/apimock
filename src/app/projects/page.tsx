@@ -155,7 +155,7 @@ export default function ProjectsPage() {
               </div>
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">未找到匹配的项目</h3>
               <p className="text-gray-500 dark:text-gray-400 mb-4">
-                没有找到与 "{searchQuery}" 匹配的项目
+                没有找到与 &ldquo;{searchQuery}&rdquo; 匹配的项目
               </p>
               <button
                 onClick={() => setSearchQuery('')}
