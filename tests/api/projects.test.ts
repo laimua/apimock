@@ -3,12 +3,11 @@
  * Tests for GET /api/projects and POST /api/projects
  */
 
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
 import { type NextRequest } from 'next/server';
 import { POST, GET } from '@/app/api/projects/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
 
 const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 

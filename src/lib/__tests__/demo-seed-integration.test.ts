@@ -3,7 +3,7 @@
  * 实际写入 in-memory DB，验证 insert 路径
  */
 
-import { describe, it, expect, beforeEach, beforeAll, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, afterEach } from 'vitest';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
 import * as schema from '@/lib/schema-sqlite';

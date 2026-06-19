@@ -4,7 +4,7 @@
  * POST /api/ai/providers - 添加新 Provider
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { success, error, validate, Errors, ValidationError } from '@/lib/api';
 import { z } from 'zod';
 import { db } from '@/lib/db';

@@ -9,7 +9,7 @@ import { GET as GET_LIST, POST } from '@/app/api/projects/[id]/endpoints/[endpoi
 import { GET as GET_ONE, PATCH, DELETE } from '@/app/api/projects/[id]/endpoints/[endpointId]/responses/[responseId]/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects, endpoints, responses } from '@/lib/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 

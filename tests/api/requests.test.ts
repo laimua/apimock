@@ -9,7 +9,7 @@ import { GET as GET_PROJECT_REQUESTS, DELETE as DELETE_PROJECT_REQUESTS } from '
 import { GET as GET_ENDPOINT_REQUESTS, DELETE as DELETE_ENDPOINT_REQUESTS } from '@/app/api/projects/[id]/endpoints/[endpointId]/requests/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects, endpoints, requests } from '@/lib/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 

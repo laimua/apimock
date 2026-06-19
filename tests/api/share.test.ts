@@ -26,7 +26,6 @@ beforeAll(async () => {
 
 describe('Share API', () => {
   let testProject: typeof projects.$inferInsert;
-  let testEndpoints: typeof endpoints.$inferInsert[] = [];
 
   beforeEach(async () => {
     await clearTestDb(mockDb);
@@ -78,7 +77,6 @@ describe('Share API', () => {
     ];
 
     await mockDb.insert(endpoints).values(endpointsData as (typeof endpoints.$inferInsert)[]);
-    testEndpoints = endpointsData as (typeof endpoints.$inferInsert)[];
   });
 
   afterEach(async () => {

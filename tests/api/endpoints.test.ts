@@ -3,13 +3,12 @@
  * Tests for CRUD operations on endpoints
  */
 
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
 import { type NextRequest } from 'next/server';
 import { GET, POST } from '@/app/api/projects/[id]/endpoints/route';
 import { GET as GET_ONE, PUT, DELETE } from '@/app/api/projects/[id]/endpoints/[endpointId]/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects, endpoints } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
 
 const asReq = (r: Request): NextRequest => r as unknown as NextRequest;
 

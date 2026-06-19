@@ -24,7 +24,7 @@ vi.mock('@/lib/db', () => ({
 // Mock the openapi-parser module
 vi.mock('@/lib/openapi-parser', () => ({
   detectFormat: vi.fn(() => 'openapi3'),
-  parseAndExtract: vi.fn((content: string, format: string) => {
+  parseAndExtract: vi.fn((content: string) => {
     if (content.includes('invalid')) {
       return {
         endpoints: [],
