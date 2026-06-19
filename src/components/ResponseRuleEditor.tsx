@@ -60,6 +60,8 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
 
   useEffect(() => {
     loadResponses();
+    // 仅按 prop 变化重载；loadResponses 闭包读取最新 prop，无需加入依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, endpointId]);
 
   async function loadResponses() {

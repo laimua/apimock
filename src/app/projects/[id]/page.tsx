@@ -420,12 +420,16 @@ export default function ProjectPage() {
 
   useEffect(() => {
     loadData();
+    // 仅按显式列出的筛选项变化重载；loadData 闭包读取最新 state，无需加入依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, page, debouncedSearch, methodFilter, tagFilter]);
 
   useEffect(() => {
     if (activeTab === 'requests') {
       loadRequests();
     }
+    // 切换到 requests tab 或翻页/筛选时重载；loadRequests 闭包读取最新 state
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, requestsPage, requestsEndpointFilter]);
 
   // 在空项目首次加载时显示引导

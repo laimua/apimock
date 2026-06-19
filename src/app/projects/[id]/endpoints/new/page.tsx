@@ -69,6 +69,8 @@ export default function NewEndpointPage() {
 
   useEffect(() => {
     loadProject();
+    // 仅按 projectId 变化重载；loadProject 闭包读取最新 prop，无需加入依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   async function loadProject() {

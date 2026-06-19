@@ -551,6 +551,8 @@ export default function SharePage() {
 
   useEffect(() => {
     loadShareData();
+    // 仅按 slug 变化重载；loadShareData 闭包读取最新 prop，无需加入依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   async function loadShareData() {

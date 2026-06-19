@@ -112,7 +112,9 @@ export function JsonEditor({ value, onChange, readOnly = false, height = '300px'
     return () => {
       view.destroy();
     };
-  }, []); // 只在挂载时创建
+    // CodeMirror EditorState 只在挂载时初始化；外部 value 变更走下方 useEffect 同步
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 当外部 value 变化时更新编辑器内容
   useEffect(() => {

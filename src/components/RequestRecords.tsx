@@ -34,6 +34,8 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
 
   useEffect(() => {
     loadRequests();
+    // 仅按 prop 变化重载；loadRequests 闭包读取最新 prop，无需加入依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, endpointId]);
 
   async function loadRequests() {
