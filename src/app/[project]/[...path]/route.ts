@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse, after } from 'next/server';
 import { db } from '@/lib/db';
-import { projects, endpoints, responses, requests } from '@/lib/schema';
+import { endpoints, responses, requests } from '@/lib/schema';
 import type { Endpoint, Response, HttpMethod } from '@/lib/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';

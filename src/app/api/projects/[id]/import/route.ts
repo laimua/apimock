@@ -11,7 +11,7 @@ import { parseAndExtract, detectFormat, type ParsedEndpoint } from '@/lib/openap
 import { db } from '@/lib/db';
 import { endpoints, responses, projects } from '@/lib/schema';
 import type { HttpMethod } from '@/lib/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 // ============================================
 // 类型定义

@@ -10,7 +10,6 @@
  */
 
 import { db } from '@/lib/db';
-import { requests } from '@/lib/schema';
 import { sql } from 'drizzle-orm';
 
 const DEFAULT_KEEP_PER_ENDPOINT = 1000;
