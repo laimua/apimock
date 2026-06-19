@@ -33,3 +33,9 @@ pnpm-debug.log*
 nul
 scripts/memory-*.db
 .gstack/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Claude Code 本地配置
+.claude/
