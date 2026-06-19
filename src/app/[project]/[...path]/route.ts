@@ -6,14 +6,15 @@
 
 import { NextRequest, NextResponse, after } from 'next/server';
 import { db } from '@/lib/db';
-import { endpoints, responses, requests } from '@/lib/schema';
+import { responses, requests } from '@/lib/schema';
 import type { Endpoint, Response, HttpMethod } from '@/lib/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { isBodyTooLarge, utf8ByteLength } from '@/lib/body-size-limit';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/client-ip';
 import { getCachedProject } from '@/lib/project-cache';
+import { getCachedEndpointsByMethod } from '@/lib/endpoint-cache';
 
 // Mock 服务限流：100 req/min/IP
 const MOCK_RATE_LIMIT = 100;
@@ -227,29 +228,18 @@ async function findEndpoint(
   if (!project) return null;
   if (!project.isActive) return null;
 
-  // 精确匹配
-  const exactMatchList = await db
-    .select()
-    .from(endpoints)
-    .where(
-      and(
-        eq(endpoints.projectId, project.id),
-        eq(endpoints.path, requestPath),
-        eq(endpoints.method, method)
-      )
-    );
+  // 一次性取该 project+method 全部 endpoints（带 TTL 缓存），精确匹配 + 参数
+  // 模糊匹配共用同一份数据。/users/:id 等参数路径不再每次请求全表扫。
+  const allEndpointsList = await getCachedEndpointsByMethod(project.id, method);
 
-  if (exactMatchList.length > 0) {
-    const endpoint = exactMatchList[0];
-    if (!endpoint.isActive) return null;
-    return buildEndpointResponse(endpoint, requestQuery, requestHeaders);
+  // 精确匹配
+  const exactMatch = allEndpointsList.find((e) => e.path === requestPath);
+  if (exactMatch) {
+    if (!exactMatch.isActive) return null;
+    return buildEndpointResponse(exactMatch, requestQuery, requestHeaders);
   }
 
   // 模糊匹配（路径参数）
-  const allEndpointsList = await db
-    .select()
-    .from(endpoints)
-    .where(and(eq(endpoints.projectId, project.id), eq(endpoints.method, method)));
 
   const requestParts = requestPath.split('/');
 

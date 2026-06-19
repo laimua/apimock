@@ -12,6 +12,7 @@ import { db } from '@/lib/db';
 import { endpoints, responses, projects } from '@/lib/schema';
 import type { HttpMethod } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+import { invalidateEndpointCache } from '@/lib/endpoint-cache';
 
 // ============================================
 // 类型定义
@@ -123,6 +124,7 @@ async function batchCreateEndpoints(
     // 可接受，import 是低频操作）
     if (endpointInserts.length > 0) {
       await db.insert(endpoints).values(endpointInserts);
+      invalidateEndpointCache(projectId);
     }
     if (responseInserts.length > 0) {
       await db.insert(responses).values(responseInserts);

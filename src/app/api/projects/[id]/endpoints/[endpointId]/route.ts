@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { endpoints, responses } from '@/lib/schema';
 import { eq, and } from 'drizzle-orm';
+import { invalidateEndpointCache } from '@/lib/endpoint-cache';
 
 // ============================================
 // Schema
@@ -121,6 +122,7 @@ export async function PUT(
       .update(endpoints)
       .set(updateData)
       .where(eq(endpoints.id, endpointId));
+    invalidateEndpointCache(projectId);
 
     // 返回更新后的数据
     const updatedList = await db
@@ -174,6 +176,7 @@ export async function DELETE(
 
   // 删除端点（关联的响应会由于 cascade 自动删除）
   await db.delete(endpoints).where(eq(endpoints.id, endpointId));
+  invalidateEndpointCache(projectId);
 
   return success({ message: 'Endpoint deleted' });
 }

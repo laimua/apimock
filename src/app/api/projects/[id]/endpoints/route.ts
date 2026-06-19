@@ -11,6 +11,7 @@ import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { endpoints, projects } from '@/lib/schema';
 import { eq, and, like, sql } from 'drizzle-orm';
+import { invalidateEndpointCache } from '@/lib/endpoint-cache';
 
 // ============================================
 // Schema
@@ -218,6 +219,7 @@ export async function POST(
     };
 
     await db.insert(endpoints).values(newEndpoint);
+    invalidateEndpointCache(projectId);
 
     // 解析 responseBody 和 tags 用于返回
     let parsedResponseBody: unknown = null;
