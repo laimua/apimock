@@ -9,7 +9,7 @@ import { success, Errors } from '@/lib/api';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { endpoints, requests } from '@/lib/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 
 // ============================================
 // GET /api/projects/[id]/endpoints/[endpointId]/requests
@@ -62,15 +62,16 @@ export async function GET(
       })() : null,
     }));
 
-    // 获取总数
-    const totalCount = await db
-      .select({ count: requests.id })
+    // 获取总数（count(*)，避免全表扫到内存再 .length）
+    const countRows = await db
+      .select({ count: sql<number>`count(*)` })
       .from(requests)
       .where(eq(requests.endpointId, endpointId));
+    const total = countRows[0]?.count ?? 0;
 
     return success({
       requests: parsedRequests,
-      total: totalCount.length,
+      total,
       limit,
       offset,
     });

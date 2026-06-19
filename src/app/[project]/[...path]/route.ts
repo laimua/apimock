@@ -169,26 +169,12 @@ async function buildEndpointResponse(
   requestQuery: Record<string, string>,
   requestHeaders: Record<string, string>
 ): Promise<{ endpoint: Endpoint; response: { statusCode: number; contentType: string; headers: Record<string, string>; body: unknown }; delay: number }> {
-  // 优先使用端点级别的响应配置
-  if (endpoint.responseBody !== null && endpoint.responseBody !== undefined) {
-    return toResponseObj(endpoint, {
-      statusCode: endpoint.statusCode,
-      contentType: endpoint.contentType,
-      headers: '{}',
-      body: endpoint.responseBody,
-    });
-  }
-
-  // 查找 responses 表
+  // 查找 responses 表（规则匹配优先于端点级 responseBody）
   const responseList = await db
     .select()
     .from(responses)
     .where(eq(responses.endpointId, endpoint.id))
     .orderBy(desc(responses.priority));
-
-  if (responseList.length === 0) {
-    return toResponseObj(endpoint, null);
-  }
 
   // 分组：规则匹配 > 默认 > 无规则
   let matched: Response | null = null;
@@ -208,7 +194,21 @@ async function buildEndpointResponse(
     }
   }
 
-  return toResponseObj(endpoint, matched || fallback);
+  if (matched) {
+    return toResponseObj(endpoint, matched);
+  }
+
+  // 端点级 responseBody 作 fallback（responses 无匹配或为空时使用）
+  if (endpoint.responseBody !== null && endpoint.responseBody !== undefined) {
+    return toResponseObj(endpoint, {
+      statusCode: endpoint.statusCode,
+      contentType: endpoint.contentType,
+      headers: '{}',
+      body: endpoint.responseBody,
+    });
+  }
+
+  return toResponseObj(endpoint, fallback);
 }
 
 // ============================================

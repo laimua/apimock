@@ -9,7 +9,7 @@ import { success, Errors, validate, ValidationError } from '@/lib/api';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { aiProviders } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { eq, ne, and } from 'drizzle-orm';
 import { encrypt } from '@/lib/encryption';
 
 // ============================================
@@ -148,9 +148,9 @@ export async function DELETE(
 
     // 如果删除的是默认 provider，需要将其他 provider 设为默认
     if (existing.isDefault === 1) {
-      // 找一个可用的 provider 设为默认
+      // 找一个其它可用 provider 设为默认（不能是正在被删除的自己）
       const otherProviders = await db.query.aiProviders.findMany({
-        where: eq(aiProviders.id, id),
+        where: and(ne(aiProviders.id, id), eq(aiProviders.isActive, 1)),
       });
 
       if (otherProviders.length > 0) {

@@ -68,9 +68,16 @@ export async function GET(
     conditions.push(eq(endpoints.method, method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS'));
   }
 
-  // 标签筛选（tags 是 JSON 数组字符串，使用 json_each 精确匹配）
+  // 标签筛选（tags 是 JSON 数组字符串）
   if (tag) {
-    conditions.push(sql`${endpoints.id} IN (SELECT e.id FROM endpoints e, json_each(e.tags) WHERE e.project_id = ${projectId} AND json_each.value = ${tag})`);
+    const isMysql = (process.env.DB_TYPE || 'sqlite').toLowerCase() === 'mysql';
+    if (isMysql) {
+      // MySQL: JSON_CONTAINS(tags, JSON_QUOTE(?))
+      conditions.push(sql`JSON_CONTAINS(${endpoints.tags}, JSON_QUOTE(${tag}))`);
+    } else {
+      // SQLite: json_each
+      conditions.push(sql`${endpoints.id} IN (SELECT e.id FROM endpoints e, json_each(e.tags) WHERE e.project_id = ${projectId} AND json_each.value = ${tag})`);
+    }
   }
 
   const whereClause = conditions.length > 1 ? and(...conditions) : conditions[0];

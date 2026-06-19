@@ -425,6 +425,67 @@ describe('AI Providers API', () => {
       expect(response.status).toBe(404);
       expect(data.success).toBe(false);
     });
+
+    it('should reassign default to another active provider when deleting the default', async () => {
+      // 清掉 beforeEach 的 fixture，避免干扰选哪个作新默认
+      await clearTestDb(mockDb);
+      // seed: 默认 provider-default + 另一个可用 provider-other
+      await mockDb.insert(aiProviders).values([
+        {
+          id: 'provider-default',
+          name: 'Default One',
+          provider: 'openai',
+          baseUrl: null,
+          apiKey: encrypt('sk-default'),
+          models: JSON.stringify(['gpt-4']),
+          defaultModel: 'gpt-4',
+          systemPrompt: null,
+          isActive: 1,
+          isDefault: 1,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        {
+          id: 'provider-other',
+          name: 'Other One',
+          provider: 'openai',
+          baseUrl: null,
+          apiKey: encrypt('sk-other'),
+          models: JSON.stringify(['gpt-4']),
+          defaultModel: 'gpt-4',
+          systemPrompt: null,
+          isActive: 1,
+          isDefault: 0,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ]);
+
+      const request = new Request('http://localhost/api/ai/providers/provider-default?confirmed=true', {
+        method: 'DELETE',
+      });
+
+      const response = await DELETE(asReq(request), {
+        params: Promise.resolve({ id: 'provider-default' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+
+      // 另一个 provider 应被设为默认
+      const remaining = await mockDb.query.aiProviders.findMany({
+        where: eq(aiProviders.id, 'provider-other'),
+      });
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].isDefault).toBe(1);
+
+      // 原 default 已删
+      const deleted = await mockDb.query.aiProviders.findMany({
+        where: eq(aiProviders.id, 'provider-default'),
+      });
+      expect(deleted).toHaveLength(0);
+    });
   });
 
   describe('POST /api/ai/providers/[id]/test', () => {
