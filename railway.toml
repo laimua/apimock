@@ -1,0 +1,36 @@
+# Railway deployment configuration
+# https://railway.com/docs/reference/config
+
+# 构建配置：使用 Node.js 20+ builder（自动检测 package.json）
+[deploy]
+  # 启动命令（Next.js production server）
+  startCommand = "pnpm start"
+
+  # 健康检查：等 /api/health 返回 200
+  healthcheckPath = "/api/health"
+  healthcheckTimeout = 60
+
+  # 重启策略：失败自动重启
+  restartPolicyType = "ON_FAILURE"
+  restartPolicyMaxRetries = 3
+
+  # 注意：Railway 默认单实例部署（不支持 toml 配 replicas 数）。
+  # 内存限流（src/lib/rate-limit.ts）依赖单实例语义。
+  # 若需多实例 HA，需切 rate-limit 到 Redis（Upstash 或 Railway Redis 插件）。
+
+# 持久卷：SQLite 数据持久化
+[[deploy.volume]]
+  name = "apimock-data"
+  mountPath = "/data"
+
+# 环境变量（在 Railway dashboard 设置）：
+# - SQLITE_PATH=/data/apimock.db       ← 锁定到持久卷
+# - ENCRYPTION_KEY=<生成强随机串>       ← AES-256-GCM 加密密钥
+# - NODE_ENV=production                 ← 关闭 SQL 日志、启用 auto-seed
+# - SKIP_SEED=false                     ← 首次启动自动 seed demo-project
+#
+# 可选（MySQL 模式，替代 SQLite）：
+# - DB_TYPE=mysql
+# - MYSQL_HOST/PORT/USER/PASSWORD/DATABASE
+# （MySQL 模式下不需 volume mount）
+

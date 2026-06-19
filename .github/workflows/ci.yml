@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+# 同一 PR 新 push 时取消旧 run
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test + Build + Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # 测试用加密密钥（仅 CI，不要复用到生产）
+      ENCRYPTION_KEY: ci-test-encryption-key-not-for-production
+      SKIP_SEED: 'true'
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+        continue-on-error: true # pre-existing lint 错误不阻塞 CI
+
+      - name: Run unit + integration tests
+        run: pnpm test --reporter=default
+
+      - name: Build
+        run: pnpm build
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            .next/
+            !.next/cache
+          retention-days: 3

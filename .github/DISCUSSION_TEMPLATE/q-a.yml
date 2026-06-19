@@ -1,0 +1,21 @@
+---
+name: Q&A 提问
+about: 关于如何使用 apimock 的问题
+title: "[Q] "
+labels: q-a
+---
+**环境**
+- apimock 版本：
+- 部署方式：本地 / Railway / 其他
+- DB 类型：sqlite / mysql
+
+**你想做什么？**
+
+
+**你试过什么？**
+
+
+**错误信息 / 日志**（如有）
+
+
+**期望结果**
