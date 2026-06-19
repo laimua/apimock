@@ -13,6 +13,10 @@ export async function register() {
   const { startCleanup } = await import('./lib/rate-limit');
   startCleanup();
 
+  // 启动请求记录保留策略清理（每 10 分钟跑一次，每端点保留最近 N 条）
+  const { startRequestRetention } = await import('./lib/request-retention');
+  startRequestRetention();
+
   // Auto-seed demo-project on first boot (production only)
   const { autoSeedIfNeeded } = await import('./lib/demo-seed');
   const { db } = await import('./lib/db');

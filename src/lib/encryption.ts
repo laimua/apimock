@@ -12,20 +12,46 @@ const ALGORITHM = 'aes-256-gcm';
 const LEGACY_SALT = 'salt';
 const SALT_LENGTH = 16;
 
-function getMasterKey(): Buffer {
+/**
+ * 派生 key 缓存：scryptSync 故意慢，同一 ENCRYPTION_KEY + salt 组合反复调用
+ * 会浪费几十 ms。AI 生成链路每次 decrypt(provider.apiKey) 都触发，缓存可
+ * 把后续调用降到 ~0ms。
+ *
+ * 仅按 (secret, saltHex) 缓存认为输出确定——scrypt 同输入同输出。
+ */
+const deriveKeyCache = new Map<string, Buffer>();
+
+function getSecret(): string {
   const secret = process.env.ENCRYPTION_KEY;
   if (!secret) {
     throw new Error('ENCRYPTION_KEY environment variable is required. Set it before starting the server.');
   }
-  return crypto.scryptSync(secret, LEGACY_SALT, 32);
+  return secret;
+}
+
+function getCachedDerivedKey(secret: string, salt: Buffer): Buffer {
+  const saltHex = salt.toString('hex');
+  const cacheKey = `${secret.length}:${saltHex}`;
+  const cached = deriveKeyCache.get(cacheKey);
+  if (cached) return cached;
+  const derived = crypto.scryptSync(secret, salt, 32);
+  deriveKeyCache.set(cacheKey, derived);
+  return derived;
+}
+
+function getMasterKey(): Buffer {
+  return getCachedDerivedKey(getSecret(), Buffer.from(LEGACY_SALT));
 }
 
 function deriveKey(salt: Buffer): Buffer {
-  const secret = process.env.ENCRYPTION_KEY;
-  if (!secret) {
-    throw new Error('ENCRYPTION_KEY environment variable is required. Set it before starting the server.');
-  }
-  return crypto.scryptSync(secret, salt, 32);
+  return getCachedDerivedKey(getSecret(), salt);
+}
+
+/**
+ * 测试/重置用：清空 key 缓存。生产代码不应调用。
+ */
+export function _clearEncryptionKeyCache(): void {
+  deriveKeyCache.clear();
 }
 
 /**

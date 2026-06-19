@@ -15,7 +15,9 @@ if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-export const db = drizzle(new Database(dbPath), { schema, logger: process.env.NODE_ENV !== 'production' });
+// 仅在显式 DB_LOG_SQL=true 时开启 SQL 日志（默认关闭——mock 路由每个请求
+// 跑多条 SQL，dev 下噪音很大）
+export const db = drizzle(new Database(dbPath), { schema, logger: process.env.DB_LOG_SQL === 'true' });
 
 export function getDb() {
   return db;

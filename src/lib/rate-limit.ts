@@ -1,7 +1,12 @@
 /**
  * Memory-based rate limiter (token bucket)
  *
- * Single-instance only (Railway replicas:1). Multi-instance would need Redis.
+ * Single-instance only (Railway replicas:1). 多副本场景下每个实例独立计数，
+ * 实际限流变 N 倍宽松，防滥用失效。切多副本前需替换为共享存储（Redis / Upstash）：
+ *
+ *   接入点：本文件导出的 rateLimit(key, limit, windowMs) 是唯一对外 API。
+ *   替换实现时保持签名不变，调用方（mock 路由 + AI generate）无需改。
+ *
  * setInterval cleanup prevents Map unbounded growth under HN-traffic IP diversity.
  */
 
