@@ -92,6 +92,18 @@ export async function createRedisKv(url: string): Promise<KVStore> {
       return deleted;
     },
 
+    async countByPrefix(prefix) {
+      // SCAN 计数不删，用于监控
+      let cursor = '0';
+      let total = 0;
+      do {
+        const [next, keys] = await client.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', 200);
+        cursor = next;
+        total += keys.length;
+      } while (cursor !== '0');
+      return total;
+    },
+
     async clear() {
       // 仅清当前 DB。生产慎用。
       await client.flushdb();

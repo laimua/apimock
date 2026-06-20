@@ -58,10 +58,10 @@ export async function reset(): Promise<void> {
 }
 
 /**
- * 当前 bucket 数（监控用）。Memory 后端返真实数，Redis 后端返 0（不查 SCAN 避免开销）。
+ * 当前 bucket 数（监控用，非破坏性）。
+ * Memory 后端遍历计数；Redis 后端 SCAN 计数（不删，不影响限流状态）。
  */
 export async function getBucketCount(): Promise<number> {
   const kv = await getKv();
-  if (kv.backend !== 'memory') return 0;
-  return kv.delByPrefix('rl:').then((n) => n).catch(() => 0);
+  return kv.countByPrefix('rl:').catch(() => 0);
 }

@@ -35,7 +35,7 @@ export function createMemoryKv(): KVStore {
       const next = cur + by;
       const existing = store.get(key);
       if (existing?.timer) {
-        // 保持现有 TTL（计数操作不改 TTL）
+        // 保持现有 TTL（计数操作不改 TTL）— 下方 store.set 透传 existing.timer
       } else if (ttlSec && ttlSec > 0) {
         const timer = setTimeout(() => store.delete(key), ttlSec * 1000);
         timer.unref?.();
@@ -61,6 +61,14 @@ export function createMemoryKv(): KVStore {
           store.delete(key);
           n++;
         }
+      }
+      return n;
+    },
+
+    async countByPrefix(prefix) {
+      let n = 0;
+      for (const key of store.keys()) {
+        if (key.startsWith(prefix)) n++;
       }
       return n;
     },

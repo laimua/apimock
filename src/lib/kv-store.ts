@@ -26,6 +26,9 @@ export interface KVStore {
   /** 按前缀批量删。用于缓存失效 */
   delByPrefix(prefix: string): Promise<number>;
 
+  /** 按前缀计数（非破坏性）。用于监控，不删 key */
+  countByPrefix(prefix: string): Promise<number>;
+
   /** 清空（仅测试 / 失效全部） */
   clear(): Promise<void>;
 
