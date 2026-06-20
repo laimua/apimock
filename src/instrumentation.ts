@@ -10,6 +10,10 @@ export async function register() {
   // Edge runtime early return（避免加载 fs / better-sqlite3 失败）
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
 
+  // OTel 必须最先启动（在其它模块 import 之前 patch HTTP/DB driver）
+  const { startOtelIfConfigured } = await import('./lib/otel');
+  startOtelIfConfigured();
+
   const { startCleanup } = await import('./lib/rate-limit');
   startCleanup();
 

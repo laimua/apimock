@@ -43,11 +43,28 @@ ApiMock 支持多种部署方式。本文档覆盖常见场景。
 
 ### 限流说明
 
-Railway 单实例（`replicas: 1`）下，内存限流精确：
-- Mock 服务：100 req/min/IP
-- AI generate：10 req/min/IP
+- 单实例（`replicas: 1`）：默认内存后端精确
+- 多实例：配 `REDIS_URL` 后自动切 Redis 后端，限流和 AI 预算跨副本共享
+  - Mock 服务：100 req/min/IP
+  - AI generate：10 req/min/IP
+  - AI 日预算：1M tokens / 1000 calls（默认，按 UTC 日）
 
-若需多实例 + HA，需切 rate-limit 到 Redis（参考 `src/lib/rate-limit.ts` 注释）。
+### 可观测性（可选）
+
+- 结构化日志：`LOG_LEVEL=info`（默认），pino JSON 输出
+- Metrics：`/api/metrics`（需 `METRICS_TOKEN`），Prometheus 格式
+- 深探活：`/api/health/ready`（DB + 文件系统），Railway readiness probe 接此
+- APM / tracing：配 `OTEL_EXPORTER_OTLP_ENDPOINT` 启用 OTel 自动埋点
+  - 自动覆盖 http/https/next/better-sqlite3/mysql2/ioredis
+  - 鉴权：`OTEL_EXPORTER_OTLP_HEADERS=x-api-key=xxx`
+  - 服务名：`OTEL_SERVICE_NAME=apimock`（默认）
+
+### 备份
+
+- WAL 已开（`db-sqlite.ts`），`.backup` 取一致快照
+- 触发：`POST /api/admin/backup`（头 `X-Admin-Token: <ADMIN_TOKEN>`）
+- 建议外部 cron：Railway cron service / GitHub Actions scheduled / UptimeRobot
+- 输出：`./data/backups/apimock-YYYYMMDD-HHmmss.db`，滚动保留 7 份
 
 ### 免费额度
 
