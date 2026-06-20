@@ -62,7 +62,7 @@ curl http://localhost:3000/demo-project/orders
 | [Drizzle ORM](https://orm.drizzle.team/) | Type-safe ORM |
 | [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) / [mysql2](https://github.com/sidorares/node-mysql2) | Dual database support |
 | [Zod](https://zod.dev/) | API input validation |
-| [Vitest](https://vitest.dev/) / [Playwright](https://playwright.dev/) | 283 unit + 115+ E2E tests |
+| [Vitest](https://vitest.dev/) / [Playwright](https://playwright.dev/) | 296 unit + 119 E2E tests |
 | [CodeMirror 6](https://codemirror.net/) | JSON editor |
 | [Tailwind CSS v4](https://tailwindcss.com/) | UI styling |
 
@@ -123,9 +123,10 @@ src/
 ## Tests
 
 ```bash
-pnpm test                      # Unit + integration (283 cases)
-pnpm exec playwright test      # E2E (115+ cases)
+pnpm test                      # Unit + integration (296 cases)
+pnpm exec playwright test      # E2E (119 cases)
 pnpm test:coverage             # Coverage report
+pnpm ci:local                  # Reproduce CI locally (install → build → playwright)
 ```
 
 ## Environment variables

@@ -62,7 +62,7 @@ curl http://localhost:3000/demo-project/orders
 | [Drizzle ORM](https://orm.drizzle.team/) | 类型安全的 ORM |
 | [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) / [mysql2](https://github.com/sidorares/node-mysql2) | 双数据库支持 |
 | [Zod](https://zod.dev/) | API 参数校验 |
-| [Vitest](https://vitest.dev/) / [Playwright](https://playwright.dev/) | 283 单元 + 115+ E2E 测试 |
+| [Vitest](https://vitest.dev/) / [Playwright](https://playwright.dev/) | 296 单元 + 119 E2E 测试 |
 | [CodeMirror 6](https://codemirror.net/) | JSON 编辑器 |
 | [Tailwind CSS v4](https://tailwindcss.com/) | UI 样式 |
 
@@ -123,10 +123,20 @@ src/
 ## 测试
 
 ```bash
-pnpm test                      # 单元 + 集成（283 用例）
-pnpm exec playwright test      # E2E（115+ 用例）
+pnpm test                      # 单元 + 集成（296 用例）
+pnpm exec playwright test      # E2E（119 用例）
 pnpm test:coverage             # 覆盖率报告
+pnpm ci:local                  # 本地复现 CI（install → build → playwright）
 ```
+
+## 运维
+
+- **健康检查**：`/api/health`（liveness）+ `/api/health/ready`（DB + 文件系统深探）
+- **Metrics**：`/api/metrics`（Prometheus 格式，需 `METRICS_TOKEN`）
+- **备份**：`POST /api/admin/backup`（SQLite WAL 一致快照，需 `ADMIN_TOKEN`）
+- **APM**：配 `OTEL_EXPORTER_OTLP_ENDPOINT` 启用 OpenTelemetry 自动埋点
+
+完整运维配置见 [docs/DEPLOY.md](./docs/DEPLOY.md)。
 
 ## 环境变量
 
