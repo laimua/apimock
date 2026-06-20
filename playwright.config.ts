@@ -6,7 +6,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  // CI 用 list（打印每个测试名 + 失败断言到 stdout 便于日志诊断）
+  // 本地用 html（可视化）
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'html',
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',

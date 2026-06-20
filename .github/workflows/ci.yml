@@ -68,7 +68,7 @@ jobs:
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     needs: test
 
     env:
@@ -107,7 +107,8 @@ jobs:
         run: pnpm build
 
       - name: Run E2E
-        run: pnpm exec playwright test --project=chromium --retries=2
+        # retries=0 调试模式：失败立即暴露真实断言，不被 retry 掩盖
+        run: pnpm exec playwright test --project=chromium --retries=0
 
       - name: Upload Playwright report
         if: always()
