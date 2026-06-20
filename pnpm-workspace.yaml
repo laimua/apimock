@@ -1,3 +1,10 @@
+# pnpm 10 配置单一来源（packageManager 字段 + workspace yaml）
+# pnpm 9 的 package.json pnpm.onlyBuiltDependencies 已废弃，全部收口到此处。
+
+onlyBuiltDependencies:
+  - better-sqlite3
+  - esbuild
+
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver

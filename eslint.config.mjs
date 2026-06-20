@@ -26,6 +26,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Tool output dirs (gstack browse-audit jsonl 等)
+    ".gstack/**",
+    ".claude/**",
+    "data/**",
+    "drizzle/**",
   ]),
 ]);
 
