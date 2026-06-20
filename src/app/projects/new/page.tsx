@@ -253,6 +253,7 @@ export default function NewProjectPage() {
                 <div className="relative">
                   <input
                     type="text"
+                    data-testid="project-name-input"
                     value={form.name}
                     onChange={(e) => handleNameChange(e.target.value)}
                     onBlur={() => handleBlur('name')}
@@ -302,6 +303,7 @@ export default function NewProjectPage() {
                     </span>
                     <input
                       type="text"
+                      data-testid="project-slug-input"
                       value={form.slug}
                       onChange={(e) => handleSlugChange(e.target.value)}
                       onBlur={() => handleBlur('slug')}
@@ -396,7 +398,7 @@ export default function NewProjectPage() {
                   取消
                 </Button>
               </Link>
-              <Button type="submit" disabled={!canSubmit}>
+              <Button type="submit" disabled={!canSubmit} data-testid="project-submit">
                 {loading ? '创建中...' : '创建项目'}
               </Button>
             </div>

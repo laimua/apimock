@@ -11,7 +11,11 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'html',
   use: {
     baseURL: 'http://localhost:3000',
-    trace: 'on-first-retry',
+    // 诊断模式：所有 run 都留 trace + screenshot + video，失败立即可查
+    // 定位完测试问题后可收紧回 'on-first-retry'
+    trace: 'on',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
   projects: [
     {
