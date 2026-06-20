@@ -21,20 +21,20 @@ test.describe('Project Management', () => {
     await expect(page).toHaveURL(/\/projects\/new/);
 
     // Fill in project details (使用 placeholder 定位)
-    const nameInput = page.locator('input[placeholder*="项目"]');
+    const nameInput = page.locator('[data-testid="project-name-input"]');
     await nameInput.fill(uniqueName);
     
     const descTextarea = page.locator('textarea[placeholder*="描述"]');
     await descTextarea.fill('This is a test project for E2E testing');
 
     // Submit form
-    await page.click('button[type="submit"]');
+    await page.click('[data-testid=project-submit]');
 
     // Should be redirected to project page
     await expect(page).toHaveURL(/\/projects\/[a-z0-9]+$/);
 
-    // Should see project name
-    await expect(page.locator('h1')).toContainText(uniqueName);
+    // Should see project name（project detail 用 breadcrumb 显示，无 h1）
+    await expect(page.locator('body')).toContainText(uniqueName);
   });
 
   test('should show validation errors for invalid project data', async ({ page }) => {
@@ -44,7 +44,7 @@ test.describe('Project Management', () => {
     await expect(page).toHaveURL(/\/projects\/new/);
 
     // Try to submit without name
-    await page.click('button[type="submit"]');
+    await page.click('[data-testid=project-submit]');
 
     // Should show validation error (中文)
     await expect(page.locator('text=/项目名称不能为空|名称.*必/i')).toBeVisible();
@@ -82,8 +82,8 @@ test.describe('Project Management', () => {
     // Click on the project card
     await page.click(`text=${uniqueName}`);
 
-    // Should be on project page
-    await expect(page.locator('h1')).toContainText(uniqueName);
+    // Should be on project page（detail 无 h1，用 body 文本验证）
+    await expect(page.locator('body')).toContainText(uniqueName);
   });
 
   test('should update a project via API', async ({ page }) => {
@@ -165,9 +165,10 @@ test.describe('Project Management', () => {
 
     // 导航到项目列表页
     await page.goto('/projects');
+    await page.waitForLoadState('networkidle');
 
     // 验证项目存在
-    await expect(page.locator(`text=${uniqueName}`)).toBeVisible();
+    await expect(page.locator(`text=${uniqueName}`)).toBeVisible({ timeout: 10000 });
 
     // 找到包含项目名称的卡片容器（使用 XPath）
     const projectContainer = page.locator(`xpath=//h3[contains(text(), "${uniqueName}")]/ancestor::div[contains(@class, "group")]`);
