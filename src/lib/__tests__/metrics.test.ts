@@ -7,16 +7,15 @@ describe('metrics', () => {
   });
 
   it('mockRequestsTotal increments with labels', async () => {
-    mockRequestsTotal.inc({ project: 'demo', method: 'GET', status: '200' });
+    mockRequestsTotal.inc({ method: 'GET', status: '200' });
     const out = await metricsOutput();
     expect(out).toContain('apimock_mock_requests_total');
-    expect(out).toContain('project="demo"');
     expect(out).toContain('method="GET"');
     expect(out).toContain('status="200"');
   });
 
   it('mockRequestDuration observes histogram bucket', async () => {
-    mockRequestDuration.observe({ project: 'demo', method: 'GET' }, 42);
+    mockRequestDuration.observe({ method: 'GET' }, 42);
     const out = await metricsOutput();
     expect(out).toContain('apimock_mock_request_duration_ms_bucket');
     expect(out).toContain('le="50"');

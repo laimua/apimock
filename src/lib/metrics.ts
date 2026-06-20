@@ -25,13 +25,15 @@ collectDefaultMetrics();
 export const mockRequestsTotal = new Counter({
   name: 'apimock_mock_requests_total',
   help: 'Total mock requests handled',
-  labelNames: ['project', 'method', 'status'],
+  // 注意：不带 project label。project 是用户 slug，长期会无限增长导致
+  // Prometheus 基数爆炸。需要项目维度时改查 DB。
+  labelNames: ['method', 'status'],
 });
 
 export const mockRequestDuration = new Histogram({
   name: 'apimock_mock_request_duration_ms',
   help: 'Mock request duration in ms',
-  labelNames: ['project', 'method'],
+  labelNames: ['method'],
   buckets: [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000],
 });
 

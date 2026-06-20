@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   test:
-    name: Test + Build + Lint
+    name: Lint + Unit + Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -41,9 +41,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Typecheck (src)
+        run: pnpm typecheck
+
+      - name: Typecheck (tests)
+        run: pnpm typecheck:tests
+
       - name: Lint
         run: pnpm lint
-        continue-on-error: true # pre-existing lint 错误不阻塞 CI
 
       - name: Run unit + integration tests
         run: pnpm test --reporter=default
@@ -60,3 +65,65 @@ jobs:
             .next/
             !.next/cache
           retention-days: 3
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test
+
+    env:
+      ENCRYPTION_KEY: ci-test-encryption-key-not-for-production
+      SKIP_SEED: 'false'
+      NODE_ENV: test
+      DB_TYPE: sqlite
+      SQLITE_PATH: ./data/apimock-ci.db
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Migrate DB
+        run: pnpm db:migrate
+
+      - name: Build
+        run: pnpm build
+
+      - name: Run E2E
+        run: |
+          # 起 production server（背景跑），等 health 通过后跑 playwright
+          pnpm start &
+          SERVER_PID=$!
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/api/health > /dev/null; then break; fi
+            sleep 1
+          done
+          pnpm exec playwright test --project=chromium --retries=2
+          EXIT=$?
+          kill $SERVER_PID
+          exit $EXIT
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

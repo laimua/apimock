@@ -408,9 +408,9 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
   const responseTime = Date.now() - startTime;
   const responseStatus = mock.response.statusCode;
 
-  // metrics
-  mockRequestsTotal.inc({ project: projectSlug, method, status: String(responseStatus) });
-  mockRequestDuration.observe({ project: projectSlug, method }, responseTime);
+  // metrics（不带 project label——slug 无限增长会基数爆炸）
+  mockRequestsTotal.inc({ method, status: String(responseStatus) });
+  mockRequestDuration.observe({ method }, responseTime);
 
   // 异步记录请求（响应返回后执行，serverless 下保证完成）
   after(() => recordRequest(

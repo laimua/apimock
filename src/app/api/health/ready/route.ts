@@ -24,20 +24,23 @@ export async function GET() {
     checks.push({ name: 'db', ok: false, error: err instanceof Error ? err.message : String(err) });
   }
 
-  // 2. 数据目录可写
-  const dataDir = path.resolve(process.env.SQLITE_PATH || './data');
-  try {
-    const probe = path.join(dataDir, `.ready-probe-${Date.now()}`);
-    fs.writeFileSync(probe, '');
-    fs.unlinkSync(probe);
-    checks.push({ name: 'fs', ok: true });
-  } catch (err) {
-    checks.push({ name: 'fs', ok: false, error: err instanceof Error ? err.message : String(err) });
+  // 2. 数据目录可写（仅 SQLite 模式；MySQL 模式无本地文件，跳过避免误判）
+  const dbType = (process.env.DB_TYPE || 'sqlite').toLowerCase();
+  if (dbType === 'sqlite') {
+    const dataDir = path.resolve(process.env.SQLITE_PATH || './data');
+    try {
+      const probe = path.join(dataDir, `.ready-probe-${Date.now()}`);
+      fs.writeFileSync(probe, '');
+      fs.unlinkSync(probe);
+      checks.push({ name: 'fs', ok: true });
+    } catch (err) {
+      checks.push({ name: 'fs', ok: false, error: err instanceof Error ? err.message : String(err) });
+    }
   }
 
   const allOk = checks.every((c) => c.ok);
   return NextResponse.json(
-    { status: allOk ? 'ready' : 'degraded', checks },
+    { status: allOk ? 'ready' : 'degraded', checks, dbType },
     { status: allOk ? 200 : 503 }
   );
 }
