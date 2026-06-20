@@ -18,8 +18,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:3000',
+    // CI 测 production 产物（pnpm build 已跑），本地测 dev server
+    command: process.env.CI ? 'pnpm start' : 'pnpm dev',
+    url: 'http://localhost:3000/api/health',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },

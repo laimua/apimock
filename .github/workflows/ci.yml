@@ -107,18 +107,7 @@ jobs:
         run: pnpm build
 
       - name: Run E2E
-        run: |
-          # 起 production server（背景跑），等 health 通过后跑 playwright
-          pnpm start &
-          SERVER_PID=$!
-          for i in {1..30}; do
-            if curl -sf http://localhost:3000/api/health > /dev/null; then break; fi
-            sleep 1
-          done
-          pnpm exec playwright test --project=chromium --retries=2
-          EXIT=$?
-          kill $SERVER_PID
-          exit $EXIT
+        run: pnpm exec playwright test --project=chromium --retries=2
 
       - name: Upload Playwright report
         if: always()
