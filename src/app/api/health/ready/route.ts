@@ -16,9 +16,10 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const checks: { name: string; ok: boolean; error?: string }[] = [];
 
-  // 1. DB 可查（轻量 SELECT 1）
+  // 1. DB 可查（轻量 select 1）。用 query builder 而非 db.execute（后者在
+  // production bundle 下跨方言强转会被 minify 打断）。
   try {
-    await (db as unknown as { execute: (q: unknown) => Promise<unknown> }).execute(sql`SELECT 1`);
+    await db.select({ c: sql`1` }).from(sql`(select 1 as c) as t`);
     checks.push({ name: 'db', ok: true });
   } catch (err) {
     checks.push({ name: 'db', ok: false, error: err instanceof Error ? err.message : String(err) });

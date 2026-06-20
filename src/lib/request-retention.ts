@@ -10,6 +10,7 @@
  */
 
 import { db } from '@/lib/db';
+import { requests } from './schema';
 import { sql } from 'drizzle-orm';
 import { pruneDeletedTotal } from './metrics';
 
@@ -24,15 +25,19 @@ let retentionTimer: NodeJS.Timeout | null = null;
  * 实现：用 row_number() 窗口函数（SQLite 3.25+ / MySQL 8+ 支持）按 created_at
  * 降序排名，排名 > keep 的删除。
  *
- * 统一走 db.execute：SQLite BaseSQLiteDatabase 和 MySQL MySqlDatabase 都有
- * execute()，但只有 SQLite 有 run()。db.run 在 MySQL 下 undefined，会导致
- * 清理永远不跑（codex 复核发现的回归）。
+ * 顶层 db.delete().where() query builder（drizzle 一等 API，两方言都支持，
+ * production bundle 不会被 minify 打断）。窗口函数子查询走 sql`` 嵌入 where。
+ *
+ * 历史教训：之前用 (db as unknown as {execute}).execute(sql`...`) 在 dev 下
+ * 能跑，但 production bundle 下 db.execute 不是函数（minify + 跨方言强转
+ * 典型问题）。db.run 在 MySQL 下也不存在。db.delete().where() 避开两者。
  */
 export async function pruneOldRequests(keep: number = DEFAULT_KEEP_PER_ENDPOINT): Promise<number> {
   try {
-    const result = await (db as unknown as { execute: (q: unknown) => Promise<unknown> }).execute(
-      sql`DELETE FROM requests
-        WHERE id IN (
+    const result = await db
+      .delete(requests)
+      .where(
+        sql`id IN (
           SELECT id FROM (
             SELECT id,
                    ROW_NUMBER() OVER (PARTITION BY endpoint_id ORDER BY created_at DESC) AS rn
@@ -40,7 +45,7 @@ export async function pruneOldRequests(keep: number = DEFAULT_KEEP_PER_ENDPOINT)
           ) ranked
           WHERE rn > ${keep}
         )`
-    );
+      );
     // 不同 driver 返回结构不同，尽力取 affected rows
     const affected = result as { changes?: number; affectedRows?: number; rowsAffected?: number } | undefined;
     const deleted = affected?.changes ?? affected?.affectedRows ?? affected?.rowsAffected ?? 0;
