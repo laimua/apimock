@@ -14,11 +14,18 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline' 'unsafe-eval'${PLAUSIBLE_SCRIPT_SRC}`,
+      // 'wasm-unsafe-eval'：CodeMirror 6 / 部分 JS 引擎需要
+      // 'unsafe-inline'：Next.js 内联 hydration script
+      // 'unsafe-eval'：dev 工具 + 某些库 eval
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'${PLAUSIBLE_SCRIPT_SRC}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data:",
-      "font-src 'self'",
-      `connect-src 'self'${PLAUSIBLE_CONNECT_SRC}`,
+      // img-src 放开 https:：mock 数据含 dicebear / 外部头像
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      // worker-src blob:：CodeMirror / 某些库用 blob worker
+      "worker-src 'self' blob:",
+      // connect-src 'self' https:：fetch 外部 API（mock 数据生成 + Plausible）
+      `connect-src 'self' https:${PLAUSIBLE_CONNECT_SRC}`,
     ].join('; '),
   },
 ];
