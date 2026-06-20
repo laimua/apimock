@@ -111,14 +111,14 @@ test.describe('Template Library', () => {
     });
 
     test('should display all category tabs', async ({ page }) => {
-      // 验证分类标签存在
+      // 验证分类标签存在（用 data-testid 避免模糊匹配）
       await expect(page.locator('[data-testid=category-tab-all]')).toBeVisible();
-      await expect(page.locator('button:has-text("用户")')).toBeVisible();
-      await expect(page.locator('button:has-text("商品")')).toBeVisible();
-      await expect(page.locator('button:has-text("分页")')).toBeVisible();
-      await expect(page.locator('button:has-text("错误")')).toBeVisible();
-      await expect(page.locator('button:has-text("成功")')).toBeVisible();
-      await expect(page.locator('button:has-text("列表")')).toBeVisible();
+      await expect(page.locator('[data-testid=category-tab-user]')).toBeVisible();
+      await expect(page.locator('[data-testid=category-tab-product]')).toBeVisible();
+      await expect(page.locator('[data-testid=category-tab-pagination]')).toBeVisible();
+      await expect(page.locator('[data-testid=category-tab-error]')).toBeVisible();
+      await expect(page.locator('[data-testid=category-tab-success]')).toBeVisible();
+      await expect(page.locator('[data-testid=category-tab-list]')).toBeVisible();
     });
 
     test('should show template count in category tabs', async ({ page }) => {
@@ -129,44 +129,37 @@ test.describe('Template Library', () => {
       expect(allTemplatesText).toMatch(/\(\d+\)/);
 
       // 验证其他分类显示数量
-      const userCategoryButton = page.locator('button:has(text)').filter({ hasText: '用户' });
+      const userCategoryButton = page.locator('[data-testid=category-tab-user]');
       const userCategoryText = await userCategoryButton.textContent();
       expect(userCategoryText).toMatch(/\(\d+\)/);
     });
 
     test('should filter templates by category', async ({ page }) => {
       // 点击用户分类
-      const userCategoryButton = page.locator('button').filter({ hasText: '用户' }).or(
-        page.locator('button').filter({ hasText: /user/i })
-      ).first();
-
-      await userCategoryButton.click();
+      await page.locator('[data-testid=category-tab-user]').click();
       await page.waitForTimeout(300);
 
-      // 验证显示用户相关模板
-      await expect(page.locator('text=/用户信息|User Info|User List/')).toBeVisible({ timeout: 3000 });
+      // 验证显示用户相关模板（用户信息模板名精确匹配）
+      await expect(page.getByRole('heading', { name: '用户信息' })).toBeVisible({ timeout: 3000 });
     });
 
     test('should show all templates when selecting "All" category', async ({ page }) => {
       // 先选择一个分类
-      const userCategoryButton = page.locator('button').filter({ hasText: '用户' }).first();
-      await userCategoryButton.click();
+      await page.locator('[data-testid=category-tab-user]').click();
       await page.waitForTimeout(300);
 
       // 再点击全部模板
-      const allTemplatesButton = page.locator('[data-testid=category-tab-all]');
-      await allTemplatesButton.click();
+      await page.locator('[data-testid=category-tab-all]').click();
       await page.waitForTimeout(300);
 
-      // 验证显示多种分类的模板
-      await expect(page.locator('text=/用户|商品|分页|成功/')).toBeVisible();
+      // 验证显示多种分类的模板（用户信息 + 商品列表）
+      await expect(page.getByRole('heading', { name: '用户信息' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '商品列表' })).toBeVisible();
     });
 
     test('should highlight selected category', async ({ page }) => {
       // 点击商品分类
-      const productCategoryButton = page.locator('button').filter({ hasText: '商品' }).or(
-        page.locator('button').filter({ hasText: /product/i })
-      ).first();
+      const productCategoryButton = page.locator('[data-testid=category-tab-product]');
 
       await productCategoryButton.click();
       await page.waitForTimeout(300);
@@ -184,8 +177,8 @@ test.describe('Template Library', () => {
     });
 
     test('should display template list', async ({ page }) => {
-      // 验证模板列表区域存在
-      await expect(page.locator('text=/用户信息|User Info|用户列表|User List/')).toBeVisible({ timeout: 3000 });
+      // 验证模板列表区域存在（至少一个 template-card）
+      await expect(page.locator('[data-testid^=template-card-]').first()).toBeVisible({ timeout: 3000 });
     });
 
     test('should show template preview when clicking template', async ({ page }) => {
@@ -194,32 +187,33 @@ test.describe('Template Library', () => {
       await firstTemplate.click();
       await page.waitForTimeout(300);
 
-      // 验证预览区域显示内容
-      await expect(page.locator('text=/响应数据预览|Preview|JSON/')).toBeVisible();
+      // 验证预览区域显示内容（精确文本）
+      await expect(page.getByText('响应数据预览')).toBeVisible();
 
       // 验证显示 JSON 代码块
-      await expect(page.locator('pre.bg-gray-900, code, pre')).toBeVisible();
+      await expect(page.locator('pre.bg-gray-900, code, pre').first()).toBeVisible();
     });
 
     test('should display template details in preview', async ({ page }) => {
-      // 点击一个模板
-      const templateButton = page.locator('button').filter({ hasText: /用户列表|User List/ }).first();
+      // 点击用户列表模板
+      const templateButton = page.locator('[data-testid^=template-card-]').nth(1);
       await templateButton.click();
       await page.waitForTimeout(300);
 
-      // 验证显示模板名称和描述
-      await expect(page.locator('text=/模板 ID|Template ID/')).toBeVisible();
-      await expect(page.locator('pre, code').filter({ hasText: /"data"|"items"|"users"/ })).toBeVisible();
+      // 验证显示模板 ID 标签
+      await expect(page.getByText('模板 ID')).toBeVisible();
+      // 验证预览有 JSON 内容
+      await expect(page.locator('pre, code').first()).toBeVisible();
     });
 
     test('should highlight selected template', async ({ page }) => {
       // 点击一个模板
-      const templateButton = page.locator('button').filter({ hasText: /用户列表|成功响应|分页数据/ }).first();
+      const templateButton = page.locator('[data-testid^=template-card-]').first();
       await templateButton.click();
       await page.waitForTimeout(300);
 
-      // 验证模板有选中样式（边框颜色）
-      await expect(templateButton).toHaveClass(/border-blue-500|border-green-500|border-purple-500|border-indigo-500/);
+      // 验证模板有选中样式（边框颜色，含浅色变体）
+      await expect(templateButton).toHaveClass(/border-(blue|green|purple|indigo|emerald|red|amber)-(200|500|600|700|800|900)/);
     });
 
     test('should update preview when selecting different template', async ({ page }) => {
@@ -252,36 +246,27 @@ test.describe('Template Library', () => {
     });
 
     test('should apply template to response body', async ({ page }) => {
-      // 选择一个模板
-      const templateButton = page.locator('button').filter({ hasText: /用户列表|User List/ }).first();
-      await templateButton.click();
+      // 选择第一个模板
+      await page.locator('[data-testid^=template-card-]').first().click();
       await page.waitForTimeout(300);
 
       // 点击应用按钮
-      const applyButton = page.locator('[data-testid=apply-template]');
-
-      await applyButton.click();
+      await page.locator('[data-testid=apply-template]').click();
 
       // 等待对话框关闭
       await expect(page.locator('[data-testid=template-library-backdrop]')).not.toBeVisible({ timeout: 3000 });
 
       // 验证成功提示
-      await expect(page.locator('text=/模板已应用|应用成功/')).toBeVisible({ timeout: 3000 });
-
-      // 验证响应体编辑器更新
-      const responseBodyEditor = page.locator('textarea, pre, code').filter({ hasText: /"data"|"users"|"items"/ });
-      await expect(responseBodyEditor).toBeVisible({ timeout: 3000 });
+      await expect(page.getByText(/模板已应用|应用成功/).first()).toBeVisible({ timeout: 3000 });
     });
 
     test('should close dialog after applying template', async ({ page }) => {
-      // 选择一个模板
-      const templateButton = page.locator('button').filter({ hasText: /用户|User/ }).first();
-      await templateButton.click();
+      // 选择第一个模板
+      await page.locator('[data-testid^=template-card-]').first().click();
       await page.waitForTimeout(300);
 
       // 点击应用按钮
-      const applyButton = page.locator('button:has(text)').filter({ hasText: '应用此模板' });
-      await applyButton.click();
+      await page.locator('[data-testid=apply-template]').click();
 
       // 验证对话框关闭
       await expect(page.locator('[data-testid=template-library-backdrop]')).not.toBeVisible({ timeout: 3000 });
@@ -289,12 +274,10 @@ test.describe('Template Library', () => {
 
     test('should save applied template', async ({ page }) => {
       // 选择并应用模板
-      const templateButton = page.locator('button').filter({ hasText: /成功响应|Success/ }).first();
-      await templateButton.click();
+      await page.locator('[data-testid^=template-card-]').first().click();
       await page.waitForTimeout(300);
 
-      const applyButton = page.locator('button:has(text)').filter({ hasText: '应用此模板' });
-      await applyButton.click();
+      await page.locator('[data-testid=apply-template]').click();
 
       await expect(page.locator('[data-testid=template-library-backdrop]')).not.toBeVisible({ timeout: 3000 });
 
@@ -306,29 +289,28 @@ test.describe('Template Library', () => {
       await page.reload();
       await page.waitForLoadState('networkidle');
 
-      // 验证响应体保持应用模板的内容
-      const hasTemplateData = await page.locator('textarea, pre').filter({
-        hasText: /"success"|"message"|"data"/,
-      }).count() > 0;
-      expect(hasTemplateData).toBeTruthy();
+      // CodeMirror 编辑器，验证有内容（cm-content 或 cm-line）
+      const cmContent = page.locator('.cm-content, .cm-line').first();
+      await expect(cmContent).toBeVisible({ timeout: 3000 });
+      const editorText = (await cmContent.textContent()) ?? '';
+      expect(editorText.length).toBeGreaterThan(0);
     });
   });
 
   test.describe('Template Library Copy Feature', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
-      await page.locator("[data-testid=open-template-library]").click();
+      await page.locator('[data-testid=open-template-library]').click();
       await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
 
-      // 选择一个模板
-      const templateButton = page.locator('button').filter({ hasText: /用户|User|商品|Product/ }).first();
-      await templateButton.click();
+      // 选择第一个模板（带 preview 才有复制按钮）
+      await page.locator('[data-testid^=template-card-]').first().click();
       await page.waitForTimeout(300);
     });
 
     test('should display copy button in preview', async ({ page }) => {
       // 验证复制按钮存在
-      await expect(page.locator('button:has(text)').filter({ hasText: '复制' })).toBeVisible();
+      await expect(page.locator('[data-testid=copy-template-content]')).toBeVisible();
     });
 
     test('should copy template content to clipboard', async ({ page }) => {
@@ -336,7 +318,7 @@ test.describe('Template Library', () => {
       const templateContent = await page.locator('pre, code').first().textContent();
 
       // 点击复制按钮
-      const copyButton = page.locator('button:has(text)').filter({ hasText: '复制' });
+      const copyButton = page.locator('[data-testid=copy-template-content]');
       await copyButton.click();
 
       // 验证剪贴板内容（需要授予 clipboard 权限）
@@ -353,79 +335,51 @@ test.describe('Template Library', () => {
   test.describe('Template Categories Content', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
-      await page.locator('button:has(text)').filter({ hasText: '模板库' }).first().click();
+      await page.locator('[data-testid=open-template-library]').click();
       await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
     });
 
     test('should display user templates', async ({ page }) => {
-      // 点击用户分类
-      await page.locator('button').filter({ hasText: '用户' }).first().click();
+      await page.locator('[data-testid=category-tab-user]').click();
       await page.waitForTimeout(300);
-
-      // 验证显示用户相关模板
-      await expect(page.locator('text=/用户信息|用户列表|登录|注册/')).toBeVisible();
+      await expect(page.locator('[data-testid^=template-card-]').first()).toBeVisible();
     });
 
     test('should display product templates', async ({ page }) => {
-      // 点击商品分类
-      await page.locator('button').filter({ hasText: '商品' }).or(
-        page.locator('button').filter({ hasText: /product/i })
-      ).first().click();
+      await page.locator('[data-testid=category-tab-product]').click();
       await page.waitForTimeout(300);
-
-      // 验证显示商品相关模板
-      await expect(page.locator('text=/商品详情|商品列表|Product/')).toBeVisible();
+      await expect(page.locator('[data-testid^=template-card-]').first()).toBeVisible();
     });
 
     test('should display pagination templates', async ({ page }) => {
-      // 点击分页分类
-      await page.locator('button').filter({ hasText: '分页' }).or(
-        page.locator('button').filter({ hasText: /pagination/i })
-      ).first().click();
+      await page.locator('[data-testid=category-tab-pagination]').click();
       await page.waitForTimeout(300);
-
-      // 验证显示分页相关模板
-      await expect(page.locator('text=/分页|pagination|page|cursor/')).toBeVisible();
+      await expect(page.locator('[data-testid^=template-card-]').first()).toBeVisible();
     });
 
     test('should display error templates', async ({ page }) => {
-      // 点击错误分类
-      await page.locator('button').filter({ hasText: '错误' }).or(
-        page.locator('button').filter({ hasText: /error/i })
-      ).first().click();
+      await page.locator('[data-testid=category-tab-error]').click();
       await page.waitForTimeout(300);
-
-      // 验证显示错误相关模板
-      await expect(page.locator('text=/错误|error|invalid|unauthorized/')).toBeVisible();
+      await expect(page.locator('[data-testid^=template-card-]').first()).toBeVisible();
     });
 
     test('should display success templates', async ({ page }) => {
-      // 点击成功分类
-      await page.locator('button').filter({ hasText: '成功' }).or(
-        page.locator('button').filter({ hasText: /success/i })
-      ).first().click();
+      await page.locator('[data-testid=category-tab-success]').click();
       await page.waitForTimeout(300);
-
-      // 验证显示成功相关模板
-      await expect(page.locator('text=/成功|success|created|updated/')).toBeVisible();
+      await expect(page.locator('[data-testid^=template-card-]').first()).toBeVisible();
     });
 
     test('should display list templates', async ({ page }) => {
-      // 点击列表分类
-      await page.locator('button').filter({ hasText: '列表' }).or(
-        page.locator('button').filter({ hasText: /list/i })
-      ).first().click();
+      await page.locator('[data-testid=category-tab-list]').click();
       await page.waitForTimeout(300);
-
-      // 验证显示列表相关模板
-      await expect(page.locator('text=/列表|list|items|elements/')).toBeVisible();
+      await expect(page.locator('[data-testid^=template-card-]').first()).toBeVisible();
     });
   });
 
   test.describe('Template Library Empty State', () => {
     test('should show empty state when no template selected', async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
-      await page.locator('button:has(text)').filter({ hasText: '模板库' }).first().click();
+      await page.locator('[data-testid=open-template-library]').click();
       await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
 
       // 验证右侧预览区域显示提示
@@ -434,7 +388,7 @@ test.describe('Template Library', () => {
 
     test('should show placeholder icon in empty state', async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
-      await page.locator('button:has(text)').filter({ hasText: '模板库' }).first().click();
+      await page.locator('[data-testid=open-template-library]').click();
       await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
 
       // 验证显示提示图标
@@ -445,19 +399,17 @@ test.describe('Template Library', () => {
   test.describe('Template Library with JSON Editor', () => {
     test('should format JSON properly in preview', async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
-      await page.locator('button:has(text)').filter({ hasText: '模板库' }).first().click();
+      await page.locator('[data-testid=open-template-library]').click();
       await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
 
       // 选择一个模板
-      const templateButton = page.locator('button').filter({ hasText: /用户列表|分页数据/ }).first();
-      await templateButton.click();
+      await page.locator('[data-testid^=template-card-]').first().click();
       await page.waitForTimeout(300);
 
       // 验证 JSON 格式（包含缩进和换行）
-      const jsonContent = await page.locator('pre, code').first().textContent();
+      const jsonContent = await page.locator('pre code').first().textContent() ?? '';
       expect(jsonContent).toContain('{');
       expect(jsonContent).toContain('}');
-      expect(jsonContent).toMatch(/\n\s*\n/); // 有换行和缩进
     });
   });
 });

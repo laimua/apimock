@@ -246,6 +246,7 @@ export function TemplateLibraryDialog({
                     <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">响应数据预览</h4>
                     <button
                       type="button"
+                      data-testid="copy-template-content"
                       onClick={() => {
                         navigator.clipboard.writeText(previewContent);
                       }}
