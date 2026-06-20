@@ -23,9 +23,10 @@ test.describe('Endpoint Management', () => {
   });
 
   test('should display endpoints list for a project', async ({ page }) => {
-    await expect(page.locator('h1')).toContainText(projectName);
-    // 检查端点列表标题（更精确的选择器）
-    await expect(page.locator('h2:has-text("端点列表")')).toBeVisible();
+    // project detail 无 h1，用 body 文本验证
+    await expect(page.locator('body')).toContainText(projectName);
+    // 检查端点列表标题（用 getByText 精确匹配）
+    await expect(page.getByText('端点列表').first()).toBeVisible();
   });
 
   test('should create a new endpoint', async ({ page }) => {

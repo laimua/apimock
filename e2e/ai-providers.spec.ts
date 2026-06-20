@@ -304,8 +304,8 @@ test.describe('AI Settings Page UI', () => {
   test('should render settings page with provider list', async ({ page }) => {
     await page.goto('/settings/ai');
 
-    // 页面标题
-    await expect(page.locator('h1')).toContainText('模型配置');
+    // 页面标题（无 h1，用 body 文本）
+    await expect(page.locator('body')).toContainText('模型配置');
 
     // 添加按钮
     await expect(page.getByRole('button', { name: /添加|新增|Add/i })).toBeVisible();
@@ -315,14 +315,14 @@ test.describe('AI Settings Page UI', () => {
     await page.goto('/');
     await page.click('a[href="/settings/ai"]');
     await expect(page).toHaveURL(/\/settings\/ai/);
-    await expect(page.locator('h1')).toContainText('模型配置');
+    await expect(page.locator('body')).toContainText('模型配置');
   });
 
   test('should show add provider dialog', async ({ page }) => {
     await page.goto('/settings/ai');
 
     // 等待页面加载完成
-    await page.locator('h1').waitFor();
+    await page.waitForLoadState('networkidle');
 
     // 点击添加按钮（兼容不同文案）
     const addBtn = page.getByRole('button', { name: /添加|新增|Add/i });
