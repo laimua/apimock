@@ -17,6 +17,16 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+// Next.js build 把 .env 烤进 production bundle 作为常量（process.env.X = ...）。
+// 本地 .env 若是 MySQL，build 后即使运行时 env 改 sqlite 也无效。
+// ci-local 期间临时移走 .env，强制 build 用我们的 CI_ENV。
+const ENV_PATH = path.resolve('.env');
+const ENV_BAK = path.resolve('.env.ci-local-bak');
+const envMoved = fs.existsSync(ENV_PATH);
+if (envMoved) {
+  fs.renameSync(ENV_PATH, ENV_BAK);
+}
+
 const CI_ENV = {
   ...process.env,
   CI: 'true',                    // 触发 Playwright CI 分支
@@ -62,6 +72,11 @@ run(pkgMgr, ['db:push'], 'DB schema sync');
 
 // 4. build（production）
 run(pkgMgr, ['build'], 'Production build');
+
+// build 完恢复 .env（webServer 子进程会用我们设的 CI_ENV，.env 不影响）
+if (envMoved && fs.existsSync(ENV_BAK)) {
+  fs.renameSync(ENV_BAK, ENV_PATH);
+}
 
 // 5. Playwright test（CI=true + retries=0）
 //    只跑 chromium（CI 同）。传 --grep 跑单测：
