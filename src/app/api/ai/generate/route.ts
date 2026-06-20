@@ -16,6 +16,7 @@ import { DEFAULT_SYSTEM_PROMPT } from '@/lib/ai-presets';
 import { rateLimit } from '@/lib/rate-limit';
 import { generateMockData } from '@/lib/mock-data-templates';
 import { checkAiBudget, recordAiUsage } from '@/lib/ai-budget';
+import { aiGenerateTotal, aiCostTokensTotal, rateLimitRejectedTotal } from '@/lib/metrics';
 import { logger } from '@/lib/logger';
 import { getClientIp } from '@/lib/client-ip';
 
@@ -148,6 +149,8 @@ async function generateWithProvider(prompt: string, count: number, provider: typ
   // 上报 token 消耗给预算模块（completion.usage 可能在某些兼容接口缺失）
   const used = completion.usage?.total_tokens ?? Math.ceil(content.length / 4);
   recordAiUsage(used);
+  aiGenerateTotal.inc({ provider: provider.provider, outcome: 'provider' });
+  aiCostTokensTotal.inc({ provider: provider.provider }, used);
 
   return success(result);
 }
@@ -161,6 +164,7 @@ export async function POST(request: NextRequest) {
     const ip = getClientIp(request.headers) ?? 'unknown';
     const rl = rateLimit(`ai:${ip}`, AI_RATE_LIMIT);
     if (!rl.allowed) {
+      rateLimitRejectedTotal.inc({ kind: 'ai' });
       return NextResponse.json(
         { success: false, error: 'Too Many Requests. AI generate limit: 10/min/IP.' },
         {
@@ -181,6 +185,7 @@ export async function POST(request: NextRequest) {
     const budget = checkAiBudget();
     if (!budget.allowed) {
       logger.warn({ reason: budget.reason, remaining: budget.remaining }, 'AI budget exhausted, falling back to mock template');
+      aiGenerateTotal.inc({ provider: 'none', outcome: 'budget' });
       const mockData = generateMockData(prompt, count);
       return success(mockData);
     }
@@ -219,6 +224,7 @@ export async function POST(request: NextRequest) {
 
     if (!apiKey) {
       const mockData = generateMockData(prompt, count);
+      aiGenerateTotal.inc({ provider: 'none', outcome: 'fallback' });
       return success(mockData);
     }
 
@@ -253,6 +259,8 @@ export async function POST(request: NextRequest) {
 
     const used = completion.usage?.total_tokens ?? Math.ceil(content.length / 4);
     recordAiUsage(used);
+    aiGenerateTotal.inc({ provider: 'env-openai', outcome: 'provider' });
+    aiCostTokensTotal.inc({ provider: 'env-openai' }, used);
 
     return success(result);
   } catch (err: unknown) {

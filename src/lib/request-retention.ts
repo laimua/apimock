@@ -11,6 +11,7 @@
 
 import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
+import { pruneDeletedTotal } from './metrics';
 
 const DEFAULT_KEEP_PER_ENDPOINT = 1000;
 const DEFAULT_INTERVAL_MS = 10 * 60 * 1000; // 10 分钟
@@ -42,7 +43,9 @@ export async function pruneOldRequests(keep: number = DEFAULT_KEEP_PER_ENDPOINT)
     );
     // 不同 driver 返回结构不同，尽力取 affected rows
     const affected = result as { changes?: number; affectedRows?: number; rowsAffected?: number } | undefined;
-    return affected?.changes ?? affected?.affectedRows ?? affected?.rowsAffected ?? 0;
+    const deleted = affected?.changes ?? affected?.affectedRows ?? affected?.rowsAffected ?? 0;
+    if (deleted > 0) pruneDeletedTotal.inc(deleted);
+    return deleted;
   } catch (err) {
     console.error('[request-retention] prune failed:', err);
     return -1;

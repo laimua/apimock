@@ -15,6 +15,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/client-ip';
 import { getCachedProject } from '@/lib/project-cache';
 import { getCachedEndpointsByMethod } from '@/lib/endpoint-cache';
+import { mockRequestsTotal, mockRequestDuration, rateLimitRejectedTotal } from '@/lib/metrics';
 
 // Mock 服务限流：100 req/min/IP
 const MOCK_RATE_LIMIT = 100;
@@ -294,6 +295,7 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
   const clientIp = ip || 'unknown';
   const rl = rateLimit(`mock:${clientIp}`, MOCK_RATE_LIMIT);
   if (!rl.allowed) {
+    rateLimitRejectedTotal.inc({ kind: 'mock' });
     return NextResponse.json(
       { error: 'Too Many Requests', message: 'Rate limit exceeded. Try again later.' },
       {
@@ -405,6 +407,10 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
   const body = mock.response.body;
   const responseTime = Date.now() - startTime;
   const responseStatus = mock.response.statusCode;
+
+  // metrics
+  mockRequestsTotal.inc({ project: projectSlug, method, status: String(responseStatus) });
+  mockRequestDuration.observe({ project: projectSlug, method }, responseTime);
 
   // 异步记录请求（响应返回后执行，serverless 下保证完成）
   after(() => recordRequest(

@@ -13,6 +13,7 @@
  */
 
 import { logger } from './logger';
+import { aiBudgetRemaining } from './metrics';
 
 const DEFAULT_TOKEN_LIMIT = 1_000_000;
 const DEFAULT_REQUEST_LIMIT = 1000;
@@ -72,6 +73,8 @@ export function recordAiUsage(tokens: number): void {
   rolloverIfNeeded();
   today.requests += 1;
   today.tokens += Math.max(0, Math.floor(tokens));
+  aiBudgetRemaining.set({ axis: 'requests' }, Math.max(0, getRequestLimit() - today.requests));
+  aiBudgetRemaining.set({ axis: 'tokens' }, Math.max(0, getTokenLimit() - today.tokens));
   logger.debug(
     { date: today.date, requests: today.requests, tokens: today.tokens, reqLimit: getRequestLimit(), tokLimit: getTokenLimit() },
     'AI budget usage'
