@@ -866,6 +866,7 @@ export default function EditEndpointPage() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
+                        data-testid="open-template-library"
                         onClick={() => setShowTemplateDialog(true)}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors"
                         disabled={saving}

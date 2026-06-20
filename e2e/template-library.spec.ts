@@ -50,57 +50,55 @@ test.describe('Template Library', () => {
       await page.locator('text=/响应配置|Response/').scrollIntoViewIfNeeded();
 
       // 验证模板库按钮存在
-      const templateButton = page.locator('button:has-text("模板库"), button:has(svg path[d*="M19 11H5"])').filter({
-        hasText: '模板',
-      });
+      const templateButton = page.locator('[data-testid=open-template-library]');
 
       await expect(templateButton).toBeVisible();
     });
 
     test('should open template library dialog', async ({ page }) => {
       // 点击模板库按钮
-      const templateButton = page.locator('button:has-text("模板库")').first();
+      const templateButton = page.locator('[data-testid=open-template-library]');
       await templateButton.click();
 
-      // 验证对话框显示
-      const dialog = page.locator('div.fixed.inset-0.z-50').or(page.locator('[role="dialog"]'));
-      await expect(dialog).toBeVisible({ timeout: 3000 });
+      // 验证对话框显示（backdrop testid 作为 dialog open 的稳定信号）
+      const backdrop = page.locator('[data-testid=template-library-backdrop]');
+      await expect(backdrop).toBeVisible({ timeout: 3000 });
 
-      // 验证标题
-      await expect(page.locator('text=/Mock 模板库|Template Library/')).toBeVisible();
+      // 验证标题（精确匹配，避免和项目名 "Template Library Test" 冲突）
+      await expect(page.getByRole('heading', { name: 'Mock 模板库' })).toBeVisible();
 
       // 验证描述
-      await expect(page.locator('text=/选择预设模板|template/')).toBeVisible();
+      await expect(page.getByText('选择预设模板快速应用到响应数据')).toBeVisible();
     });
 
     test('should close dialog when clicking backdrop', async ({ page }) => {
       // 打开对话框
-      const templateButton = page.locator('button:has-text("模板库")').first();
+      const templateButton = page.locator("[data-testid=open-template-library]");
       await templateButton.click();
 
-      await expect(page.locator('div.fixed.inset-0.z-50')).toBeVisible({ timeout: 3000 });
+      await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
 
-      // 点击背景
-      const backdrop = page.locator('div.fixed.inset-0.bg-black\\/50');
-      await backdrop.click();
+      // 点击背景（点角落避免命中 dialog 主体）
+      const backdrop = page.locator('[data-testid=template-library-backdrop]');
+      await backdrop.click({ position: { x: 5, y: 5 } });
 
       // 验证对话框关闭
-      await expect(page.locator('div.fixed.inset-0.z-50')).not.toBeVisible({ timeout: 3000 });
+      await expect(page.locator('[data-testid=template-library-backdrop]')).not.toBeVisible({ timeout: 3000 });
     });
 
     test('should close dialog when clicking close button', async ({ page }) => {
       // 打开对话框
-      const templateButton = page.locator('button:has-text("模板库")').first();
+      const templateButton = page.locator("[data-testid=open-template-library]");
       await templateButton.click();
 
-      await expect(page.locator('div.fixed.inset-0.z-50')).toBeVisible({ timeout: 3000 });
+      await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
 
       // 点击关闭按钮
-      const closeButton = page.locator('button:has-text("关闭")').last();
+      const closeButton = page.locator('[data-testid=close-template-library]');
       await closeButton.click();
 
       // 验证对话框关闭
-      await expect(page.locator('div.fixed.inset-0.z-50')).not.toBeVisible({ timeout: 3000 });
+      await expect(page.locator('[data-testid=template-library-backdrop]')).not.toBeVisible({ timeout: 3000 });
     });
   });
 
@@ -108,13 +106,13 @@ test.describe('Template Library', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
       // 打开模板库
-      await page.locator('button:has-text("模板库")').first().click();
-      await expect(page.locator('div.fixed.inset-0.z-50')).toBeVisible({ timeout: 3000 });
+      await page.locator("[data-testid=open-template-library]").click();
+      await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
     });
 
     test('should display all category tabs', async ({ page }) => {
       // 验证分类标签存在
-      await expect(page.locator('button:has-text("全部模板")')).toBeVisible();
+      await expect(page.locator('[data-testid=category-tab-all]')).toBeVisible();
       await expect(page.locator('button:has-text("用户")')).toBeVisible();
       await expect(page.locator('button:has-text("商品")')).toBeVisible();
       await expect(page.locator('button:has-text("分页")')).toBeVisible();
@@ -125,7 +123,7 @@ test.describe('Template Library', () => {
 
     test('should show template count in category tabs', async ({ page }) => {
       // 验证全部模板显示数量
-      const allTemplatesButton = page.locator('button:has-text("全部模板")');
+      const allTemplatesButton = page.locator('[data-testid=category-tab-all]');
       await expect(allTemplatesButton).toBeVisible();
       const allTemplatesText = await allTemplatesButton.textContent();
       expect(allTemplatesText).toMatch(/\(\d+\)/);
@@ -156,7 +154,7 @@ test.describe('Template Library', () => {
       await page.waitForTimeout(300);
 
       // 再点击全部模板
-      const allTemplatesButton = page.locator('button:has(text)').filter({ hasText: '全部模板' });
+      const allTemplatesButton = page.locator('[data-testid=category-tab-all]');
       await allTemplatesButton.click();
       await page.waitForTimeout(300);
 
@@ -181,8 +179,8 @@ test.describe('Template Library', () => {
   test.describe('Template Selection and Preview', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
-      await page.locator('button:has-text("模板库")').first().click();
-      await expect(page.locator('div.fixed.inset-0.z-50')).toBeVisible({ timeout: 3000 });
+      await page.locator("[data-testid=open-template-library]").click();
+      await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
     });
 
     test('should display template list', async ({ page }) => {
@@ -192,7 +190,7 @@ test.describe('Template Library', () => {
 
     test('should show template preview when clicking template', async ({ page }) => {
       // 点击第一个模板
-      const firstTemplate = page.locator('button').filter({ hasText: /用户|User|商品|Product|成功|Success/ }).first();
+      const firstTemplate = page.locator('[data-testid^=template-card-]').first();
       await firstTemplate.click();
       await page.waitForTimeout(300);
 
@@ -226,7 +224,7 @@ test.describe('Template Library', () => {
 
     test('should update preview when selecting different template', async ({ page }) => {
       // 点击第一个模板
-      const firstTemplate = page.locator('button').filter({ hasText: /用户|User/ }).first();
+      const firstTemplate = page.locator('[data-testid^=template-card-]').first();
       await firstTemplate.click();
       await page.waitForTimeout(300);
 
@@ -234,7 +232,7 @@ test.describe('Template Library', () => {
       const initialPreview = await page.locator('pre, code').first().textContent();
 
       // 点击另一个模板
-      const secondTemplate = page.locator('button').filter({ hasText: /商品|Product|成功|Success/ }).nth(1);
+      const secondTemplate = page.locator('[data-testid^=template-card-]').nth(1);
       await secondTemplate.click();
       await page.waitForTimeout(300);
 
@@ -249,8 +247,8 @@ test.describe('Template Library', () => {
   test.describe('Applying Templates', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
-      await page.locator('button:has-text("模板库")').first().click();
-      await expect(page.locator('div.fixed.inset-0.z-50')).toBeVisible({ timeout: 3000 });
+      await page.locator("[data-testid=open-template-library]").click();
+      await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
     });
 
     test('should apply template to response body', async ({ page }) => {
@@ -260,14 +258,12 @@ test.describe('Template Library', () => {
       await page.waitForTimeout(300);
 
       // 点击应用按钮
-      const applyButton = page.locator('button:has(text)').filter({ hasText: '应用此模板' }).or(
-        page.locator('button:has(svg path[d*="M5 13l4 4L19 7"])')
-      );
+      const applyButton = page.locator('[data-testid=apply-template]');
 
       await applyButton.click();
 
       // 等待对话框关闭
-      await expect(page.locator('div.fixed.inset-0.z-50')).not.toBeVisible({ timeout: 3000 });
+      await expect(page.locator('[data-testid=template-library-backdrop]')).not.toBeVisible({ timeout: 3000 });
 
       // 验证成功提示
       await expect(page.locator('text=/模板已应用|应用成功/')).toBeVisible({ timeout: 3000 });
@@ -288,7 +284,7 @@ test.describe('Template Library', () => {
       await applyButton.click();
 
       // 验证对话框关闭
-      await expect(page.locator('div.fixed.inset-0.z-50')).not.toBeVisible({ timeout: 3000 });
+      await expect(page.locator('[data-testid=template-library-backdrop]')).not.toBeVisible({ timeout: 3000 });
     });
 
     test('should save applied template', async ({ page }) => {
@@ -300,7 +296,7 @@ test.describe('Template Library', () => {
       const applyButton = page.locator('button:has(text)').filter({ hasText: '应用此模板' });
       await applyButton.click();
 
-      await expect(page.locator('div.fixed.inset-0.z-50')).not.toBeVisible({ timeout: 3000 });
+      await expect(page.locator('[data-testid=template-library-backdrop]')).not.toBeVisible({ timeout: 3000 });
 
       // 保存表单
       await page.locator('button[type="submit"]').click();
@@ -321,8 +317,8 @@ test.describe('Template Library', () => {
   test.describe('Template Library Copy Feature', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
-      await page.locator('button:has-text("模板库")').first().click();
-      await expect(page.locator('div.fixed.inset-0.z-50')).toBeVisible({ timeout: 3000 });
+      await page.locator("[data-testid=open-template-library]").click();
+      await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
 
       // 选择一个模板
       const templateButton = page.locator('button').filter({ hasText: /用户|User|商品|Product/ }).first();
@@ -358,7 +354,7 @@ test.describe('Template Library', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
       await page.locator('button:has(text)').filter({ hasText: '模板库' }).first().click();
-      await expect(page.locator('div.fixed.inset-0.z-50')).toBeVisible({ timeout: 3000 });
+      await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
     });
 
     test('should display user templates', async ({ page }) => {
@@ -430,7 +426,7 @@ test.describe('Template Library', () => {
     test('should show empty state when no template selected', async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
       await page.locator('button:has(text)').filter({ hasText: '模板库' }).first().click();
-      await expect(page.locator('div.fixed.inset-0.z-50')).toBeVisible({ timeout: 3000 });
+      await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
 
       // 验证右侧预览区域显示提示
       await expect(page.locator('text=/选择一个模板|Select a template/')).toBeVisible();
@@ -439,7 +435,7 @@ test.describe('Template Library', () => {
     test('should show placeholder icon in empty state', async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
       await page.locator('button:has(text)').filter({ hasText: '模板库' }).first().click();
-      await expect(page.locator('div.fixed.inset-0.z-50')).toBeVisible({ timeout: 3000 });
+      await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
 
       // 验证显示提示图标
       await expect(page.locator('svg').filter({ hasText: '' }).first()).toBeVisible();
@@ -450,7 +446,7 @@ test.describe('Template Library', () => {
     test('should format JSON properly in preview', async ({ page }) => {
       await page.goto(`/projects/${projectId}/endpoints/${endpointId}`);
       await page.locator('button:has(text)').filter({ hasText: '模板库' }).first().click();
-      await expect(page.locator('div.fixed.inset-0.z-50')).toBeVisible({ timeout: 3000 });
+      await expect(page.locator('[data-testid=template-library-backdrop]')).toBeVisible({ timeout: 3000 });
 
       // 选择一个模板
       const templateButton = page.locator('button').filter({ hasText: /用户列表|分页数据/ }).first();

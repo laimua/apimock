@@ -120,7 +120,7 @@ export function TemplateLibraryDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
+      <div data-testid="template-library-backdrop" className="absolute inset-0 bg-black/50" onClick={handleClose} />
 
       {/* Dialog */}
       <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] flex flex-col animate-scale-in">
@@ -143,9 +143,10 @@ export function TemplateLibraryDialog({
           </div>
 
           {/* Category Tabs */}
-          <div className="flex flex-wrap gap-2">
+          <div data-testid="template-categories" className="flex flex-wrap gap-2">
             <button
               type="button"
+              data-testid="category-tab-all"
               onClick={() => setSelectedCategory('all')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 selectedCategory === 'all'
@@ -162,6 +163,7 @@ export function TemplateLibraryDialog({
                 <button
                   key={category}
                   type="button"
+                  data-testid={`category-tab-${category}`}
                   onClick={() => setSelectedCategory(category)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                     selectedCategory === category
@@ -189,6 +191,7 @@ export function TemplateLibraryDialog({
                   <button
                     key={template.id}
                     type="button"
+                    data-testid={`template-card-${template.id}`}
                     onClick={() => handleTemplateClick(template)}
                     className={`text-left p-4 rounded-lg border-2 transition-all hover:shadow-md ${
                       isSelected
@@ -259,6 +262,7 @@ export function TemplateLibraryDialog({
                 {/* Apply Button */}
                 <button
                   type="button"
+                  data-testid="apply-template"
                   onClick={handleApply}
                   className="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
                 >
@@ -286,6 +290,7 @@ export function TemplateLibraryDialog({
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
           <button
             type="button"
+            data-testid="close-template-library"
             onClick={handleClose}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
           >
