@@ -674,6 +674,7 @@ export default function EditEndpointPage() {
                       <button
                         key={scenario.id}
                         type="button"
+                        data-testid={`quick-scenario-${scenario.id}`}
                         onClick={() => handleQuickErrorScenario(scenario)}
                         disabled={saving}
                         className={`relative px-3 py-3 rounded-lg border-2 transition-all disabled:opacity-50 group ${
@@ -823,6 +824,7 @@ export default function EditEndpointPage() {
                         或选择其他状态码
                       </label>
                       <select
+                        data-testid="status-code-select"
                         value={form.statusCode}
                         onChange={(e) => setForm((prev) => ({ ...prev, statusCode: parseInt(e.target.value) }))}
                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"

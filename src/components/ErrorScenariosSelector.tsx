@@ -96,6 +96,7 @@ export function ErrorScenariosSelector({ onApply, disabled = false }: ErrorScena
                 <button
                   key={key}
                   type="button"
+                  data-testid={`scenario-category-${key}`}
                   onClick={() => setSelectedCategory(key as keyof typeof ERROR_SCENARIO_CATEGORIES)}
                   disabled={disabled}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all disabled:opacity-50 ${
@@ -135,6 +136,7 @@ export function ErrorScenariosSelector({ onApply, disabled = false }: ErrorScena
                   <button
                     key={scenario.id}
                     type="button"
+                    data-testid={`scenario-button-${scenario.id}`}
                     onClick={() => handleScenarioClick(scenario.id)}
                     disabled={disabled}
                     className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all disabled:opacity-50 ${
@@ -210,7 +212,7 @@ export function ErrorScenariosSelector({ onApply, disabled = false }: ErrorScena
 
       {/* 预览对话框 */}
       {showPreview && selectedScenarioData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div role="dialog" data-testid="error-scenario-preview-dialog" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
             {/* 头部 */}
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
