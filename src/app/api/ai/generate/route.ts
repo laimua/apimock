@@ -15,6 +15,8 @@ import { validateUrlSafe } from '@/lib/ssrf';
 import { DEFAULT_SYSTEM_PROMPT } from '@/lib/ai-presets';
 import { rateLimit } from '@/lib/rate-limit';
 import { generateMockData } from '@/lib/mock-data-templates';
+import { checkAiBudget, recordAiUsage } from '@/lib/ai-budget';
+import { logger } from '@/lib/logger';
 import { getClientIp } from '@/lib/client-ip';
 
 // AI generate 限流：10 req/min/IP（成本控制）
@@ -143,6 +145,10 @@ async function generateWithProvider(prompt: string, count: number, provider: typ
     throw new Error('AI 返回的不是有效对象');
   }
 
+  // 上报 token 消耗给预算模块（completion.usage 可能在某些兼容接口缺失）
+  const used = completion.usage?.total_tokens ?? Math.ceil(content.length / 4);
+  recordAiUsage(used);
+
   return success(result);
 }
 
@@ -170,6 +176,14 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { prompt, count, providerId } = validate(GenerateSchema, body);
+
+    // 日预算硬上限（PRD 头号风险：AI 成本失控）。超额直接降级到本地模板。
+    const budget = checkAiBudget();
+    if (!budget.allowed) {
+      logger.warn({ reason: budget.reason, remaining: budget.remaining }, 'AI budget exhausted, falling back to mock template');
+      const mockData = generateMockData(prompt, count);
+      return success(mockData);
+    }
 
     // 1. 尝试使用配置的 Provider
     if (providerId) {
@@ -236,6 +250,9 @@ export async function POST(request: NextRequest) {
     if (typeof result !== 'object' || result === null) {
       throw new Error('AI 返回的不是有效对象');
     }
+
+    const used = completion.usage?.total_tokens ?? Math.ceil(content.length / 4);
+    recordAiUsage(used);
 
     return success(result);
   } catch (err: unknown) {
