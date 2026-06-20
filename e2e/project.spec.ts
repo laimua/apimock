@@ -30,6 +30,9 @@ test.describe('Project Management', () => {
     // Submit form
     await page.click('[data-testid=project-submit]');
 
+    // 创建成功后弹 onboarding dialog，关闭后才跳转
+    await page.getByText('稍后再说').click({ timeout: 5000 }).catch(() => {});
+
     // Should be redirected to project page
     await expect(page).toHaveURL(/\/projects\/[a-z0-9]+$/);
 
@@ -43,11 +46,14 @@ test.describe('Project Management', () => {
     // Wait for page to load
     await expect(page).toHaveURL(/\/projects\/new/);
 
-    // Try to submit without name
-    await page.click('[data-testid=project-submit]');
+    // 空表单时提交按钮应禁用（无法触发 validation）
+    const submit = page.locator('[data-testid=project-submit]');
+    await expect(submit).toBeDisabled();
 
-    // Should show validation error (中文)
-    await expect(page.locator('text=/项目名称不能为空|名称.*必/i')).toBeVisible();
+    // 输入太短的名称触发验证错误
+    await page.locator('[data-testid="project-name-input"]').fill('a');
+    await page.locator('[data-testid="project-name-input"]').blur();
+    await expect(page.getByText(/项目名称至少需要 2 个字符/)).toBeVisible({ timeout: 3000 });
   });
 
   test('should display project list', async ({ page }) => {
@@ -178,14 +184,13 @@ test.describe('Project Management', () => {
     const deleteButton = projectContainer.locator('button[title="删除项目"]');
     await expect(deleteButton).toBeVisible();
 
-    // 设置对话框处理程序（在点击之前）
-    page.on('dialog', async dialog => {
-      expect(dialog.message()).toContain(uniqueName);
-      await dialog.accept();
-    });
-
     // 点击删除按钮
     await deleteButton.click();
+
+    // ConfirmDialog 出现，点确认删除按钮（对话框内的红色删除按钮）
+    await expect(page.getByText('确定要删除项目')).toBeVisible({ timeout: 3000 });
+    // 用 exact 精确匹配"删除"按钮（避免匹配 aria-label "删除项目"）
+    await page.getByRole('button', { name: '删除', exact: true }).click();
 
     // 等待删除完成 - 项目名称应该消失
     await page.waitForTimeout(1000);

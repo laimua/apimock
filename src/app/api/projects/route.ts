@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { projects } from '@/lib/schema';
-import { sql } from 'drizzle-orm';
+import { sql, desc } from 'drizzle-orm';
 
 // ============================================
 // Schema
@@ -34,7 +34,7 @@ export async function GET(request?: NextRequest) {
     list.map(project => ({ ...project, isActive: Boolean(project.isActive) }));
 
   if (!usePagination) {
-    const projectList = await db.select().from(projects);
+    const projectList = await db.select().from(projects).orderBy(desc(projects.createdAt));
     return success(format(projectList));
   }
 
