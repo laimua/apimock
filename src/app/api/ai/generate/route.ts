@@ -148,7 +148,7 @@ async function generateWithProvider(prompt: string, count: number, provider: typ
 
   // 上报 token 消耗给预算模块（completion.usage 可能在某些兼容接口缺失）
   const used = completion.usage?.total_tokens ?? Math.ceil(content.length / 4);
-  recordAiUsage(used);
+  await recordAiUsage(used);
   aiGenerateTotal.inc({ provider: provider.provider, outcome: 'provider' });
   aiCostTokensTotal.inc({ provider: provider.provider }, used);
 
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
   try {
     // 限流：10 req/min/IP
     const ip = getClientIp(request.headers) ?? 'unknown';
-    const rl = rateLimit(`ai:${ip}`, AI_RATE_LIMIT);
+    const rl = await rateLimit(`ai:${ip}`, AI_RATE_LIMIT);
     if (!rl.allowed) {
       rateLimitRejectedTotal.inc({ kind: 'ai' });
       return NextResponse.json(
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
     const { prompt, count, providerId } = validate(GenerateSchema, body);
 
     // 日预算硬上限（PRD 头号风险：AI 成本失控）。超额直接降级到本地模板。
-    const budget = checkAiBudget();
+    const budget = await checkAiBudget();
     if (!budget.allowed) {
       logger.warn({ reason: budget.reason, remaining: budget.remaining }, 'AI budget exhausted, falling back to mock template');
       aiGenerateTotal.inc({ provider: 'none', outcome: 'budget' });
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
     }
 
     const used = completion.usage?.total_tokens ?? Math.ceil(content.length / 4);
-    recordAiUsage(used);
+    await recordAiUsage(used);
     aiGenerateTotal.inc({ provider: 'env-openai', outcome: 'provider' });
     aiCostTokensTotal.inc({ provider: 'env-openai' }, used);
 

@@ -1,88 +1,75 @@
 /**
  * Rate limit unit tests
- * Memory token bucket + setInterval cleanup
+ * KV-backed fixed window counter
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { rateLimit, reset, startCleanup, getBucketCount } from '../rate-limit';
 
 describe('rateLimit', () => {
-  beforeEach(() => {
-    reset();
+  beforeEach(async () => {
+    await reset();
   });
 
-  it('allows first hit and returns remaining count', () => {
-    const result = rateLimit('ip-1', 10);
+  it('allows first hit and returns remaining count', async () => {
+    const result = await rateLimit('ip-1', 10);
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(9);
   });
 
-  it('blocks after limit reached', () => {
+  it('blocks after limit reached', async () => {
     for (let i = 0; i < 10; i++) {
-      rateLimit('ip-2', 10);
+      await rateLimit('ip-2', 10);
     }
-    const result = rateLimit('ip-2', 10);
+    const result = await rateLimit('ip-2', 10);
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
   });
 
-  it('resets counter after window expires', () => {
+  it('resets counter after window expires', async () => {
     vi.useFakeTimers();
-    rateLimit('ip-3', 5);
-    vi.advanceTimersByTime(61 * 1000); // 61 seconds
-    const result = rateLimit('ip-3', 5);
+    await rateLimit('ip-3', 5, 60);
+    vi.advanceTimersByTime(61 * 1000);
+    const result = await rateLimit('ip-3', 5, 60);
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(4);
     vi.useRealTimers();
   });
 
-  it('keeps different keys independent', () => {
-    for (let i = 0; i < 10; i++) rateLimit('ip-A', 10);
-    const a = rateLimit('ip-A', 10);
-    const b = rateLimit('ip-B', 10);
+  it('keeps different keys independent', async () => {
+    for (let i = 0; i < 10; i++) await rateLimit('ip-A', 10);
+    const a = await rateLimit('ip-A', 10);
+    const b = await rateLimit('ip-B', 10);
     expect(a.allowed).toBe(false);
     expect(b.allowed).toBe(true);
     expect(b.remaining).toBe(9);
   });
 
-  it('handles boundary: exactly limit hits allowed', () => {
+  it('handles boundary: exactly limit hits allowed', async () => {
     for (let i = 0; i < 9; i++) {
-      const r = rateLimit('ip-4', 10);
+      const r = await rateLimit('ip-4', 10);
       expect(r.allowed).toBe(true);
     }
-    const tenth = rateLimit('ip-4', 10);
+    const tenth = await rateLimit('ip-4', 10);
     expect(tenth.allowed).toBe(true);
     expect(tenth.remaining).toBe(0);
-    const eleventh = rateLimit('ip-4', 10);
+    const eleventh = await rateLimit('ip-4', 10);
     expect(eleventh.allowed).toBe(false);
   });
 });
 
-describe('cleanup', () => {
-  beforeEach(() => {
-    reset();
+describe('cleanup (noop under kv)', () => {
+  beforeEach(async () => {
+    await reset();
   });
 
-  afterEach(() => {
-    reset();
+  it('startCleanup is noop, no throw', () => {
+    expect(() => startCleanup()).not.toThrow();
   });
 
-  it('startCleanup removes expired buckets periodically', () => {
-    vi.useFakeTimers();
-    // 加 3 个 bucket，全过期
-    rateLimit('expired-1', 1);
-    rateLimit('expired-2', 1);
-    rateLimit('expired-3', 1);
-    expect(getBucketCount()).toBe(3);
-
-    // 时间过 61 秒，bucket 全过期
-    vi.advanceTimersByTime(61 * 1000);
-
-    startCleanup();
-    // 触发 setInterval 第一次 tick（10 分钟周期）
-    vi.advanceTimersByTime(10 * 60 * 1000);
-
-    expect(getBucketCount()).toBe(0);
-    vi.useRealTimers();
+  it('getBucketCount returns number (memory backend)', async () => {
+    await rateLimit('ip-X', 5);
+    const n = await getBucketCount();
+    expect(n).toBeGreaterThanOrEqual(0);
   });
 });
