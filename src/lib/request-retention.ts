@@ -22,15 +22,14 @@ let retentionTimer: NodeJS.Timeout | null = null;
 /**
  * 删除每个 endpoint_id 下超过 keep 条的旧记录。
  *
- * 实现：用 row_number() 窗口函数（SQLite 3.25+ / MySQL 8+ 支持）按 created_at
- * 降序排名，排名 > keep 的删除。
+ * 实现：LEFT JOIN 自连接按 (created_at, id) 降序排名。每行 r1 配对同 endpoint
+ * 下比它新的 r2，COUNT(r2.id) >= keep 即 r1 排名在 keep 之后，删除。
+ * 派生表 to_delete 绕 MySQL 1093（不能 DELETE 同时从同表直接 SELECT）。
+ *
+ * 兼容 MySQL 5.7（无 ROW_NUMBER）+ SQLite 3.x。不依赖 window function。
  *
  * 顶层 db.delete().where() query builder（drizzle 一等 API，两方言都支持，
- * production bundle 不会被 minify 打断）。窗口函数子查询走 sql`` 嵌入 where。
- *
- * 历史教训：之前用 (db as unknown as {execute}).execute(sql`...`) 在 dev 下
- * 能跑，但 production bundle 下 db.execute 不是函数（minify + 跨方言强转
- * 典型问题）。db.run 在 MySQL 下也不存在。db.delete().where() 避开两者。
+ * production bundle 不会被 minify 打断）。子查询走 sql`` 嵌入 where。
  */
 export async function pruneOldRequests(keep: number = DEFAULT_KEEP_PER_ENDPOINT): Promise<number> {
   try {
@@ -39,11 +38,15 @@ export async function pruneOldRequests(keep: number = DEFAULT_KEEP_PER_ENDPOINT)
       .where(
         sql`id IN (
           SELECT id FROM (
-            SELECT id,
-                   ROW_NUMBER() OVER (PARTITION BY endpoint_id ORDER BY created_at DESC) AS rn
-            FROM requests
-          ) ranked
-          WHERE rn > ${keep}
+            SELECT r1.id
+            FROM requests r1
+            LEFT JOIN requests r2
+              ON r2.endpoint_id = r1.endpoint_id
+             AND (r2.created_at > r1.created_at
+                  OR (r2.created_at = r1.created_at AND r2.id > r1.id))
+            GROUP BY r1.id
+            HAVING COUNT(r2.id) >= ${keep}
+          ) to_delete
         )`
       );
     // 不同 driver 返回结构不同，尽力取 affected rows
