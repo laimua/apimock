@@ -10,6 +10,11 @@ import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { JsonEditor } from '@/components/JsonEditor';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { copyToClipboard } from '@/lib/utils';
+import { AiGenerateDialog } from '@/components/AiGenerateDialog';
+import { TemplateLibraryDialog } from '@/components/TemplateLibraryDialog';
+import { ErrorScenariosSelector } from '@/components/ErrorScenariosSelector';
+import { applyErrorScenario, type ErrorScenario } from '@/lib/error-scenarios';
 import { METHODS, STATUS_CODES, COMMON_STATUS_CODES } from '@/lib/constants';
 
 // 常用路径模板
@@ -56,6 +61,8 @@ export default function NewEndpointPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [showAiDialog, setShowAiDialog] = useState(false);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [form, setForm] = useState({
     path: '',
     method: 'GET' as Endpoint['method'],
@@ -65,6 +72,8 @@ export default function NewEndpointPage() {
     statusCode: 200,
     contentType: 'application/json',
     responseBody: DEFAULT_RESPONSES['application/json'],
+    tags: [] as string[],
+    isShareable: true,
   });
 
   useEffect(() => {
@@ -98,6 +107,18 @@ export default function NewEndpointPage() {
     const normalizedPath = path.trim() || '/';
     if (!normalizedPath) {
       return '路径不能为空';
+    }
+    if (!normalizedPath.startsWith('/')) {
+      return '路径必须以 / 开头';
+    }
+    const segments = normalizedPath.split('/').slice(1);
+    for (const seg of segments) {
+      if (seg === '') continue;
+      if (seg.startsWith(':')) {
+        if (!/^:[a-zA-Z_][a-zA-Z0-9_]*$/.test(seg)) {
+          return `路径参数 "${seg}" 格式非法，应为 :字母开头（如 :id）`;
+        }
+      }
     }
     return undefined;
   }
@@ -145,6 +166,30 @@ export default function NewEndpointPage() {
       responseBody: DEFAULT_RESPONSES[contentType as keyof typeof DEFAULT_RESPONSES] || '',
     }));
   }
+
+  // AI 生成响应数据
+  const handleAiGenerated = (data: unknown) => {
+    setForm((prev) => ({ ...prev, responseBody: JSON.stringify(data, null, 2) }));
+  };
+
+  // 应用模板
+  const handleTemplateApplied = (content: string) => {
+    setForm((prev) => ({ ...prev, responseBody: content }));
+    success('模板已应用');
+  };
+
+  // 应用错误场景
+  const handleApplyErrorScenario = (scenario: ErrorScenario) => {
+    const applied = applyErrorScenario(scenario);
+    setForm((prev) => ({
+      ...prev,
+      statusCode: applied.statusCode,
+      contentType: applied.contentType,
+      delayMs: applied.delayMs,
+      responseBody: applied.responseBody,
+    }));
+    success(`已应用错误场景: ${scenario.name}`);
+  };
 
   // 验证 JSON
   function validateJson(json: string): boolean {
@@ -198,6 +243,8 @@ export default function NewEndpointPage() {
         statusCode: form.statusCode,
         contentType: form.contentType,
         responseBody: parsedBody,
+        tags: form.tags,
+        isShareable: form.isShareable,
       });
 
       success('端点创建成功！');
@@ -252,6 +299,8 @@ export default function NewEndpointPage() {
         statusCode: form.statusCode,
         contentType: form.contentType,
         responseBody: parsedBody,
+        tags: form.tags,
+        isShareable: form.isShareable,
       });
 
       success('端点创建成功！');
@@ -266,6 +315,8 @@ export default function NewEndpointPage() {
         statusCode: 200,
         contentType: 'application/json',
         responseBody: DEFAULT_RESPONSES['application/json'],
+        tags: [],
+        isShareable: true,
       });
       setErrors({});
       setTouched({});
@@ -394,8 +445,22 @@ export default function NewEndpointPage() {
                 {/* URL 预览 */}
                 {form.path && (
                   <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mb-1 font-medium">Mock URL 预览：</p>
-                    <code className="text-sm text-blue-800 dark:text-blue-200 font-mono break-all">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">Mock URL 预览：</p>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const ok = await copyToClipboard(getMockUrl());
+                          if (ok) success('已复制 Mock URL');
+                          else toastError('复制失败，请手动复制');
+                        }}
+                        disabled={loading || !form.path}
+                        className="text-xs text-blue-700 dark:text-blue-300 hover:underline disabled:opacity-50"
+                      >
+                        复制
+                      </button>
+                    </div>
+                    <code className="text-sm text-blue-800 dark:text-blue-200 font-mono break-all block">
                       {getMockUrl()}
                     </code>
                   </div>
@@ -430,6 +495,44 @@ export default function NewEndpointPage() {
                   placeholder="端点描述（可选）"
                   disabled={loading}
                 />
+              </div>
+
+              {/* 标签 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  标签
+                </label>
+                <input
+                  type="text"
+                  value={form.tags.join(', ')}
+                  onChange={(e) => {
+                    const tags = e.target.value.split(',').map((t) => t.trim()).filter(Boolean);
+                    setForm((prev) => ({ ...prev, tags }));
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
+                  placeholder="用逗号分隔，如: 用户, 列表, 分页"
+                  disabled={loading}
+                />
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  用于项目详情页的标签筛选
+                </p>
+              </div>
+
+              {/* 分享可见性 */}
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={form.isShareable}
+                    onChange={(e) => setForm((prev) => ({ ...prev, isShareable: e.target.checked }))}
+                    disabled={loading}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  在分享页显示此端点
+                </label>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  关闭后，访问分享页的协作者看不到此端点
+                </p>
               </div>
 
               {/* 模拟延迟 */}
@@ -553,9 +656,35 @@ export default function NewEndpointPage() {
 
             {/* 响应数据 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                响应数据
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  响应数据
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTemplateDialog(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors"
+                    disabled={loading}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    模板库
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAiDialog(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-lg transition-colors"
+                    disabled={loading}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    AI 生成
+                  </button>
+                </div>
+              </div>
               <div className="relative">
                 {form.contentType === 'application/json' ? (
                   <JsonEditor
@@ -599,6 +728,9 @@ export default function NewEndpointPage() {
                 </p>
               )}
             </div>
+
+            {/* 错误场景选择器 */}
+            <ErrorScenariosSelector onApply={handleApplyErrorScenario} disabled={loading} />
           </CardBody>
         </Card>
         </div>
@@ -624,6 +756,20 @@ export default function NewEndpointPage() {
           </Button>
         </div>
       </main>
+
+      {/* AI 生成对话框 */}
+      <AiGenerateDialog
+        isOpen={showAiDialog}
+        onClose={() => setShowAiDialog(false)}
+        onGenerated={handleAiGenerated}
+      />
+
+      {/* 模板库对话框 */}
+      <TemplateLibraryDialog
+        isOpen={showTemplateDialog}
+        onClose={() => setShowTemplateDialog(false)}
+        onApply={handleTemplateApplied}
+      />
     </div>
   );
 }

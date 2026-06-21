@@ -38,6 +38,7 @@ export const endpoints = sqliteTable('endpoints', {
   name: text('name'),
   description: text('description'),
   isActive: integer('is_active').notNull().default(1),
+  isShareable: integer('is_shareable').notNull().default(1),
   delayMs: integer('delay_ms').default(0),
   tags: text('tags').default('[]'),
   statusCode: integer('status_code').default(200),

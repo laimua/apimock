@@ -16,6 +16,8 @@ interface FormErrors {
   description?: string;
 }
 
+
+
 type SlugValidationStatus = 'idle' | 'loading' | 'available' | 'exists' | 'error';
 
 export default function NewProjectPage() {
@@ -43,8 +45,8 @@ export default function NewProjectPage() {
     return name
       .toLowerCase()
       .trim()
-      .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
-      .replace(/^-|-$/g, '');
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
   }
 
   // 实时验证名称
@@ -71,6 +73,14 @@ export default function NewProjectPage() {
     }
     if (slug.length > 100) {
       return 'Slug 不能超过 100 个字符';
+    }
+    return undefined;
+  }
+
+  // 验证描述长度
+  function validateDescription(description: string): string | undefined {
+    if (description.length > 500) {
+      return '描述不能超过 500 字符';
     }
     return undefined;
   }
@@ -168,6 +178,11 @@ export default function NewProjectPage() {
         ...prev,
         slug: validateSlug(form.slug),
       }));
+    } else if (field === 'description') {
+      setErrors((prev) => ({
+        ...prev,
+        description: validateDescription(form.description),
+      }));
     }
   }
 
@@ -180,14 +195,16 @@ export default function NewProjectPage() {
     // 验证所有字段
     const nameError = validateName(form.name);
     const slugError = validateSlug(form.slug);
+    const descriptionError = validateDescription(form.description);
     const newErrors: FormErrors = {
       name: nameError,
       slug: slugError,
+      description: descriptionError,
     };
 
     setErrors(newErrors);
 
-    if (nameError || slugError) {
+    if (nameError || slugError || descriptionError) {
       return;
     }
 

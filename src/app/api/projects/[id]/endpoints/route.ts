@@ -23,6 +23,7 @@ const CreateEndpointSchema = z.object({
   description: z.string().optional(),
   delayMs: z.number().min(0).max(60000).optional(),
   tags: z.array(z.string()).optional(),
+  isShareable: z.boolean().optional(),
   // 响应配置字段
   statusCode: z.number().min(100).max(599).optional(),
   contentType: z.string().optional(),
@@ -135,6 +136,7 @@ export async function GET(
       responseBody: parsedResponseBody,
       tags: parsedTags,
       isActive: Boolean(endpoint.isActive), // 转换为布尔值
+      isShareable: Boolean(endpoint.isShareable),
     };
   });
 
@@ -208,6 +210,7 @@ export async function POST(
       name: data.name ?? null,
       description: data.description ?? null,
       isActive: 1, // SQLite 用整数
+      isShareable: data.isShareable === false ? 0 : 1, // 默认可见，显式 false 才隐藏
       delayMs: data.delayMs ?? 0,
       tags: tagsStr,
       // 响应配置字段
@@ -244,6 +247,7 @@ export async function POST(
       responseBody: parsedResponseBody,
       tags: parsedTags,
       isActive: Boolean(newEndpoint.isActive), // 转换为布尔值
+      isShareable: Boolean(newEndpoint.isShareable),
     }, 201);
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'ValidationError') {

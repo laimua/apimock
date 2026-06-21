@@ -14,6 +14,7 @@ import ProviderList from '@/components/settings/ProviderList';
 import { PresetProvider } from '@/lib/ai-presets';
 import PresetProviders from '@/components/settings/PresetProviders';
 import AddProviderDialog, { type ProviderFormData } from '@/components/settings/AddProviderDialog';
+import { useToast } from '@/components/ui/Toast';
 
 interface Provider {
   id: string;
@@ -29,30 +30,60 @@ interface Provider {
   updatedAt: number;
 }
 
+interface BudgetStatus {
+  requests: number;
+  tokens: number;
+  limits: { tokens: number; requests: number };
+}
+
 export default function AiSettingsPage() {
+  const { success: toastSuccess, error: toastError } = useToast();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [presetToApply, setPresetToApply] = useState<PresetProvider | null>(null);
+  const [budget, setBudget] = useState<BudgetStatus | null>(null);
 
   // 加载 providers
   const loadProviders = async () => {
     try {
+      setLoadError(null);
+      setLoading(true);
       const res = await fetch('/api/ai/providers');
       const json = await res.json();
       if (json.success) {
         setProviders(json.data);
+      } else {
+        setLoadError(json.error || '加载失败');
+        toastError(json.error || '加载失败');
       }
     } catch (err) {
       console.error('Failed to load providers:', err);
+      setLoadError('加载失败，请重试');
+      toastError('加载模型配置失败');
     } finally {
       setLoading(false);
     }
   };
 
+  // 加载今日 AI 预算用量
+  const loadBudget = async () => {
+    try {
+      const res = await fetch('/api/ai/budget');
+      const json = await res.json();
+      if (json.success) {
+        setBudget(json.data);
+      }
+    } catch {
+      // 预算加载失败不影响主流程
+    }
+  };
+
   useEffect(() => {
     loadProviders();
+    loadBudget();
   }, []);
 
   // 添加 provider
@@ -67,9 +98,13 @@ export default function AiSettingsPage() {
       if (json.success) {
         await loadProviders();
         setShowAddDialog(false);
+        toastSuccess('模型已添加');
+      } else {
+        toastError(json.error || '添加失败');
       }
     } catch (err) {
       console.error('Failed to add provider:', err);
+      toastError(err instanceof Error ? err.message : '添加模型失败');
     }
   };
 
@@ -85,9 +120,13 @@ export default function AiSettingsPage() {
       if (json.success) {
         await loadProviders();
         setEditingProvider(null);
+        toastSuccess('模型已更新');
+      } else {
+        toastError(json.error || '更新失败');
       }
     } catch (err) {
       console.error('Failed to update provider:', err);
+      toastError(err instanceof Error ? err.message : '更新模型失败');
     }
   };
 
@@ -100,9 +139,13 @@ export default function AiSettingsPage() {
       const json = await res.json();
       if (json.success) {
         await loadProviders();
+        toastSuccess('模型已删除');
+      } else {
+        toastError(json.error || '删除失败');
       }
     } catch (err) {
       console.error('Failed to delete provider:', err);
+      toastError(err instanceof Error ? err.message : '删除模型失败');
     }
   };
 
@@ -115,9 +158,13 @@ export default function AiSettingsPage() {
       const json = await res.json();
       if (json.success) {
         await loadProviders();
+        toastSuccess('已设为默认模型');
+      } else {
+        toastError(json.error || '设置失败');
       }
     } catch (err) {
       console.error('Failed to set default provider:', err);
+      toastError(err instanceof Error ? err.message : '设置默认失败');
     }
   };
 
@@ -128,6 +175,31 @@ export default function AiSettingsPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <Breadcrumb items={[{ label: '首页', href: '/' }, { label: 'AI 模型配置' }]} />
+
+        {/* 今日 AI 用量 */}
+        {budget && (
+          <Card className="mb-6">
+            <CardBody>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">今日 AI 用量</div>
+              <div className="flex flex-wrap gap-6 text-sm">
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">请求 </span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">
+                    {budget.requests}
+                  </span>
+                  <span className="text-gray-400 dark:text-gray-500"> / {budget.limits.requests}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Token </span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">
+                    {budget.tokens}
+                  </span>
+                  <span className="text-gray-400 dark:text-gray-500"> / {budget.limits.tokens}</span>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        )}
 
         {/* Current Default Provider */}
         {defaultProvider && (
@@ -192,6 +264,11 @@ export default function AiSettingsPage() {
                 <Skeleton className="h-16 w-full rounded-lg" />
                 <Skeleton className="h-16 w-full rounded-lg" />
                 <Skeleton className="h-16 w-3/4 rounded-lg" />
+              </div>
+            ) : loadError ? (
+              <div className="text-center py-8">
+                <p className="text-red-600 dark:text-red-400 mb-3">{loadError}</p>
+                <Button variant="secondary" onClick={loadProviders}>重试</Button>
               </div>
             ) : providers.length === 0 ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">

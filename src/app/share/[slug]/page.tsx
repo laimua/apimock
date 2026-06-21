@@ -34,11 +34,13 @@ interface ShareData {
 // ============================================
 function EndpointDetailPanel({
   endpoint,
+  isExpanded,
+  onToggle,
 }: {
   endpoint: ShareEndpoint;
+  isExpanded: boolean;
+  onToggle: () => void;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
   // 解析标签
   const tags = endpoint.tags ? JSON.parse(endpoint.tags) : [];
 
@@ -66,7 +68,7 @@ function EndpointDetailPanel({
     <div className="border-t border-gray-200 dark:border-gray-700">
       <button
         type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={onToggle}
         className="w-full px-4 py-2 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
       >
         <span className="flex items-center gap-2">
@@ -185,11 +187,14 @@ interface TestResponse {
 function EndpointTestPanel({
   endpoint,
   baseUrl,
+  isExpanded,
+  onToggle,
 }: {
   endpoint: ShareEndpoint;
   baseUrl: string;
+  isExpanded: boolean;
+  onToggle: () => void;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [queryParams, setQueryParams] = useState<Record<string, string>>({});
   const [headers, setHeaders] = useState<Record<string, string>>({});
   const [body, setBody] = useState('');
@@ -270,7 +275,7 @@ function EndpointTestPanel({
     <div className="border-t border-gray-200 dark:border-gray-700">
       <button
         type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={onToggle}
         className="w-full px-4 py-2 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
       >
         <span className="flex items-center gap-2">
@@ -535,19 +540,9 @@ export default function SharePage() {
   const [data, setData] = useState<ShareData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
-
-  // 添加 noindex meta 标签，防止搜索引擎索引分享页面
-  useEffect(() => {
-    const meta = document.createElement('meta');
-    meta.name = 'robots';
-    meta.content = 'noindex, nofollow';
-    document.head.appendChild(meta);
-
-    return () => {
-      document.head.removeChild(meta);
-    };
-  }, []);
+  const [toast, setToast] = useState<{ message: string; visible: boolean; type: 'success' | 'error' } | null>(null);
+  const [expandedDetailId, setExpandedDetailId] = useState<string | null>(null);
+  const [expandedTestId, setExpandedTestId] = useState<string | null>(null);
 
   useEffect(() => {
     loadShareData();
@@ -578,8 +573,8 @@ export default function SharePage() {
     }
   }
 
-  function showToast(message: string) {
-    setToast({ message, visible: true });
+  function showToast(message: string, type: 'success' | 'error' = 'success') {
+    setToast({ message, visible: true, type });
     setTimeout(() => {
       setToast(null);
     }, 2000);
@@ -590,7 +585,7 @@ export default function SharePage() {
       await navigator.clipboard.writeText(text);
       showToast(`已复制: ${label}`);
     } catch {
-      showToast(`已复制: ${label}`);
+      showToast('复制失败，请手动复制', 'error');
     }
   }
 
@@ -643,10 +638,20 @@ export default function SharePage() {
       {/* Toast */}
       {toast && (
         <div className="fixed top-4 right-4 z-50 animate-slide-in max-w-[calc(100vw-2rem)]">
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-800 dark:text-green-300">
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg ${
+            toast.type === 'error'
+              ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-800 dark:text-red-300'
+              : 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-800 dark:text-green-300'
+          }`}>
+            {toast.type === 'error' ? (
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
             <p className="text-sm font-medium">{toast.message}</p>
           </div>
         </div>
@@ -746,18 +751,7 @@ export default function SharePage() {
                     <div className="flex items-center gap-1 sm:gap-2">
                       <button
                         type="button"
-                        onClick={() => {
-                          // 切换详情面板展开状态
-                          const detailButtons = document.querySelectorAll('[data-detail-toggle]');
-                          detailButtons.forEach((btn) => {
-                            const endpointId = btn.getAttribute('data-endpoint-id');
-                            if (endpointId === endpoint.id) {
-                              (btn as HTMLButtonElement).click();
-                            }
-                          });
-                        }}
-                        data-detail-toggle
-                        data-endpoint-id={endpoint.id}
+                        onClick={() => setExpandedDetailId((prev) => (prev === endpoint.id ? null : endpoint.id))}
                         className="flex-shrink-0 px-2 sm:px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors min-h-8"
                       >
                         详情
@@ -771,18 +765,7 @@ export default function SharePage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          // 找到对应的测试面板并切换展开状态
-                          const testButtons = document.querySelectorAll('[data-test-toggle]');
-                          testButtons.forEach((btn) => {
-                            const endpointId = btn.getAttribute('data-endpoint-id');
-                            if (endpointId === endpoint.id) {
-                              (btn as HTMLButtonElement).click();
-                            }
-                          });
-                        }}
-                        data-test-toggle
-                        data-endpoint-id={endpoint.id}
+                        onClick={() => setExpandedTestId((prev) => (prev === endpoint.id ? null : endpoint.id))}
                         className="flex-shrink-0 px-2 sm:px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors min-h-8"
                       >
                         测试
@@ -790,9 +773,18 @@ export default function SharePage() {
                     </div>
                   </div>
                   {/* 端点详情面板 */}
-                  <EndpointDetailPanel endpoint={endpoint} />
+                  <EndpointDetailPanel
+                    endpoint={endpoint}
+                    isExpanded={expandedDetailId === endpoint.id}
+                    onToggle={() => setExpandedDetailId((prev) => (prev === endpoint.id ? null : endpoint.id))}
+                  />
                   {/* 测试面板 */}
-                  <EndpointTestPanel endpoint={endpoint} baseUrl={data.baseUrl} />
+                  <EndpointTestPanel
+                    endpoint={endpoint}
+                    baseUrl={data.baseUrl}
+                    isExpanded={expandedTestId === endpoint.id}
+                    onToggle={() => setExpandedTestId((prev) => (prev === endpoint.id ? null : endpoint.id))}
+                  />
                 </CardBody>
               </Card>
             ))}

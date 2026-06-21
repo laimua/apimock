@@ -92,12 +92,12 @@ const QUICK_ERROR_SCENARIOS = [
   },
   {
     id: 'quick-timeout',
-    name: '超时 5s',
+    name: '超时',
     description: '请求超时',
     icon: 'clock',
-    statusCode: 200,
+    statusCode: 408,
     contentType: 'application/json',
-    delayMs: 5000,
+    delayMs: 30000,
     responseBody: JSON.stringify({
       success: false,
       error: {
@@ -135,7 +135,24 @@ type InitialFormState = {
   statusCode: number;
   contentType: string;
   responseBody: string;
+  tags: string[];
+  isShareable: boolean;
 };
+
+// tags 可能是字符串（DB JSON）、数组、或 undefined，统一转为 string[]
+function parseTags(tags: unknown): string[] {
+  if (!tags) return [];
+  if (Array.isArray(tags)) return tags as string[];
+  if (typeof tags === 'string') {
+    try {
+      const parsed = JSON.parse(tags);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
 
 export default function EditEndpointPage() {
   const router = useRouter();
@@ -164,6 +181,8 @@ export default function EditEndpointPage() {
     statusCode: 200,
     contentType: 'application/json',
     responseBody: DEFAULT_RESPONSES['application/json'],
+    tags: [],
+    isShareable: true,
   });
   const [form, setForm] = useState<InitialFormState>({
     path: '',
@@ -174,6 +193,8 @@ export default function EditEndpointPage() {
     statusCode: 200,
     contentType: 'application/json',
     responseBody: DEFAULT_RESPONSES['application/json'],
+    tags: [],
+    isShareable: true,
   });
 
   // 检查表单是否有修改
@@ -189,7 +210,9 @@ export default function EditEndpointPage() {
       obj1.delayMs === obj2.delayMs &&
       obj1.statusCode === obj2.statusCode &&
       obj1.contentType === obj2.contentType &&
-      obj1.responseBody === obj2.responseBody
+      obj1.responseBody === obj2.responseBody &&
+      JSON.stringify(obj1.tags) === JSON.stringify(obj2.tags) &&
+      obj1.isShareable === obj2.isShareable
     );
   }
 
@@ -239,6 +262,8 @@ export default function EditEndpointPage() {
         statusCode: endpointData.statusCode || 200,
         contentType: endpointData.contentType || 'application/json',
         responseBody: responseBodyStr || DEFAULT_RESPONSES['application/json'],
+        tags: parseTags(endpointData.tags),
+        isShareable: endpointData.isShareable !== false,
       };
 
       setForm(newForm);
@@ -296,12 +321,34 @@ export default function EditEndpointPage() {
     }
   }
 
+  // 验证路径格式
+  function validatePath(path: string): string | undefined {
+    const normalizedPath = path.trim() || '/';
+    if (!normalizedPath) {
+      return '路径不能为空';
+    }
+    if (!normalizedPath.startsWith('/')) {
+      return '路径必须以 / 开头';
+    }
+    const segments = normalizedPath.split('/').slice(1);
+    for (const seg of segments) {
+      if (seg === '') continue;
+      if (seg.startsWith(':')) {
+        if (!/^:[a-zA-Z_][a-zA-Z0-9_]*$/.test(seg)) {
+          return `路径参数 "${seg}" 格式非法，应为 :字母开头（如 :id）`;
+        }
+      }
+    }
+    return undefined;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     // 验证路径
-    if (!form.path.trim()) {
-      setErrors({ path: '路径不能为空' });
+    const pathError = validatePath(form.path);
+    if (pathError) {
+      setErrors({ path: pathError });
       return;
     }
 
@@ -330,6 +377,8 @@ export default function EditEndpointPage() {
         statusCode: form.statusCode,
         contentType: form.contentType,
         responseBody: parsedBody,
+        tags: form.tags,
+        isShareable: form.isShareable,
       });
 
       // 直接更新本地状态，无需重新加载
@@ -624,6 +673,44 @@ export default function EditEndpointPage() {
                       rows={3}
                       disabled={saving}
                     />
+                  </div>
+
+                  {/* 标签 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      标签
+                    </label>
+                    <input
+                      type="text"
+                      value={form.tags.join(', ')}
+                      onChange={(e) => {
+                        const tags = e.target.value.split(',').map((t) => t.trim()).filter(Boolean);
+                        setForm((prev) => ({ ...prev, tags }));
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      placeholder="用逗号分隔，如: 用户, 列表, 分页"
+                      disabled={saving}
+                    />
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      用于项目详情页的标签筛选
+                    </p>
+                  </div>
+
+                  {/* 分享可见性 */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={form.isShareable}
+                        onChange={(e) => setForm((prev) => ({ ...prev, isShareable: e.target.checked }))}
+                        disabled={saving}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      在分享页显示此端点
+                    </label>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      关闭后，访问分享页的协作者看不到此端点
+                    </p>
                   </div>
 
                   {/* 模拟延迟 */}

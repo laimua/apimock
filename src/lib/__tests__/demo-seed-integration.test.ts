@@ -25,7 +25,8 @@ async function makeDb(): Promise<DbClient> {
   await db.run(`CREATE TABLE endpoints (
     id TEXT PRIMARY KEY, project_id TEXT NOT NULL, path TEXT NOT NULL,
     method TEXT NOT NULL DEFAULT 'GET', name TEXT, description TEXT,
-    is_active INTEGER NOT NULL DEFAULT 1, delay_ms INTEGER DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1, is_shareable INTEGER NOT NULL DEFAULT 1,
+    delay_ms INTEGER DEFAULT 0,
     tags TEXT DEFAULT '[]', status_code INTEGER DEFAULT 200,
     content_type TEXT DEFAULT 'application/json', response_body TEXT,
     created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL

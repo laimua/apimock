@@ -1,15 +1,8 @@
-'use client';
-
-import React from 'react';
-import { useEffect } from 'react';
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Bot, Zap, Wrench } from 'lucide-react';
 
 export default function HomePage() {
-  useEffect(() => {
-    document.title = 'ApiMock - AI 智能 Mock 平台';
-  }, []);
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
       {/* Hero Section */}
@@ -78,13 +71,19 @@ export default function HomePage() {
             </div>
             <div className="p-4 sm:p-6 bg-gray-900 text-green-400 font-mono text-xs sm:text-sm overflow-x-auto">
               <pre>{`# 获取用户列表
-$ curl https://mock.apimock.io/demo-project/users
+$ curl http://localhost:3000/demo-project/users
 
-[
-  {"id": 1, "name": "张三", "email": "zhangsan@example.com"},
-  {"id": 2, "name": "李四", "email": "lisi@example.com"},
-  {"id": 3, "name": "王五", "email": "wangwu@example.com"}
-]`}</pre>
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "list": [
+      { "id": 1, "name": "张伟", "email": "user1@example.com" },
+      { "id": 2, "name": "李娜", "email": "user2@example.com" }
+    ],
+    "total": 2
+  }
+}`}</pre>
             </div>
           </div>
         </div>
@@ -110,7 +109,7 @@ $ curl https://mock.apimock.io/demo-project/users
   );
 }
 
-function FeatureCard({ icon, title, description, featured }: { icon: React.ReactNode; title: string; description: string; featured?: boolean }) {
+function FeatureCard({ icon, title, description, featured }: { icon: ReactNode; title: string; description: string; featured?: boolean }) {
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow ${featured ? 'flex flex-col justify-center md:p-8' : ''}`}>
       <div className="mb-4">{icon}</div>

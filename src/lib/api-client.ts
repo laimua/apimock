@@ -38,6 +38,7 @@ export interface Endpoint {
   name?: string;
   description?: string;
   isActive: boolean;
+  isShareable: boolean;
   delayMs: number;
   tags: string[];
   statusCode?: number;
@@ -60,6 +61,7 @@ export interface CreateEndpointDto {
   description?: string;
   delayMs?: number;
   tags?: string[];
+  isShareable?: boolean;
   statusCode?: number;
   contentType?: string;
   responseBody?: unknown;
@@ -72,6 +74,7 @@ export interface UpdateEndpointDto {
   description?: string;
   delayMs?: number;
   tags?: string[];
+  isShareable?: boolean;
   statusCode?: number;
   contentType?: string;
   responseBody?: unknown;

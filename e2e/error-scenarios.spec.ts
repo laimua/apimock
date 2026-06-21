@@ -104,10 +104,11 @@ test.describe('Error Scenarios', () => {
       // 验证延迟值（input number，需等表单更新）
       await page.waitForTimeout(300);
       const delayInput = page.locator('input[type="number"]').first();
-      await expect(delayInput).toHaveValue(/5000|5/);
+      // 快捷超时场景对齐 lib：delayMs=30000
+      await expect(delayInput).toHaveValue(/30000|30/);
 
       // 验证延迟值已设置（timeout 场景主要改 delay，不强制 responseBody 内容）
-      await expect(delayInput).toHaveValue(/5000|5/);
+      await expect(delayInput).toHaveValue(/30000|30/);
 
       // 保存并验证
       await page.locator('button[type="submit"]').click();
@@ -115,7 +116,7 @@ test.describe('Error Scenarios', () => {
 
       const getResponse = await page.request.get(`/api/projects/${projectId}/endpoints/${endpointId}`);
       const getResult = await getResponse.json();
-      expect(getResult.data.delayMs).toBe(5000);
+      expect(getResult.data.delayMs).toBe(30000);
     });
 
     test('should show active state for selected error scenario', async ({ page }) => {

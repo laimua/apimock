@@ -33,6 +33,7 @@ export const endpoints = mysqlTable('endpoints', {
   name: varchar('name', { length: 255 }),
   description: text('description'),
   isActive: tinyint('is_active').notNull().default(1),
+  isShareable: tinyint('is_shareable').notNull().default(1),
   delayMs: bigint('delay_ms', { mode: 'number' }).default(0),
   tags: text('tags').default('[]'),
   statusCode: bigint('status_code', { mode: 'number' }).default(200),

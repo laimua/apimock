@@ -58,6 +58,7 @@ export async function setupTestDb(dbName?: string) {
       name TEXT,
       description TEXT,
       is_active INTEGER NOT NULL DEFAULT 1,
+      is_shareable INTEGER NOT NULL DEFAULT 1,
       delay_ms INTEGER DEFAULT 0,
       tags TEXT DEFAULT '[]',
       status_code INTEGER DEFAULT 200,

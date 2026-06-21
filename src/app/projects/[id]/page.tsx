@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { projectsApi, endpointsApi, projectRequestsApi, Project, Endpoint, ApiError, ListEndpointsResponse, RequestRecord } from '@/lib/api-client';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -368,8 +368,17 @@ function RequestDetailDialog({ request, isOpen, onClose }: RequestDetailDialogPr
 }
 
 export default function ProjectPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProjectPageInner />
+    </Suspense>
+  );
+}
+
+function ProjectPageInner() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const projectId = params.id as string;
   const { success, error: toastError } = useToast();
 
@@ -399,6 +408,7 @@ export default function ProjectPage() {
   const [requestsPageSize] = useState(20);
   const [requestsTotal, setRequestsTotal] = useState(0);
   const [requestsEndpointFilter, setRequestsEndpointFilter] = useState('');
+  const [requestFilterEndpoints, setRequestFilterEndpoints] = useState<Endpoint[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<RequestRecord | null>(null);
   const [isRequestDetailOpen, setIsRequestDetailOpen] = useState(false);
 
@@ -414,7 +424,7 @@ export default function ProjectPage() {
       await navigator.clipboard.writeText(text);
       success(`已复制: ${label}`);
     } catch {
-      success(`已复制: ${label}`);
+      toastError('复制失败，请手动复制');
     }
   }
 
@@ -442,6 +452,13 @@ export default function ProjectPage() {
       return () => clearTimeout(timer);
     }
   }, [loading, project, endpoints.length, debouncedSearch, methodFilter, tagFilter]);
+
+  // 消费 ?edit=true：从项目列表点编辑铅笔跳转后自动打开编辑弹窗
+  useEffect(() => {
+    if (searchParams.get('edit') === 'true' && !loading && project) {
+      setIsEditDialogOpen(true);
+    }
+  }, [searchParams, loading, project]);
 
   async function loadData() {
     try {
@@ -484,13 +501,21 @@ export default function ProjectPage() {
   async function loadRequests() {
     try {
       setRequestsLoading(true);
-      const data = await projectRequestsApi.list(projectId, {
-        page: requestsPage,
-        pageSize: requestsPageSize,
-        endpointId: requestsEndpointFilter || undefined,
-      });
+      // 单独拉一份全量端点列表用于下拉（不受端点列表分页影响）
+      const [data, allEndpointsResp] = await Promise.all([
+        projectRequestsApi.list(projectId, {
+          page: requestsPage,
+          pageSize: requestsPageSize,
+          endpointId: requestsEndpointFilter || undefined,
+        }),
+        endpointsApi.list(projectId),
+      ]);
       setRequests(data.items);
       setRequestsTotal(data.total);
+      const allEndpoints = (allEndpointsResp && typeof allEndpointsResp === 'object' && 'items' in allEndpointsResp
+        ? (allEndpointsResp as ListEndpointsResponse).items
+        : (allEndpointsResp as Endpoint[]));
+      setRequestFilterEndpoints(allEndpoints);
     } catch (err: unknown) {
       toastError(err instanceof Error ? err.message : '加载请求记录失败');
     } finally {
@@ -734,10 +759,31 @@ export default function ProjectPage() {
         <div className="mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">端点列表</h2>
-            <span className="text-gray-500 dark:text-gray-400 text-sm">
-              {total} 个端点
-              {search || methodFilter || tagFilter ? ' (已筛选)' : ''}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-gray-500 dark:text-gray-400 text-sm">
+                {total} 个端点
+                {search || methodFilter || tagFilter ? ' (已筛选)' : ''}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsImportOpen(true)}
+                className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-sm transition-colors"
+              >
+                <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                导入 OpenAPI
+              </button>
+              <Link
+                href={`/projects/${projectId}/endpoints/new`}
+                className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm transition-colors"
+              >
+                <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                添加端点
+              </Link>
+            </div>
           </div>
 
           {/* 搜索和筛选栏 */}
@@ -934,7 +980,7 @@ export default function ProjectPage() {
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                 >
                   <option value="">全部端点</option>
-                  {endpoints.map((ep) => (
+                  {requestFilterEndpoints.map((ep) => (
                     <option key={ep.id} value={ep.id}>
                       {ep.method} {ep.path} {ep.name ? `- ${ep.name}` : ''}
                     </option>

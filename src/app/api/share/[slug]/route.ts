@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { projects, endpoints } from '@/lib/schema';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, and } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
@@ -35,7 +35,7 @@ export async function GET(
 
     const project = projectList[0];
 
-    // 查询端点列表（包含详细信息用于展示）
+    // 查询端点列表（包含详细信息用于展示），仅返回在分享页可见的端点
     const endpointList = await db
       .select({
         id: endpoints.id,
@@ -50,7 +50,7 @@ export async function GET(
         responseBody: endpoints.responseBody,
       })
       .from(endpoints)
-      .where(eq(endpoints.projectId, project.id))
+      .where(and(eq(endpoints.projectId, project.id), eq(endpoints.isShareable, 1)))
       .orderBy(asc(endpoints.method), asc(endpoints.path));
 
     // 构建基础 URL

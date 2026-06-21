@@ -23,6 +23,7 @@ const UpdateEndpointSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
   isActive: z.boolean().optional(),
+  isShareable: z.boolean().optional(),
   delayMs: z.number().min(0).max(60000).optional(),
   tags: z.array(z.string()).optional(),
   // 响应配置字段
@@ -106,6 +107,7 @@ export async function PUT(
     if (data.name !== undefined) updateData.name = data.name;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.isActive !== undefined) updateData.isActive = data.isActive ? 1 : 0;
+    if (data.isShareable !== undefined) updateData.isShareable = data.isShareable ? 1 : 0;
     if (data.delayMs !== undefined) updateData.delayMs = data.delayMs;
     if (data.tags !== undefined) updateData.tags = JSON.stringify(data.tags);
     // 响应配置字段
@@ -146,6 +148,7 @@ export async function PUT(
       ...updated,
       responseBody: parsedResponseBody,
       isActive: Boolean(updated.isActive),
+      isShareable: Boolean(updated.isShareable),
     });
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'ValidationError') {
