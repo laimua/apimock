@@ -22,6 +22,8 @@ ApiMock is a self-hosted, zero-config Mock API service for parallel frontend/bac
 - **OpenAPI import** — Import OpenAPI 3.0 spec, auto-create endpoints
 - **Dynamic response rules** — Return different responses based on Query / Header, simulate error scenarios
 - **Instant sharing** — Mock endpoints get public URLs; team members access without login
+- **Per-endpoint share visibility** — Hide any endpoint from the share page without disabling the Mock URL
+- **Daily AI budget** — Settings page shows today's request/token usage; auto-falls back to template generation when the limit is hit
 - **Multi-provider** — OpenAI, Claude, DeepSeek, Gemini, Tongyi, Zhipu, Doubao, Moonshot, MiniMax, plus any OpenAI-compatible endpoint (Ollama / vLLM / LM Studio)
 - **Zero-config startup** — Auto-seeds `demo-project` on first boot; see it working in 30 seconds
 

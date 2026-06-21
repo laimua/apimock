@@ -22,6 +22,8 @@ ApiMock 是一个自托管、零配置的 Mock API 服务，专为前后端并�
 - **OpenAPI 导入** — 一键导入 OpenAPI 3.0 规范，自动创建端点
 - **动态响应规则** — 根据 Query / Header 返回不同响应，模拟异常场景
 - **即时分享** — Mock 端点生成公开 URL，团队成员无需登录即可访问
+- **端点级分享可见性** — 单个端点可关闭分享页显示，Mock URL 仍可访问
+- **AI 日预算** — 设置页展示当日请求/Token 用量，超限自动降级到模板生成
 - **多 Provider 支持** — OpenAI、Claude、DeepSeek、Gemini、通义、智谱、豆包、Moonshot、MiniMax，以及所有 OpenAI 兼容接口（Ollama / vLLM / LM Studio）
 - **零配置启动** — 首次启动自动 seed `demo-project`，30 秒看到效果
 
