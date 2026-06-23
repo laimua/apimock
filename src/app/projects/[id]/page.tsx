@@ -465,9 +465,7 @@ function ProjectPageInner() {
       setLoading(true);
       // 并行加载项目和端点
       const [projectData, endpointsData] = await Promise.all([
-        projectsApi.list().then(projects =>
-          projects.find(p => p.id === projectId) || null
-        ),
+        projectsApi.get(projectId),
         endpointsApi.list(projectId, {
           page,
           pageSize,

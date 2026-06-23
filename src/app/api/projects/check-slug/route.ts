@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { projects } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+import { isReservedSlug } from '@/lib/slug';
 
 // ============================================
 // Schema
@@ -32,6 +33,11 @@ export async function GET(request: NextRequest) {
     // 验证 slug 格式
     const validated = CheckSlugSchema.parse({ slug });
 
+    // 保留字直接判占用（避免与路由前缀冲突）
+    if (isReservedSlug(validated.slug)) {
+      return success({ slug: validated.slug, available: false, reason: 'reserved' });
+    }
+
     // 检查 slug 是否已存在
     const existingProjects = await db
       .select()
@@ -43,6 +49,7 @@ export async function GET(request: NextRequest) {
     return success({
       slug: validated.slug,
       available: isAvailable,
+      ...(isAvailable ? {} : { reason: 'exists' as const }),
     });
   } catch (err: unknown) {
     console.error('Check slug API error:', err);

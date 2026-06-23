@@ -239,12 +239,12 @@ export default function EditEndpointPage() {
   async function loadData() {
     try {
       setLoading(true);
-      const [projects, endpointData] = await Promise.all([
-        projectsApi.list(),
+      const [projectData, endpointData] = await Promise.all([
+        projectsApi.get(projectId),
         endpointsApi.get(projectId, endpointId),
       ]);
 
-      setProject(projects.find((p) => p.id === projectId) || null);
+      setProject(projectData);
       setEndpoint(endpointData);
 
       // 设置表单数据

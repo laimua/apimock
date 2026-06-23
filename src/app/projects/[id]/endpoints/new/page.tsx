@@ -85,10 +85,11 @@ export default function NewEndpointPage() {
   async function loadProject() {
     try {
       setLoadingProject(true);
-      const projects = await projectsApi.list();
-      setProject(projects.find((p) => p.id === projectId) || null);
+      const project = await projectsApi.get(projectId);
+      setProject(project);
     } catch {
-      // Ignore error
+      // 兜底：找不到项目设为 null，避免 loadingProject 停在 true 卡死页面
+      setProject(null);
     } finally {
       setLoadingProject(false);
     }

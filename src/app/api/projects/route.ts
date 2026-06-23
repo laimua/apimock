@@ -10,13 +10,15 @@ import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { projects } from '@/lib/schema';
-import { sql, desc } from 'drizzle-orm';
+import { sql, desc, eq } from 'drizzle-orm';
+import { SLUG_REGEX, MAX_SLUG_LENGTH, generateSlug, isReservedSlug } from '@/lib/slug';
 
 // ============================================
 // Schema
 // ============================================
 const CreateProjectSchema = z.object({
   name: z.string().min(1).max(255),
+  slug: z.string().regex(SLUG_REGEX).min(1).max(MAX_SLUG_LENGTH).optional(),
   description: z.string().optional(),
   basePath: z.string().optional(),
 });
@@ -60,10 +62,29 @@ export async function POST(request: NextRequest) {
     const data = validate(CreateProjectSchema, body);
 
     const id = nanoid();
-    const slug = data.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+    // 优先用提交的 slug；否则用 name 生成（CJK 名会产空，下面校验拦截）
+    const slug = (data.slug?.trim() || generateSlug(data.name)).trim();
+
+    if (!slug) {
+      return Errors.validation([
+        { path: ['slug'], message: 'Slug 不能为空，中文项目名请手动填写英文 Slug' } as unknown as z.ZodIssue,
+      ]);
+    }
+    if (isReservedSlug(slug)) {
+      return Errors.validation([
+        { path: ['slug'], message: `Slug "${slug}" 为保留字，不可使用` } as unknown as z.ZodIssue,
+      ]);
+    }
+    // slug 唯一性检查，撞库返回友好错误而非 500
+    const slugTaken = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.slug, slug));
+    if (slugTaken.length > 0) {
+      return Errors.validation([
+        { path: ['slug'], message: `Slug "${slug}" 已被使用` } as unknown as z.ZodIssue,
+      ]);
+    }
 
     const now = Date.now();
     const newProject = {

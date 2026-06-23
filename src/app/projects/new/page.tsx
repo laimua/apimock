@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { useToast } from '@/components/ui/Toast';
 import { OnboardingModal } from '@/components/ui/OnboardingModal';
+import { generateSlug, validateSlugFormat } from '@/lib/slug';
 
 interface FormErrors {
   name?: string;
@@ -40,14 +41,7 @@ export default function NewProjectPage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
 
-  // 生成 slug
-  function generateSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  }
+  // generateSlug 与 validateSlug 来自 @/lib/slug，与后端共用同一份逻辑
 
   // 实时验证名称
   function validateName(name: string): string | undefined {
@@ -63,18 +57,9 @@ export default function NewProjectPage() {
     return undefined;
   }
 
-  // 验证 slug 格式
+  // 验证 slug 格式（转发到公共模块）
   function validateSlug(slug: string): string | undefined {
-    if (!slug.trim()) {
-      return 'Slug 不能为空';
-    }
-    if (!/^[a-z0-9-]+$/.test(slug)) {
-      return 'Slug 只能包含小写字母、数字和连字符';
-    }
-    if (slug.length > 100) {
-      return 'Slug 不能超过 100 个字符';
-    }
-    return undefined;
+    return validateSlugFormat(slug);
   }
 
   // 验证描述长度
@@ -219,6 +204,7 @@ export default function NewProjectPage() {
 
       const project = await projectsApi.create({
         name: form.name.trim(),
+        slug: form.slug.trim() || undefined,
         description: form.description.trim() || undefined,
       });
 

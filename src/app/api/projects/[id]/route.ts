@@ -11,17 +11,24 @@ import { success, Errors, validate } from '@/lib/api';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { projects } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and, ne } from 'drizzle-orm';
 import { DEMO_PROJECT_SLUG } from '@/lib/demo-seed';
+import { SLUG_REGEX, MAX_SLUG_LENGTH, isReservedSlug } from '@/lib/slug';
 
 // ============================================
 // Schema
 // ============================================
 const UpdateProjectSchema = z.object({
   name: z.string().min(1).max(255).optional(),
+  slug: z.string().regex(SLUG_REGEX).min(1).max(MAX_SLUG_LENGTH).optional(),
   description: z.string().optional(),
   basePath: z.string().optional(),
   isActive: z.boolean().optional(),
+});
+
+const formatProject = (p: typeof projects.$inferSelect) => ({
+  ...p,
+  isActive: Boolean(p.isActive),
 });
 
 // ============================================
@@ -39,7 +46,7 @@ export async function GET(
     return Errors.notFound('Project');
   }
 
-  return success(projectList[0]);
+  return success(formatProject(projectList[0]));
 }
 
 // ============================================
@@ -67,11 +74,24 @@ export async function PUT(
 
     if (data.name !== undefined) {
       updateData.name = data.name;
-      // 更新 slug
-      updateData.slug = data.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '');
+    }
+    if (data.slug !== undefined) {
+      // 保留字拦截（后端 API 防绕过：curl 直接 PATCH 也拦）
+      if (isReservedSlug(data.slug)) {
+        return Errors.validation([
+          { path: ['slug'], message: `Slug "${data.slug}" 为保留字，不可使用` } as unknown as z.ZodIssue,
+        ]);
+      }
+      const conflict = await db
+        .select({ id: projects.id })
+        .from(projects)
+        .where(and(eq(projects.slug, data.slug), ne(projects.id, id)));
+      if (conflict.length > 0) {
+        return Errors.validation([
+          { path: ['slug'], message: `Slug "${data.slug}" 已被使用` } as unknown as z.ZodIssue,
+        ]);
+      }
+      updateData.slug = data.slug;
     }
     if (data.description !== undefined) {
       updateData.description = data.description;
@@ -87,7 +107,7 @@ export async function PUT(
 
     // 返回更新后的数据
     const updated = await db.select().from(projects).where(eq(projects.id, id));
-    return success(updated[0]);
+    return success(formatProject(updated[0]));
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'ValidationError') {
       return Errors.validation((err as unknown as { issues: z.ZodIssue[] }).issues);

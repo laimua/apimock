@@ -50,6 +50,7 @@ export interface Endpoint {
 
 export interface CreateProjectDto {
   name: string;
+  slug?: string;
   description?: string;
   basePath?: string;
 }
@@ -83,6 +84,7 @@ export interface UpdateEndpointDto {
 
 export interface UpdateProjectDto {
   name?: string;
+  slug?: string;
   description?: string;
   basePath?: string;
   isActive?: boolean;
@@ -215,6 +217,8 @@ async function request<T>(
 export interface CheckSlugResponse {
   slug: string;
   available: boolean;
+  /** 不可用原因：reserved=保留字；exists=已被其他项目占用。available=true 时无此字段。 */
+  reason?: 'reserved' | 'exists';
 }
 
 // ============================================
