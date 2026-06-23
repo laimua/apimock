@@ -243,7 +243,8 @@ test.describe('Search Functionality', () => {
         await page.waitForTimeout(300);
 
         // 验证只显示包含 users 的端点
-        const endpointLinks = page.locator('a[href*="/endpoints/"]');
+        // 排除 /endpoints/new（常驻「添加端点」按钮也是 Link，href 含 /endpoints/）
+        const endpointLinks = page.locator('a[href*="/endpoints/"]:not([href$="/new"])');
         const count = await endpointLinks.count();
 
         // 应该至少有一个结果
