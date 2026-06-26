@@ -3,6 +3,7 @@
 > 生成时间：2026-06-27
 > 用途：作为逐主题校对的唯一依据。每个主题改完后将状态列刷为 ✅。
 > 状态图例：✅ 一致 / ⚠️ 待确认偏差 / ❌ 已确认不一致 / ➖ 文档诚实标注待补、非虚假
+> 独立复审：已完成（2026-06-27），2 项阻塞 P0/P1 已修复，P2 两项转为后续 ticket
 
 ---
 
@@ -135,6 +136,17 @@
 1. **E2E 未跑**：本环境无浏览器，`pnpm exec playwright test`（119 用例）未执行。代码改动（D8/D11）影响 UI，建议在本地或 CI 跑一遍 E2E 确认 JsonEditor 主题切换与设默认按钮交互。
 2. **手动主流程抽查未做**：dev 服务未起，PRD 关键路径未手动验证。建议 `pnpm dev` 后抽查：创建项目→建端点→Mock 调用→AI 生成→分享。
 3. **hono 包残留**：`hono` + `@hono/zod-validator` 在 dependencies 但零引用，可在后续清理（本次未动，避免扩大改动面）。
+
+### 独立复审后修复（2026-06-27）
+
+独立审查发现 2 项阻塞，已修复（设计文档仓库 commit `6fc52e7`）：
+
+- **P0** — PROGRESS.md 技术栈表路由层残留 `Hono`，与 docs/README.md 自相矛盾 → 改为 `Next.js App Router (Route Handlers)`（D1/D2 对齐遗漏补全）
+- **P1** — PRD.md §8.1 "Mock 项目管理" 计数 7 漂移（实测 project.spec.ts=8），原"历史快照"理由不成立 → 刷新为 8（其余 mock=7/share=6/ai=5/openapi=5 经核实仍准确）
+
+**转后续 ticket（P2，不阻塞合并）**：
+- JsonEditor 主题切换改用 CodeMirror `Compartment`（避免 destroy+重建丢失 undo/光标/滚动状态）
+- 物理移除零引用的 `hono` / `@hono/zod-validator` 依赖
 
 ---
 
