@@ -4,7 +4,7 @@
 
 'use client';
 
-import { Settings, Trash2, Check } from 'lucide-react';
+import { Settings, Trash2, Check, Star } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import TestConnectionButton from './TestConnectionButton';
@@ -36,7 +36,6 @@ export default function ProviderList({
   onDelete,
   onSetDefault,
 }: ProviderListProps) {
-  void onSetDefault; // API 形参保留，待后续接入"设为默认"按钮
   return (
     <div className="space-y-3">
       {providers.map((provider) => (
@@ -71,6 +70,16 @@ export default function ProviderList({
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {!provider.isDefault && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onSetDefault(provider.id)}
+                    title="设为默认 Provider"
+                  >
+                    <Star className="w-4 h-4" />
+                  </Button>
+                )}
                 <TestConnectionButton providerId={provider.id} />
                 <Button
                   variant="ghost"
