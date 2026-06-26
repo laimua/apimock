@@ -5,7 +5,8 @@ import { EditorView, basicSetup } from 'codemirror';
 import { json } from '@codemirror/lang-json';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { linter, Diagnostic } from '@codemirror/lint';
-import { EditorState } from '@codemirror/state';
+import { EditorState, Extension } from '@codemirror/state';
+import { useTheme } from 'next-themes';
 
 interface JsonEditorProps {
   value: string;
@@ -37,13 +38,87 @@ const jsonLinter = linter((view) => {
   return diagnostics;
 });
 
+// 浅色主题（与暗色 oneDark 对应）
+const lightTheme = EditorView.theme({
+  '&': {
+    height: '100%',
+    backgroundColor: '#ffffff',
+  },
+  '&.cm-focused': {
+    outline: 'none',
+  },
+  '.cm-scroller': {
+    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+    fontSize: '14px',
+    lineHeight: '1.5',
+  },
+  '.cm-content': {
+    padding: '12px',
+  },
+  '.cm-gutters': {
+    backgroundColor: '#f9fafb',
+    color: '#6b7280',
+    border: 'none',
+  },
+  '.cm-activeLine': {
+    backgroundColor: '#f3f4f6',
+  },
+  '.cm-activeLineGutter': {
+    backgroundColor: '#f3f4f6',
+    color: '#111827',
+  },
+  '.cm-diagnostic': {
+    marginLeft: '0',
+    paddingLeft: '0',
+  },
+  '.cm-diagnostic-error': {
+    borderLeft: '3px solid #ef4444',
+  },
+});
+
+// 暗色主题（在 oneDark 基础上补自定义样式，保持原行为）
+const darkThemeExtra = EditorView.theme({
+  '&': {
+    height: '100%',
+  },
+  '&.cm-focused': {
+    outline: 'none',
+  },
+  '.cm-scroller': {
+    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+    fontSize: '14px',
+    lineHeight: '1.5',
+  },
+  '.cm-content': {
+    padding: '12px',
+  },
+  '.cm-activeLineGutter': {
+    backgroundColor: 'transparent',
+    color: '#111827',
+  },
+  '.cm-diagnostic': {
+    marginLeft: '0',
+    paddingLeft: '0',
+  },
+  '.cm-diagnostic-error': {
+    borderLeft: '3px solid #ef4444',
+  },
+});
+
 export function JsonEditor({ value, onChange, readOnly = false, height = '300px' }: JsonEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [isValid, setIsValid] = useState(true);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   useEffect(() => {
     if (!editorRef.current) return;
+
+    // 根据当前主题选择编辑器主题扩展
+    const themeExtensions: Extension[] = isDark
+      ? [oneDark, darkThemeExtra]
+      : [lightTheme];
 
     // 创建编辑器状态
     const state = EditorState.create({
@@ -51,36 +126,11 @@ export function JsonEditor({ value, onChange, readOnly = false, height = '300px'
       extensions: [
         basicSetup,
         json(),
-        oneDark,
+        ...themeExtensions,
         jsonLinter,
         EditorView.theme({
           '&': {
             height,
-          },
-          '&.cm-focused': {
-            outline: 'none',
-          },
-          '.cm-scroller': {
-            fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
-            fontSize: '14px',
-            lineHeight: '1.5',
-          },
-          '.cm-content': {
-            padding: '12px',
-          },
-          '.cm-lineNumbers': {
-            color: '#6b7280',
-          },
-          '.cm-activeLineGutter': {
-            backgroundColor: 'transparent',
-            color: '#111827',
-          },
-          '.cm-diagnostic': {
-            marginLeft: '0',
-            paddingLeft: '0',
-          },
-          '.cm-diagnostic-error': {
-            borderLeft: '3px solid #ef4444',
           },
         }),
         EditorView.lineWrapping,
@@ -111,10 +161,11 @@ export function JsonEditor({ value, onChange, readOnly = false, height = '300px'
 
     return () => {
       view.destroy();
+      viewRef.current = null;
     };
-    // CodeMirror EditorState 只在挂载时初始化；外部 value 变更走下方 useEffect 同步
+    // 主题切换时需重建编辑器以应用新主题扩展
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isDark, height, readOnly]);
 
   // 当外部 value 变化时更新编辑器内容
   useEffect(() => {
@@ -130,7 +181,7 @@ export function JsonEditor({ value, onChange, readOnly = false, height = '300px'
   }, [value]);
 
   return (
-    <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-900">
+    <div className={`border rounded-lg overflow-hidden ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-300'}`}>
       <div ref={editorRef} />
       {!isValid && (
         <div className="bg-red-50 text-red-700 px-4 py-2 text-sm flex items-center gap-2 border-t border-red-200">

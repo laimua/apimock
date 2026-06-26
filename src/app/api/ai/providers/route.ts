@@ -11,6 +11,7 @@ import { db } from '@/lib/db';
 import { aiProviders } from '@/lib/schema';
 import { eq, desc } from 'drizzle-orm';
 import { encrypt } from '@/lib/encryption';
+import { validateUrlSafe } from '@/lib/ssrf';
 import { nanoid } from 'nanoid';
 
 // ============================================
@@ -64,6 +65,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = validate(CreateProviderSchema, body);
+
+    // SSRF 校验：保存时即拦截私有/内网 baseUrl，避免恶意 provider 入库
+    if (data.baseUrl) {
+      const check = validateUrlSafe(data.baseUrl);
+      if (!check.safe) {
+        return error('INVALID_BASE_URL', `Base URL rejected: ${check.reason}`, 400);
+      }
+    }
 
     // 验证 defaultModel 在 models 列表中
     if (!data.models.includes(data.defaultModel)) {

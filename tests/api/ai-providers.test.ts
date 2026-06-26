@@ -266,6 +266,50 @@ describe('AI Providers API', () => {
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
     });
+
+    it('should reject baseUrl pointing to private IP (SSRF guard at save time)', async () => {
+      const requestBody = {
+        name: 'Malicious Provider',
+        provider: 'openai-compatible',
+        apiKey: 'sk-test-key',
+        models: ['gpt-4'],
+        defaultModel: 'gpt-4',
+        baseUrl: 'http://169.254.169.254/latest/meta-data/',
+      };
+
+      const request = new Request('http://localhost/api/ai/providers', {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+      });
+
+      const response = await POST(asReq(request));
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+    });
+
+    it('should reject baseUrl pointing to localhost (SSRF guard at save time)', async () => {
+      const requestBody = {
+        name: 'Local Provider',
+        provider: 'openai-compatible',
+        apiKey: 'sk-test-key',
+        models: ['gpt-4'],
+        defaultModel: 'gpt-4',
+        baseUrl: 'http://localhost:8080/v1',
+      };
+
+      const request = new Request('http://localhost/api/ai/providers', {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+      });
+
+      const response = await POST(asReq(request));
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+    });
   });
 
   describe('PATCH /api/ai/providers/[id]', () => {
@@ -330,6 +374,25 @@ describe('AI Providers API', () => {
       const requestBody = {
         models: ['gpt-3.5-turbo'],
         defaultModel: 'gpt-4',
+      };
+
+      const request = new Request('http://localhost/api/ai/providers/provider1', {
+        method: 'PATCH',
+        body: JSON.stringify(requestBody),
+      });
+
+      const response = await PATCH(asReq(request), {
+        params: Promise.resolve({ id: 'provider1' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+    });
+
+    it('should reject baseUrl pointing to private IP on update (SSRF guard at save time)', async () => {
+      const requestBody = {
+        baseUrl: 'http://10.0.0.1/v1',
       };
 
       const request = new Request('http://localhost/api/ai/providers/provider1', {

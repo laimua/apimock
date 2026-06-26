@@ -434,6 +434,39 @@ describe('Endpoints API', () => {
       expect(response.status).toBe(404);
       expect(data.success).toBe(false);
     });
+
+    it('should reject responseBody exceeding 1MB on update (body-size guard)', async () => {
+      const endpoint = {
+        id: 'ep1',
+        projectId: testProject.id,
+        path: '/users',
+        method: 'GET',
+        name: 'List users',
+        description: null,
+        isActive: 1,
+        delayMs: 0,
+        tags: '[]',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      await mockDb.insert(endpoints).values(endpoint as typeof endpoints.$inferInsert);
+
+      // 构造 >1MB 的 responseBody（1.2MB 字符串）
+      const hugeBody = 'x'.repeat(1_200_000);
+
+      const request = new Request(`http://localhost/api/projects/${testProject.id}/endpoints/${endpoint.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ responseBody: hugeBody }),
+      });
+
+      const response = await PUT(asReq(request), {
+        params: Promise.resolve({ id: testProject.id, endpointId: endpoint.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+    });
   });
 
   describe('DELETE /api/projects/[id]/endpoints/[endpointId]', () => {

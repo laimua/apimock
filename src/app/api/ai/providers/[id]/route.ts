@@ -5,12 +5,13 @@
  */
 
 import { NextRequest } from 'next/server';
-import { success, Errors, validate, ValidationError } from '@/lib/api';
+import { success, Errors, validate, ValidationError, error } from '@/lib/api';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { aiProviders } from '@/lib/schema';
 import { eq, ne, and } from 'drizzle-orm';
 import { encrypt } from '@/lib/encryption';
+import { validateUrlSafe } from '@/lib/ssrf';
 
 // ============================================
 // Schema
@@ -55,6 +56,14 @@ export async function PATCH(
 
     if (!existing) {
       return Errors.notFound('Provider');
+    }
+
+    // SSRF 校验：更新 baseUrl 时即拦截私有/内网地址（与 POST 保存路径一致）
+    if (data.baseUrl) {
+      const check = validateUrlSafe(data.baseUrl);
+      if (!check.safe) {
+        return error('INVALID_BASE_URL', `Base URL rejected: ${check.reason}`, 400);
+      }
     }
 
     const now = Date.now();

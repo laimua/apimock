@@ -29,7 +29,10 @@ const UpdateEndpointSchema = z.object({
   // 响应配置字段
   statusCode: z.number().min(100).max(599).optional(),
   contentType: z.string().optional(),
-  responseBody: z.any().optional(), // 接受任何类型
+  responseBody: z.any().refine(
+    (v) => v === undefined || v === null || JSON.stringify(v).length <= 1_000_000,
+    'responseBody too large (max 1MB)'
+  ).optional(),
 });
 
 // ============================================
