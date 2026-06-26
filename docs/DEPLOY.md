@@ -64,7 +64,7 @@ ApiMock 支持多种部署方式。本文档覆盖常见场景。
 - WAL 已开（`db-sqlite.ts`），`.backup` 取一致快照
 - 触发：`POST /api/admin/backup`（头 `X-Admin-Token: <ADMIN_TOKEN>`）
 - 建议外部 cron：Railway cron service / GitHub Actions scheduled / UptimeRobot
-- 输出：`./data/backups/apimock-YYYYMMDD-HHmmss.db`，滚动保留 7 份
+- 输出：`./data/backups/apimock-YYYY-MM-DDTHH-MM-SS.db`（UTC 时间），滚动保留 7 份
 
 ### 免费额度
 
@@ -236,6 +236,8 @@ pnpm db:migrate
 | `SKIP_SEED` | ❌ | — | `true` 禁用 auto-seed（测试用） |
 | `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | ❌ | — | Plausible 域名，留空禁用 analytics |
 | `OPENAI_API_KEY` | ❌ | — | OpenAI API key（也可在 `/settings/ai` 页面配置） |
+| `BACKUP_DIR` | ❌ | `./data/backups` | SQLite 备份输出目录（`/api/admin/backup` 用） |
+| `BACKUP_KEEP` | ❌ | `7` | SQLite 备份滚动保留份数 |
 
 ---
 

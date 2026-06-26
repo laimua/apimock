@@ -1,7 +1,7 @@
 # ApiMock 功能说明
 
 > 本文档基于源码梳理 ApiMock 已实现的主要功能及其实现机制，作为功能索引与架构速查。
-> 最后更新：2026-06-21
+> 最后更新：2026-06-26
 
 ApiMock 是一个自托管、零配置的 Mock API 服务，面向前后端并行开发场景。核心价值：一句话描述需求即拿到可分享的 Mock URL，AI 自动生成符合语义的响应数据，开箱即用。
 
@@ -29,6 +29,7 @@ ApiMock 是一个自托管、零配置的 Mock API 服务，面向前后端并�
 
 调用链与降级策略（按优先级）：
 
+0. **日预算前置检查**：入口先 `checkAiBudget()`（`src/lib/ai-budget.ts`），按当日全局 token + 调用次数双轴硬上限（默认 100 万 token / 1000 次，见 [安全机制](#六安全机制)）。**超额直接走本地模板**（`outcome: 'budget'`），不经过任何 Provider。
 1. **指定 Provider**：请求带 `providerId` 时优先用该 Provider 调用。
 2. **默认 Provider**：查 `isDefault = 1` 的 Provider。
 3. **环境变量**：`OPENAI_API_KEY` 直接调用 OpenAI（模型走 `OPENAI_FALLBACK_MODEL`，默认 `gpt-4o-mini`）。
@@ -64,7 +65,7 @@ Provider 的 API Key 用 AES-256-GCM 加密存储（见 [安全机制](#六安�
 
 ### 5. 动态响应规则
 
-让同一端点根据请求返回不同响应，用于模拟异常场景或分支逻辑。后端匹配逻辑在 `route.ts` 的 `matchRule`，前端编辑器 `ResponseRuleEditor.tsx`（728 行）。
+让同一端点根据请求返回不同响应，用于模拟异常场景或分支逻辑。后端匹配逻辑在 `route.ts` 的 `matchRule`，前端编辑器 `ResponseRuleEditor.tsx`。
 
 每条 response 记录的 `matchRules` 支持：
 
@@ -87,7 +88,7 @@ Provider 的 API Key 用 AES-256-GCM 加密存储（见 [安全机制](#六安�
 
 ### 7. Mock 模板库
 
-`mock-templates.ts`（768 行）维护常用响应模板，按分类组织（用户、商品、分页等）。前端 `TemplateLibraryDialog.tsx` 提供一键应用，把模板内容填入 JSON 编辑器，省去手写响应体。
+`mock-templates.ts` 维护常用响应模板，按分类组织（用户、商品、分页等）。前端 `TemplateLibraryDialog.tsx` 提供一键应用，把模板内容填入 JSON 编辑器，省去手写响应体。
 
 ### 8. 请求记录与留存
 
@@ -102,7 +103,7 @@ Provider 的 API Key 用 AES-256-GCM 加密存储（见 [安全机制](#六安�
 
 ### 9. 端点分享（公开链接）
 
-项目生成可分享的只读公开页 `/{slug}` 及 API `/api/share/{slug}`。任何人无需登录即可访问，返回项目信息、端点列表（含 method / path / 状态码 / 响应体）与拼好的 baseUrl，便于团队成员对接。分享页与数据接口只返回公开字段，不含敏感信息。
+项目生成可分享的只读公开页 `/share/{slug}` 及 API `/api/share/{slug}`。任何人无需登录即可访问，返回项目信息、可见端点列表（含 method / path / 状态码 / 响应体）与拼好的 baseUrl，便于团队成员对接。**端点级可见性**：仅 `isShareable=1` 的端点会出现在分享页与接口中（默认 1=可见，可在端点编辑里关闭），见 [数据模型](docs/DATA-MODEL.md) 的 endpoints 表。
 
 ---
 
@@ -143,7 +144,7 @@ Drizzle ORM 双 schema：`schema-sqlite.ts` 与 `schema-mysql.ts`，运行时按
 
 ### 健康检查
 
-- **Liveness**：`GET /api/health` → `200 { status: 'ok' }`，进程存活即通，供 Railway healthcheck / uptime 监控。
+- **Liveness**：`GET /api/health` → `200 { status: 'ok', timestamp }`，进程存活即通，供 Railway healthcheck / uptime 监控。
 - **Readiness**：`GET /api/health/ready` → 深探 DB 可查（`select 1`）+ 数据目录可写（SQLite 模式才探 fs），任一失败返 503 并带原因。用于 K8s / Railway readiness probe，失败剔除负载均衡但不重启。
 
 ### Prometheus 指标
@@ -160,7 +161,7 @@ Drizzle ORM 双 schema：`schema-sqlite.ts` 与 `schema-mysql.ts`，运行时按
 
 ### SQLite 备份
 
-`POST /api/admin/backup`（需 `X-Admin-Token`）触发 WAL 模式一致快照备份，输出 `./data/backups/apimock-YYYYMMDD-HHmmss.db`，滚动保留默认 7 份。设计为外部触发（Railway cron / GitHub Actions / UptimeRobot），不在进程内 `setInterval`，避免重启漏跑与阻塞 event loop。`GET` 查询状态。
+`POST /api/admin/backup`（需 `X-Admin-Token`）触发 WAL 模式一致快照备份，输出 `./data/backups/apimock-YYYY-MM-DDTHH-MM-SS.db`（UTC，由 `toISOString()` 生成），滚动保留默认 7 份。设计为外部触发（Railway cron / GitHub Actions / UptimeRobot），不在进程内 `setInterval`，避免重启漏跑与阻塞 event loop。`GET` 查询状态。
 
 ### OpenTelemetry APM
 
@@ -254,7 +255,7 @@ pino 结构化日志，`pino-pretty` 美化开发输出。
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
-| ANY | `/{slug}/{path}` | Mock 服务 |
+| ANY | `/{项目slug}/{path}` | Mock 服务 |
 | GET | `/api/health` | Liveness |
 | GET | `/api/health/ready` | Readiness 深探 |
 | GET | `/api/metrics` | Prometheus 指标（需 token） |
@@ -264,6 +265,7 @@ pino 结构化日志，`pino-pretty` 美化开发输出。
 | * | `/api/ai/providers/[id]` | Provider 详情/改/删 |
 | POST | `/api/ai/providers/[id]/test` | Provider 连接测试 |
 | PATCH | `/api/ai/providers/[id]/default` | 设默认 Provider |
+| GET | `/api/ai/budget` | 当日 AI 日预算消耗与上限（tokens / requests） |
 | GET/POST | `/api/projects` | 项目列表 / 创建 |
 | * | `/api/projects/[id]` | 项目详情/改/删 |
 | GET/POST | `/api/projects/[id]/endpoints` | 端点列表 / 创建 |

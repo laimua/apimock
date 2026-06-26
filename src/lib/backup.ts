@@ -5,7 +5,7 @@
  * 外部触发：POST /api/admin/backup（Railway cron / GitHub Actions / UptimeRobot）。
  * 不在进程内 setInterval，避免重启漏跑 + 阻塞 event loop。
  *
- * 备份输出：./data/backups/apimock-YYYYMMDD-HHmmss.db
+ * 备份输出：./data/backups/apimock-YYYY-MM-DDTHH-MM-SS.db (UTC)
  * 滚动保留：默认 7 份，超过自动删最旧。
  */
 

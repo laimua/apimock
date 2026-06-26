@@ -31,6 +31,7 @@
 | `method` | text enum | GET / POST / PUT / DELETE / PATCH / HEAD / OPTIONS |
 | `name` / `description` | text | 显示元数据（可空） |
 | `isActive` | integer default 1 | |
+| `isShareable` | integer default 1 | 是否出现在分享页/API（1=可见，0=隐藏） |
 | `delayMs` | integer default 0 | 响应延迟 |
 | `tags` | text default `'[]'` | JSON 字符串数组 |
 | `statusCode` | integer default 200 | 端点级默认响应码 |
@@ -56,7 +57,7 @@
 | `ip` / `userAgent` | text | |
 | `createdAt` | integer | |
 
-**索引**：`endpoint_id` + `created_at`。
+**索引**：两个**单列索引** `endpoint_id`（`requests_endpoint_idx`）与 `created_at`（`requests_created_idx`）。
 **保留策略**：每 10 分钟清理，保留每端点最近 1000 条（见 `src/lib/request-retention.ts`）。
 
 ### `responses`
