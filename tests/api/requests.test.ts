@@ -260,9 +260,9 @@ describe('Requests API', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.data.requests).toHaveLength(2);
+      expect(data.data.items).toHaveLength(2);
       expect(data.data.total).toBe(2);
-      expect(data.data.requests[0].query.page).toBe('1');
+      expect(data.data.items[0].query.page).toBe('1');
     });
 
     it('should support limit and offset', async () => {
@@ -272,10 +272,12 @@ describe('Requests API', () => {
       });
       const data = await response.json();
 
+      // B3: 端点级 GET 统一分页风格 {items, total, page, pageSize}
+      // limit=1/offset=0 → page=1, pageSize=1
       expect(response.status).toBe(200);
-      expect(data.data.requests).toHaveLength(1);
-      expect(data.data.limit).toBe(1);
-      expect(data.data.offset).toBe(0);
+      expect(data.data.items).toHaveLength(1);
+      expect(data.data.page).toBe(1);
+      expect(data.data.pageSize).toBe(1);
     });
 
     it('should return 404 for non-existent endpoint', async () => {
@@ -303,7 +305,8 @@ describe('Requests API', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.data.message).toBe('Request records cleared');
+      // B3: 端点级 DELETE 统一返回 {deleted: N}（不再返回 message）
+      expect(data.data.deleted).toBe(2);
 
       const remainingRequests = await mockDb.select().from(requests);
       expect(remainingRequests).toHaveLength(0);

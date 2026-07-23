@@ -42,7 +42,7 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
     try {
       setLoading(true);
       const data = await requestsApi.list(projectId, endpointId, 50, 0);
-      setRequests(data.requests as RequestRecord[]);
+      setRequests(data.items as RequestRecord[]);
     } catch (err) {
       if (err instanceof ApiError) {
         toastError(err.message);

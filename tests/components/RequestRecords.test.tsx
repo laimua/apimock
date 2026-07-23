@@ -62,10 +62,10 @@ describe('RequestRecords', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listMock.mockResolvedValue({
-      requests: mockRequests,
+      items: mockRequests,
       total: 1,
-      limit: 50,
-      offset: 0,
+      page: 1,
+      pageSize: 50,
     });
   });
 
@@ -85,10 +85,10 @@ describe('RequestRecords', () => {
 
   it('should render empty state when no requests', async () => {
     listMock.mockResolvedValue({
-      requests: [],
+      items: [],
       total: 0,
-      limit: 50,
-      offset: 0,
+      page: 1,
+      pageSize: 50,
     });
 
     render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
@@ -108,10 +108,10 @@ describe('RequestRecords', () => {
 
   it('should not show clear button when there are no requests', async () => {
     listMock.mockResolvedValue({
-      requests: [],
+      items: [],
       total: 0,
-      limit: 50,
-      offset: 0,
+      page: 1,
+      pageSize: 50,
     });
 
     render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);

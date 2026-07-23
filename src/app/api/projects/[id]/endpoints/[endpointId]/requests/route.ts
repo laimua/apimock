@@ -82,11 +82,14 @@ export async function GET(
       .where(eq(requests.endpointId, endpointId));
     const total = countRows[0]?.count ?? 0;
 
+    // 统一分页风格：page/pageSize（与项目级 requests、endpoints list 一致）
+    // page/pageSize 从 limit/offset 换算，保持查询参数向后兼容
+    const page = Math.floor(offset / limit) + 1;
     return success({
-      requests: parsedRequests,
+      items: parsedRequests,
       total,
-      limit,
-      offset,
+      page,
+      pageSize: limit,
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -116,10 +119,17 @@ export async function DELETE(
       return Errors.notFound('Endpoint');
     }
 
+    // 删除前统计实际行数，统一返回 {deleted: N}（与项目级 requests 一致）
+    const countRows = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(requests)
+      .where(eq(requests.endpointId, endpointId));
+    const deleted = countRows[0]?.count ?? 0;
+
     // 删除所有请求记录
     await db.delete(requests).where(eq(requests.endpointId, endpointId));
 
-    return success({ message: 'Request records cleared' });
+    return success({ deleted: deleted as number });
   } catch (err) {
     return Errors.internal(err instanceof Error ? err.message : 'Unknown error');
   }
