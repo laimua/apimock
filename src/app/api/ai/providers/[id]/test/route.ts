@@ -46,7 +46,7 @@ export async function POST(
 
     // SSRF 校验
     if (provider.baseUrl) {
-      const check = validateUrlSafe(provider.baseUrl);
+      const check = await validateUrlSafe(provider.baseUrl);
       if (!check.safe) {
         return success({ success: false, error: `Base URL rejected: ${check.reason}` }, 200);
       }

@@ -11,6 +11,15 @@ import { db } from '@/lib/db';
 import { endpoints, requests } from '@/lib/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
+// 安全 JSON.parse：失败返回 null（与 body 字段行为一致，避免抛错导致 500）
+function safeParseOrNull<T>(raw: string): T | null {
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 // ============================================
 // GET /api/projects/[id]/endpoints/[endpointId]/requests
 // ============================================
@@ -36,8 +45,12 @@ export async function GET(
     const queryLimit = searchParams.get('limit');
     const queryOffset = searchParams.get('offset');
 
-    const limit = queryLimit ? parseInt(queryLimit) : 50;
-    const offset = queryOffset ? parseInt(queryOffset) : 0;
+    // limit/offset：解析后做有限性校验，NaN/越界回退默认值；limit 上限 200
+    let limit = queryLimit ? parseInt(queryLimit, 10) : 50;
+    let offset = queryOffset ? parseInt(queryOffset, 10) : 0;
+    if (!Number.isFinite(limit) || limit <= 0) limit = 50;
+    if (!Number.isFinite(offset) || offset < 0) offset = 0;
+    limit = Math.min(limit, 200);
 
     // 查询请求记录（最新在前）
     const requestList = await db
@@ -51,8 +64,8 @@ export async function GET(
     // 解析 JSON 字段
     const parsedRequests = requestList.map((req) => ({
       ...req,
-      query: req.query ? (JSON.parse(req.query) as Record<string, string>) : null,
-      headers: req.headers ? (JSON.parse(req.headers) as Record<string, string>) : null,
+      query: req.query ? safeParseOrNull<Record<string, string>>(req.query) : null,
+      headers: req.headers ? safeParseOrNull<Record<string, string>>(req.headers) : null,
       body: req.body ? (() => {
         try {
           return JSON.parse(req.body);

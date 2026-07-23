@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // SSRF 校验：保存时即拦截私有/内网 baseUrl，避免恶意 provider 入库
     if (data.baseUrl) {
-      const check = validateUrlSafe(data.baseUrl);
+      const check = await validateUrlSafe(data.baseUrl);
       if (!check.safe) {
         return error('INVALID_BASE_URL', `Base URL rejected: ${check.reason}`, 400);
       }

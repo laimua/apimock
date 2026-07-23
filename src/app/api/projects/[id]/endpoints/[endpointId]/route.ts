@@ -71,10 +71,50 @@ export async function GET(
     .from(responses)
     .where(eq(responses.endpointId, endpointId));
 
+  // 解析关联响应的 JSON 字段（与 responses GET 一致），整数布尔转 boolean
+  const parsedResponses = responseList.map((response) => {
+    let parsedBody: unknown = null;
+    if (response.body) {
+      try {
+        parsedBody = JSON.parse(response.body);
+      } catch {
+        parsedBody = response.body;
+      }
+    }
+
+    let parsedHeaders: Record<string, string> = {};
+    if (response.headers) {
+      try {
+        parsedHeaders = JSON.parse(response.headers);
+      } catch {
+        parsedHeaders = {};
+      }
+    }
+
+    let parsedMatchRules: { query?: Record<string, string>; header?: Record<string, string> } = {};
+    if (response.matchRules) {
+      try {
+        parsedMatchRules = JSON.parse(response.matchRules);
+      } catch {
+        parsedMatchRules = {};
+      }
+    }
+
+    return {
+      ...response,
+      body: parsedBody,
+      headers: parsedHeaders,
+      matchRules: parsedMatchRules,
+      isDefault: !!response.isDefault,
+    };
+  });
+
   return success({
     ...endpoint,
+    isActive: Boolean(endpoint.isActive),
+    isShareable: Boolean(endpoint.isShareable),
     responseBody: parsedResponseBody,
-    responses: responseList,
+    responses: parsedResponses,
   });
 }
 

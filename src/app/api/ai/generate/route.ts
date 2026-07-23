@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { success, Errors, validate, ValidationError } from '@/lib/api';
+import { success, error, Errors, validate, ValidationError } from '@/lib/api';
 import { z } from 'zod';
 import OpenAI from 'openai';
 import { db } from '@/lib/db';
@@ -106,7 +106,7 @@ async function generateWithProvider(prompt: string, count: number, provider: typ
 
   // SSRF 校验
   if (provider.baseUrl) {
-    const check = validateUrlSafe(provider.baseUrl);
+    const check = await validateUrlSafe(provider.baseUrl);
     if (!check.safe) {
       throw new Error(`Base URL rejected: ${check.reason}`);
     }
@@ -116,6 +116,7 @@ async function generateWithProvider(prompt: string, count: number, provider: typ
   const openai = new OpenAI({
     apiKey,
     baseURL: provider.baseUrl || undefined,
+    timeout: 30_000,
   });
 
   // 使用 Provider 的 System Prompt 或默认 Prompt
@@ -229,7 +230,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 使用环境变量配置的 OpenAI（模型名走环境变量，默认 gpt-4o-mini）
-    const openai = new OpenAI({ apiKey });
+    const openai = new OpenAI({ apiKey, timeout: 30_000 });
     const fallbackModel = process.env.OPENAI_FALLBACK_MODEL || 'gpt-4o-mini';
 
     const userPrompt = `请生成 ${count} 条数据：\n${prompt}`;
@@ -270,9 +271,14 @@ export async function POST(request: NextRequest) {
 
     const msg = err instanceof Error ? err.message : String(err);
 
-    // OpenAI API 错误
+    // OpenAI API 错误：透传上游状态码（如 4xx），避免坍缩为 500
     if (err && typeof err === 'object' && 'status' in err) {
-      return Errors.internal(`AI API error: ${msg}`);
+      const status = (err as { status?: number }).status;
+      const body = `AI API error: ${msg}`;
+      if (typeof status === 'number') {
+        return error('INTERNAL_ERROR', body, status);
+      }
+      return Errors.internal(body);
     }
 
     return Errors.internal(msg);

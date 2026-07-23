@@ -11,6 +11,7 @@
 import { NextResponse } from 'next/server';
 import { metricsOutput } from '@/lib/metrics';
 import { logger } from '@/lib/logger';
+import { safeEqual } from '@/lib/crypto-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const gotQuery = url.searchParams.get('token');
 
-  if (gotHeader !== expected && gotQuery !== expected) {
+  if (!safeEqual(gotHeader ?? '', expected) && !safeEqual(gotQuery ?? '', expected)) {
     logger.warn({ ip: request.headers.get('x-forwarded-for') }, 'metrics unauthorized');
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }

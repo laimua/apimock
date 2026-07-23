@@ -54,9 +54,9 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
     priority: 0,
   });
 
-  // 匹配规则简化表单
-  const [queryMatches, setQueryMatches] = useState<Record<string, string>>({});
-  const [headerMatches, setHeaderMatches] = useState<Record<string, string>>({});
+  // 匹配规则简化表单（数组形式，支持空键/重复键，避免对象键冲突丢数据）
+  const [queryMatches, setQueryMatches] = useState<Array<{ key: string; value: string }>>([]);
+  const [headerMatches, setHeaderMatches] = useState<Array<{ key: string; value: string }>>([]);
 
   useEffect(() => {
     loadResponses();
@@ -93,8 +93,8 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
       isDefault: responses.length === 0, // 如果没有响应，默认设为默认响应
       priority: responses.length,
     });
-    setQueryMatches({});
-    setHeaderMatches({});
+    setQueryMatches([]);
+    setHeaderMatches([]);
     setShowDialog(true);
   }
 
@@ -117,9 +117,13 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
       priority: response.priority,
     });
 
-    // 设置匹配规则简化表单
-    setQueryMatches(response.matchRules?.query || {});
-    setHeaderMatches(response.matchRules?.header || {});
+    // 设置匹配规则简化表单（对象 → 数组，保留所有条目）
+    setQueryMatches(
+      Object.entries(response.matchRules?.query || {}).map(([key, value]) => ({ key, value }))
+    );
+    setHeaderMatches(
+      Object.entries(response.matchRules?.header || {}).map(([key, value]) => ({ key, value }))
+    );
 
     setShowDialog(true);
   }
@@ -133,13 +137,19 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
       return;
     }
 
-    // 构建 matchRules
+    // 构建 matchRules：过滤掉空 key 的条目，数组 → Record（同名 key 后者覆盖，与原对象语义一致）
     const matchRules: { query?: Record<string, string>; header?: Record<string, string> } = {};
-    if (Object.keys(queryMatches).length > 0) {
-      matchRules.query = queryMatches;
+    const queryRecord = Object.fromEntries(
+      queryMatches.filter((it) => it.key.trim() !== '').map((it) => [it.key, it.value])
+    );
+    if (Object.keys(queryRecord).length > 0) {
+      matchRules.query = queryRecord;
     }
-    if (Object.keys(headerMatches).length > 0) {
-      matchRules.header = headerMatches;
+    const headerRecord = Object.fromEntries(
+      headerMatches.filter((it) => it.key.trim() !== '').map((it) => [it.key, it.value])
+    );
+    if (Object.keys(headerRecord).length > 0) {
+      matchRules.header = headerRecord;
     }
 
     try {
@@ -220,58 +230,22 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
     }));
   }
 
-  // 添加 query 匹配规则
+  // 添加/删除 query 匹配规则（按 index 操作，数组天然支持空键与重复键）
   function addQueryMatch() {
-    setQueryMatches((prev) => ({ ...prev, '': '' }));
+    setQueryMatches((prev) => [...prev, { key: '', value: '' }]);
   }
 
-  function updateQueryMatch(key: string, value: string) {
-    setQueryMatches((prev) => {
-      const updated = { ...prev };
-      if (key in updated) {
-        if (value === '') {
-          delete updated[key];
-        } else {
-          updated[key] = value;
-        }
-      }
-      return updated;
-    });
+  function removeQueryMatch(index: number) {
+    setQueryMatches((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function removeQueryMatch(key: string) {
-    setQueryMatches((prev) => {
-      const updated = { ...prev };
-      delete updated[key];
-      return updated;
-    });
-  }
-
-  // 添加 header 匹配规则
+  // 添加/删除 header 匹配规则
   function addHeaderMatch() {
-    setHeaderMatches((prev) => ({ ...prev, '': '' }));
+    setHeaderMatches((prev) => [...prev, { key: '', value: '' }]);
   }
 
-  function updateHeaderMatch(key: string, value: string) {
-    setHeaderMatches((prev) => {
-      const updated = { ...prev };
-      if (key in updated) {
-        if (value === '') {
-          delete updated[key];
-        } else {
-          updated[key] = value;
-        }
-      }
-      return updated;
-    });
-  }
-
-  function removeHeaderMatch(key: string) {
-    setHeaderMatches((prev) => {
-      const updated = { ...prev };
-      delete updated[key];
-      return updated;
-    });
+  function removeHeaderMatch(index: number) {
+    setHeaderMatches((prev) => prev.filter((_, i) => i !== index));
   }
 
   if (loading) {
@@ -556,35 +530,39 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
                       + 添加
                     </button>
                   </div>
-                  {Object.keys(queryMatches).length === 0 ? (
+                  {queryMatches.length === 0 ? (
                     <p className="text-sm text-gray-400 dark:text-gray-500 italic">无匹配规则</p>
                   ) : (
                     <div className="space-y-2">
-                      {Object.entries(queryMatches).map(([key, value], index) => (
+                      {queryMatches.map((item, index) => (
                         <div key={index} className="flex gap-2">
                           <input
                             type="text"
                             placeholder="参数名"
-                            value={key}
-                            onChange={(e) => {
-                              const newEntries = Object.entries(queryMatches);
-                              newEntries[index] = [e.target.value, value];
-                              setQueryMatches(Object.fromEntries(newEntries));
-                            }}
+                            value={item.key}
+                            onChange={(e) =>
+                              setQueryMatches((prev) =>
+                                prev.map((it, i) => (i === index ? { ...it, key: e.target.value } : it))
+                              )
+                            }
                             className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                             disabled={saving}
                           />
                           <input
                             type="text"
                             placeholder="期望值"
-                            value={value}
-                            onChange={(e) => updateQueryMatch(key, e.target.value)}
+                            value={item.value}
+                            onChange={(e) =>
+                              setQueryMatches((prev) =>
+                                prev.map((it, i) => (i === index ? { ...it, value: e.target.value } : it))
+                              )
+                            }
                             className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                             disabled={saving}
                           />
                           <button
                             type="button"
-                            onClick={() => removeQueryMatch(key)}
+                            onClick={() => removeQueryMatch(index)}
                             className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -609,35 +587,39 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
                       + 添加
                     </button>
                   </div>
-                  {Object.keys(headerMatches).length === 0 ? (
+                  {headerMatches.length === 0 ? (
                     <p className="text-sm text-gray-400 dark:text-gray-500 italic">无匹配规则</p>
                   ) : (
                     <div className="space-y-2">
-                      {Object.entries(headerMatches).map(([key, value], index) => (
+                      {headerMatches.map((item, index) => (
                         <div key={index} className="flex gap-2">
                           <input
                             type="text"
                             placeholder="Header 名"
-                            value={key}
-                            onChange={(e) => {
-                              const newEntries = Object.entries(headerMatches);
-                              newEntries[index] = [e.target.value, value];
-                              setHeaderMatches(Object.fromEntries(newEntries));
-                            }}
+                            value={item.key}
+                            onChange={(e) =>
+                              setHeaderMatches((prev) =>
+                                prev.map((it, i) => (i === index ? { ...it, key: e.target.value } : it))
+                              )
+                            }
                             className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                             disabled={saving}
                           />
                           <input
                             type="text"
                             placeholder="期望值"
-                            value={value}
-                            onChange={(e) => updateHeaderMatch(key, e.target.value)}
+                            value={item.value}
+                            onChange={(e) =>
+                              setHeaderMatches((prev) =>
+                                prev.map((it, i) => (i === index ? { ...it, value: e.target.value } : it))
+                              )
+                            }
                             className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                             disabled={saving}
                           />
                           <button
                             type="button"
-                            onClick={() => removeHeaderMatch(key)}
+                            onClick={() => removeHeaderMatch(index)}
                             className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
