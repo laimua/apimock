@@ -105,7 +105,7 @@ export default function NewEndpointPage() {
   }
 
   function validatePath(path: string): string | undefined {
-    const normalizedPath = path.trim() || '/';
+    const normalizedPath = path.trim();
     if (!normalizedPath) {
       return '路径不能为空';
     }

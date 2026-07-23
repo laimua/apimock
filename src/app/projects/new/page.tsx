@@ -32,6 +32,8 @@ export default function NewProjectPage() {
     slug: '',
     description: '',
   });
+  // 用户手动编辑过 slug 后，name 变化不再自动覆盖 slug
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   // Slug 校验状态
   const [slugStatus, setSlugStatus] = useState<SlugValidationStatus>('idle');
@@ -114,13 +116,16 @@ export default function NewProjectPage() {
   }, []);
 
   function handleNameChange(name: string) {
-    const newForm = { ...form, name };
-    setForm(newForm);
+    // 仅在用户未手动编辑 slug 时自动生成，避免覆盖自定义 slug
+    if (!slugManuallyEdited) {
+      const generatedSlug = generateSlug(name);
+      setForm({ ...form, name, slug: generatedSlug });
 
-    // 自动生成 slug
-    const generatedSlug = generateSlug(name);
-    newForm.slug = generatedSlug;
-    setForm(newForm);
+      // 检查 slug 可用性
+      checkSlugAvailability(generatedSlug);
+    } else {
+      setForm({ ...form, name });
+    }
 
     // 实时验证（如果已经触摸过该字段）
     if (touched.name) {
@@ -129,14 +134,14 @@ export default function NewProjectPage() {
         name: validateName(name),
       }));
     }
-
-    // 检查 slug 可用性
-    checkSlugAvailability(generatedSlug);
   }
 
   function handleSlugChange(slug: string) {
     const normalizedSlug = generateSlug(slug);
     setForm((prev) => ({ ...prev, slug: normalizedSlug }));
+
+    // 标记为手动编辑；清空 slug 时重置，恢复自动生成
+    setSlugManuallyEdited(normalizedSlug !== '');
 
     // 实时验证（如果已经触摸过该字段）
     if (touched.slug) {
@@ -211,6 +216,7 @@ export default function NewProjectPage() {
       // 保存项目 ID 并显示引导弹窗
       setCreatedProjectId(project.id);
       setShowOnboarding(true);
+      setSlugManuallyEdited(false);
       success('项目创建成功！');
     } catch (err) {
       if (err instanceof ApiError) {

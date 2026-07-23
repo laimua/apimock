@@ -49,6 +49,10 @@ export default function ProjectsPage() {
       await projectsApi.delete(deleteDialog.project.id);
       setProjects(projects.filter(p => p.id !== deleteDialog.project!.id));
       setDeleteDialog({ isOpen: false, project: null });
+      // 删完当前页最后一项且不在第一页时，回退一页，避免停留在空白页
+      if (page > 1 && (page - 1) * pageSize >= filteredProjects.length - 1) {
+        setPage(page - 1);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '删除失败');
     } finally {
