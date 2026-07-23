@@ -60,7 +60,7 @@ export async function PATCH(
 
     // SSRF 校验：更新 baseUrl 时即拦截私有/内网地址（与 POST 保存路径一致）
     if (data.baseUrl) {
-      const check = validateUrlSafe(data.baseUrl);
+      const check = await validateUrlSafe(data.baseUrl);
       if (!check.safe) {
         return error('INVALID_BASE_URL', `Base URL rejected: ${check.reason}`, 400);
       }

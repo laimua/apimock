@@ -165,7 +165,6 @@ export async function POST(
       body: parsedBody,
       headers: data.headers ?? {},
       matchRules: data.matchRules ?? {},
-      isActive: true,
       isDefault: newResponse.isDefault === 1,
     }, 201);
   } catch (err: unknown) {

@@ -28,7 +28,9 @@ export async function GET() {
   // 2. 数据目录可写（仅 SQLite 模式；MySQL 模式无本地文件，跳过避免误判）
   const dbType = (process.env.DB_TYPE || 'sqlite').toLowerCase();
   if (dbType === 'sqlite') {
-    const dataDir = path.resolve(process.env.SQLITE_PATH || './data');
+    // SQLITE_PATH 指向数据库文件，取其目录作为数据目录（而非把文件路径当目录）
+    const dbFilePath = process.env.SQLITE_PATH || './data/apimock.db';
+    const dataDir = path.dirname(path.resolve(dbFilePath));
     try {
       const probe = path.join(dataDir, `.ready-probe-${Date.now()}`);
       fs.writeFileSync(probe, '');

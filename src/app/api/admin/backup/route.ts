@@ -13,6 +13,7 @@
 import { NextResponse } from 'next/server';
 import { backupSqlite } from '@/lib/backup';
 import { logger } from '@/lib/logger';
+import { safeEqual } from '@/lib/crypto-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ function checkAdminToken(request: Request): NextResponse | null {
     return NextResponse.json({ success: false, error: 'ADMIN_TOKEN not configured' }, { status: 503 });
   }
   const got = request.headers.get('x-admin-token');
-  if (got !== expected) {
+  if (!safeEqual(got ?? '', expected)) {
     logger.warn({ ip: request.headers.get('x-forwarded-for') }, 'admin backup unauthorized');
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }

@@ -440,7 +440,7 @@ function ProjectPageInner() {
     }
     // 切换到 requests tab 或翻页/筛选时重载；loadRequests 闭包读取最新 state
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, requestsPage, requestsEndpointFilter]);
+  }, [projectId, requestsPage, requestsEndpointFilter, activeTab]);
 
   // 在空项目首次加载时显示引导
   useEffect(() => {

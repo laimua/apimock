@@ -7,6 +7,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { projects, endpoints } from '@/lib/schema';
 import { eq, asc, and } from 'drizzle-orm';
+import { Errors } from '@/lib/api';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
@@ -24,13 +27,10 @@ export async function GET(
         description: projects.description,
       })
       .from(projects)
-      .where(eq(projects.slug, slug));
+      .where(and(eq(projects.slug, slug), eq(projects.isActive, 1)));
 
     if (projectList.length === 0) {
-      return NextResponse.json(
-        { error: '项目不存在' },
-        { status: 404 }
-      );
+      return Errors.notFound('Project');
     }
 
     const project = projectList[0];
@@ -50,7 +50,7 @@ export async function GET(
         responseBody: endpoints.responseBody,
       })
       .from(endpoints)
-      .where(and(eq(endpoints.projectId, project.id), eq(endpoints.isShareable, 1)))
+      .where(and(eq(endpoints.projectId, project.id), eq(endpoints.isShareable, 1), eq(endpoints.isActive, 1)))
       .orderBy(asc(endpoints.method), asc(endpoints.path));
 
     // 构建基础 URL
@@ -69,9 +69,6 @@ export async function GET(
     });
   } catch (error) {
     console.error('Share API error:', error);
-    return NextResponse.json(
-      { error: '服务器错误' },
-      { status: 500 }
-    );
+    return Errors.internal();
   }
 }
