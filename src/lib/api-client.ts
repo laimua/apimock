@@ -114,10 +114,10 @@ export interface RequestRecord {
 }
 
 export interface ListRequestsResponse {
-  requests: RequestRecord[];
+  items: RequestRecord[];
   total: number;
-  limit: number;
-  offset: number;
+  page: number;
+  pageSize: number;
 }
 
 // ============================================

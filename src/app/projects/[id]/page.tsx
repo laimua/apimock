@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { projectsApi, endpointsApi, projectRequestsApi, Project, Endpoint, ApiError, ListEndpointsResponse, RequestRecord } from '@/lib/api-client';
@@ -385,6 +385,10 @@ function ProjectPageInner() {
   const [project, setProject] = useState<Project | null>(null);
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
   const [loading, setLoading] = useState(true);
+  // reloading：后续筛选/翻页重载时的局部指示（不替换整页骨架，避免每次按键闪白）
+  const [reloading, setReloading] = useState(false);
+  // loadedOnce：标记是否已完成首次加载，用于区分整页骨架 vs 局部 spinner
+  const loadedOnce = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -428,6 +432,11 @@ function ProjectPageInner() {
     }
   }
 
+  // projectId 变化时重置首次加载标记，使新项目首屏走整页骨架而非局部 spinner
+  useEffect(() => {
+    loadedOnce.current = false;
+  }, [projectId]);
+
   useEffect(() => {
     loadData();
     // 仅按显式列出的筛选项变化重载；loadData 闭包读取最新 state，无需加入依赖
@@ -462,7 +471,12 @@ function ProjectPageInner() {
 
   async function loadData() {
     try {
-      setLoading(true);
+      // 首次加载显示整页骨架；后续筛选/翻页重载只用局部 spinner，避免每次按键整页闪白
+      if (loadedOnce.current) {
+        setReloading(true);
+      } else {
+        setLoading(true);
+      }
       // 并行加载项目和端点
       const [projectData, endpointsData] = await Promise.all([
         projectsApi.get(projectId),
@@ -492,6 +506,8 @@ function ProjectPageInner() {
       setError(err instanceof Error ? err.message : '加载失败');
     } finally {
       setLoading(false);
+      setReloading(false);
+      loadedOnce.current = true;
     }
   }
 
@@ -762,6 +778,12 @@ function ProjectPageInner() {
                 {total} 个端点
                 {search || methodFilter || tagFilter ? ' (已筛选)' : ''}
               </span>
+              {reloading && (
+                <svg className="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              )}
               <button
                 type="button"
                 onClick={() => setIsImportOpen(true)}

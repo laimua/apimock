@@ -323,7 +323,7 @@ export default function EditEndpointPage() {
 
   // 验证路径格式
   function validatePath(path: string): string | undefined {
-    const normalizedPath = path.trim() || '/';
+    const normalizedPath = path.trim();
     if (!normalizedPath) {
       return '路径不能为空';
     }

@@ -3,8 +3,8 @@
  * POST /api/ai/providers/[id]/test - 测试 Provider 连接是否可用
  */
 
-import { NextRequest } from 'next/server';
-import { success, Errors } from '@/lib/api';
+import { NextRequest, NextResponse } from 'next/server';
+import { success, Errors, error } from '@/lib/api';
 import { db } from '@/lib/db';
 import { aiProviders } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
@@ -12,6 +12,13 @@ import { decrypt } from '@/lib/encryption';
 import { validateUrlSafe } from '@/lib/ssrf';
 import OpenAI from 'openai';
 import { DEFAULT_SYSTEM_PROMPT } from '@/lib/ai-presets';
+import { rateLimit } from '@/lib/rate-limit';
+import { checkAiBudget, recordAiUsage } from '@/lib/ai-budget';
+import { rateLimitRejectedTotal } from '@/lib/metrics';
+import { getClientIp } from '@/lib/client-ip';
+
+// AI test 限流：5 req/min/IP（比 generate 更严，单次探测即可）
+const AI_TEST_RATE_LIMIT = 5;
 
 // ============================================
 // POST /api/ai/providers/[id]/test
@@ -21,6 +28,24 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 限流：5 req/min/IP（防滥用 + 控成本）
+    const ip = getClientIp(request.headers) ?? 'unknown';
+    const rl = await rateLimit(`ai-test:${ip}`, AI_TEST_RATE_LIMIT);
+    if (!rl.allowed) {
+      rateLimitRejectedTotal.inc({ kind: 'ai-test' });
+      return NextResponse.json(
+        { success: false, error: 'Too Many Requests. AI test limit: 5/min/IP.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': String(AI_TEST_RATE_LIMIT),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(Math.ceil(rl.resetAt / 1000)),
+          },
+        }
+      );
+    }
+
     const { id } = await params;
 
     // 获取 provider
@@ -30,6 +55,12 @@ export async function POST(
 
     if (!provider) {
       return Errors.notFound('Provider');
+    }
+
+    // 日预算硬上限：超额直接拒绝，给出友好提示
+    const budget = await checkAiBudget();
+    if (!budget.allowed) {
+      return Errors.badRequest(`AI daily budget exhausted (${budget.reason}). Please try again later.`);
     }
 
     // 解密 API Key
@@ -48,7 +79,7 @@ export async function POST(
     if (provider.baseUrl) {
       const check = await validateUrlSafe(provider.baseUrl);
       if (!check.safe) {
-        return success({ success: false, error: `Base URL rejected: ${check.reason}` }, 200);
+        return Errors.badRequest(`Base URL rejected: ${check.reason}`);
       }
     }
 
@@ -56,6 +87,7 @@ export async function POST(
     const openai = new OpenAI({
       apiKey,
       baseURL: provider.baseUrl || undefined,
+      timeout: 30_000,
     });
 
     // 发送测试请求
@@ -71,17 +103,13 @@ export async function POST(
       max_tokens: 100,
     });
 
+    // 上报 token 消耗给预算模块（兼容接口可能缺失 usage）
     const response = completion.choices[0]?.message?.content;
+    const used = completion.usage?.total_tokens ?? Math.ceil((response ?? '').length / 4);
+    await recordAiUsage(used);
 
     if (!response) {
-      return success(
-        {
-          success: false,
-          model: modelToTest,
-          error: 'No response from AI',
-        },
-        200
-      );
+      return Errors.badRequest('Provider returned no response content');
     }
 
     return success({
@@ -90,18 +118,19 @@ export async function POST(
       response: response.substring(0, 200), // 截断过长响应
     });
   } catch (err: unknown) {
-    console.error('Error testing provider:', err instanceof Error ? err.message : 'Unknown error');
+    const msg = err instanceof Error ? err.message : String(err);
 
-    if (err && typeof err === 'object' && ('status' in err || 'code' in err)) {
-      return success(
-        {
-          success: false,
-          error: 'Provider API request failed. Check your API key and base URL.',
-        },
-        200
-      );
+    // OpenAI API 错误：透传上游状态码（如 401/429/超时），并带上 status，避免坍缩为同一句
+    if (err && typeof err === 'object' && 'status' in err) {
+      const status = (err as { status?: number }).status;
+      const body = `Provider API request failed: ${msg}`;
+      if (typeof status === 'number') {
+        return error('PROVIDER_ERROR', body, status);
+      }
+      return Errors.internal(body);
     }
 
-    return Errors.internal('Failed to test provider connection');
+    // 无响应 / 超时 / 其他：统一 500，附原始信息便于排查
+    return Errors.internal(`Failed to test provider connection: ${msg}`);
   }
 }
