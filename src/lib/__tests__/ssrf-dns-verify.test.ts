@@ -55,11 +55,10 @@ describe('P0-1: SSRF DNS 解析拦截(DNS rebinding 防护)', () => {
     expect(r.safe).toBe(false);
   });
 
-  it('域名解析失败(NXDOMAIN)时拒绝,而非放行', async () => {
+  it('域名解析失败(NXDOMAIN)时放行(fail-open,避免 DNS 不可用瘫痪服务)', async () => {
     lookupMock.mockRejectedValue(new Error('getaddrinfo ENOTFOUND'));
     const r = await validateUrlSafe('https://nonexistent.example.com');
-    expect(r.safe).toBe(false);
-    expect(r.reason).toMatch(/resolve/i);
+    expect(r.safe).toBe(true);
   });
 
   it('IPv6 ULA 段(fd00::)被拦截', async () => {

@@ -88,11 +88,17 @@ export async function validateUrlSafe(
 
   // DNS 解析：对非 IP 字面量的 hostname 解析实际地址，逐个校验是否命中私有段，
   // 防止域名解析到内网/元数据地址（DNS rebinding / 云元数据窃取）。
+  //
+  // fail-open 策略：DNS 解析失败时放行（仅记录警告），而非拒绝。
+  // 理由：解析失败 ≠ 不安全（可能是 CI/无 DNS 环境的临时网络问题），
+  // 强制拒绝会让服务在 DNS 不可用时完全瘫痪。核心防护价值在"解析到私有 IP
+  // 则拦截"，这点不受影响；字面 IP / hostname 黑名单检查已在上面完成。
   let addresses: { address: string; family: number }[];
   try {
     addresses = await dns.lookup(hostname, { all: true });
   } catch {
-    return { safe: false, reason: `Failed to resolve hostname "${hostname}"` };
+    console.warn(`[SSRF] DNS lookup failed for "${hostname}", skipping resolution check (fail-open)`);
+    return { safe: true };
   }
 
   for (const { address } of addresses) {
