@@ -38,6 +38,7 @@ export default function NewProjectPage() {
   // Slug 校验状态
   const [slugStatus, setSlugStatus] = useState<SlugValidationStatus>('idle');
   const slugValidationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const slugAbortControllerRef = useRef<AbortController | null>(null);
 
   // 引导弹窗状态
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -74,9 +75,13 @@ export default function NewProjectPage() {
 
   // 检查 slug 唯一性（防抖）
   const checkSlugAvailability = useCallback(async (slug: string) => {
-    // 清除之前的定时器
+    // 清除之前的定时器，并中止上一次未完成的请求，避免慢响应覆盖新结果
     if (slugValidationTimerRef.current) {
       clearTimeout(slugValidationTimerRef.current);
+    }
+    if (slugAbortControllerRef.current) {
+      slugAbortControllerRef.current.abort();
+      slugAbortControllerRef.current = null;
     }
 
     // 如果 slug 为空，重置状态
@@ -97,20 +102,31 @@ export default function NewProjectPage() {
 
     // 防抖：500ms 后执行检查
     slugValidationTimerRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      slugAbortControllerRef.current = controller;
       try {
-        const result = await projectsApi.checkSlug(slug);
+        const result = await projectsApi.checkSlug(slug, controller.signal);
+        if (controller.signal.aborted) return;
         setSlugStatus(result.available ? 'available' : 'exists');
-      } catch {
+      } catch (err) {
+        // 被新校验或 unmount 中止时静默忽略，不更新状态
+        if (controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) {
+          return;
+        }
         setSlugStatus('error');
       }
     }, 500);
   }, []);
 
-  // 清理定时器
+  // 清理定时器与未完成的请求
   useEffect(() => {
     return () => {
       if (slugValidationTimerRef.current) {
         clearTimeout(slugValidationTimerRef.current);
+      }
+      if (slugAbortControllerRef.current) {
+        slugAbortControllerRef.current.abort();
+        slugAbortControllerRef.current = null;
       }
     };
   }, []);
@@ -229,15 +245,14 @@ export default function NewProjectPage() {
     }
   }
 
-  // 检查是否可以提交
-  const canSubmit =
+  // 检查是否可以提交（明确 boolean；slug 必须校验通过为 available）
+  const canSubmit: boolean =
     !loading &&
-    form.name.trim() &&
-    form.slug.trim() &&
+    !!form.name.trim() &&
+    !!form.slug.trim() &&
     !errors.name &&
     !errors.slug &&
-    slugStatus !== 'exists' &&
-    slugStatus !== 'loading';
+    slugStatus === 'available';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

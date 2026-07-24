@@ -21,7 +21,7 @@ const CreateProviderSchema = z.object({
   name: z.string().min(1).max(100),
   provider: z.enum(['openai', 'anthropic', 'openai-compatible']),
   baseUrl: z.string().url().optional(),
-  apiKey: z.string().min(1),
+  apiKey: z.string().min(1).max(500),
   models: z.array(z.string()).min(1),
   defaultModel: z.string().min(1),
   systemPrompt: z.string().optional(),

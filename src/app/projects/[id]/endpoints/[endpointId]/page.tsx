@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { endpointsApi, projectsApi, ApiError, Endpoint, Project } from '@/lib/api-client';
 import { applyErrorScenario, type ErrorScenario } from '@/lib/error-scenarios';
@@ -186,11 +186,14 @@ export default function EditEndpointPage() {
   const [endpoint, setEndpoint] = useState<Endpoint | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // 复制成功提示的定时器 id，用于清理，避免卸载后触发 setState
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [showAiDialog, setShowAiDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
@@ -258,9 +261,17 @@ export default function EditEndpointPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, endpointId]);
 
+  // 组件卸载时清理复制提示定时器，避免卸载后触发 setState
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
+
   async function loadData() {
     try {
       setLoading(true);
+      setLoadError(false);
       const [projectData, endpointData] = await Promise.all([
         projectsApi.get(projectId),
         endpointsApi.get(projectId, endpointId),
@@ -275,8 +286,11 @@ export default function EditEndpointPage() {
       setInitialForm(newForm); // 保存初始值用于比较
     } catch (err) {
       if (err instanceof ApiError) {
+        // 404 视为"端点不存在"，其余错误（网络错误等）展示"加载失败 + 重试"
+        if (err.status !== 404) setLoadError(true);
         toastError(err.message);
       } else {
+        setLoadError(true);
         toastError('加载失败');
       }
     } finally {
@@ -300,7 +314,8 @@ export default function EditEndpointPage() {
     if (copySuccess) {
       setCopied(true);
       success('Mock URL 已复制到剪贴板');
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } else {
       toastError('复制失败，请手动复制');
     }
@@ -502,6 +517,19 @@ export default function EditEndpointPage() {
               <Skeleton className="h-32 w-full" />
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="text-gray-500 dark:text-gray-400">加载失败，请检查网络后重试</div>
+          <Button variant="secondary" onClick={() => loadData()}>
+            重试
+          </Button>
         </div>
       </div>
     );

@@ -226,8 +226,8 @@ export interface CheckSlugResponse {
 // ============================================
 export const projectsApi = {
   list: () => request<Project[]>('/projects'),
-  checkSlug: (slug: string) =>
-    request<CheckSlugResponse>(`/projects/check-slug?slug=${encodeURIComponent(slug)}`),
+  checkSlug: (slug: string, signal?: AbortSignal) =>
+    request<CheckSlugResponse>(`/projects/check-slug?slug=${encodeURIComponent(slug)}`, { signal }),
   create: (data: CreateProjectDto) =>
     request<Project>('/projects', {
       method: 'POST',

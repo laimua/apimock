@@ -147,8 +147,11 @@ async function generateWithProvider(prompt: string, count: number, provider: typ
     throw new Error('AI 返回的不是有效对象');
   }
 
-  // 上报 token 消耗给预算模块（completion.usage 可能在某些兼容接口缺失）
-  const used = completion.usage?.total_tokens ?? Math.ceil(content.length / 4);
+  // 上报 token 消耗给预算模块（completion.usage 可能在某些兼容接口缺失）。
+  // fallback 时同时估算 prompt+completion，避免低估日预算消耗（A4）。
+  const used =
+    completion.usage?.total_tokens ??
+    Math.ceil((userPrompt.length + systemPrompt.length + content.length) / 4);
   await recordAiUsage(used);
   aiGenerateTotal.inc({ provider: provider.provider, outcome: 'provider' });
   aiCostTokensTotal.inc({ provider: provider.provider }, used);
@@ -258,7 +261,10 @@ export async function POST(request: NextRequest) {
       throw new Error('AI 返回的不是有效对象');
     }
 
-    const used = completion.usage?.total_tokens ?? Math.ceil(content.length / 4);
+    // fallback 时同时估算 prompt+completion，避免低估日预算消耗（A4）
+    const used =
+      completion.usage?.total_tokens ??
+      Math.ceil((userPrompt.length + SYSTEM_PROMPT.length + content.length) / 4);
     await recordAiUsage(used);
     aiGenerateTotal.inc({ provider: 'env-openai', outcome: 'provider' });
     aiCostTokensTotal.inc({ provider: 'env-openai' }, used);
