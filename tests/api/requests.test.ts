@@ -313,7 +313,6 @@ describe('Requests API', () => {
       const response = await DELETE_PROJECT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: testProject.id }),
       });
-      const data = await response.json();
 
       expect(response.status).toBe(400);
       // 原有请求不应被删

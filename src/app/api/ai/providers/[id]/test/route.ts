@@ -14,7 +14,7 @@ import OpenAI from 'openai';
 import { DEFAULT_SYSTEM_PROMPT } from '@/lib/ai-presets';
 import { rateLimit } from '@/lib/rate-limit';
 import { checkAiBudget, recordAiUsage } from '@/lib/ai-budget';
-import { rateLimitRejectedTotal } from '@/lib/metrics';
+import { rateLimitRejectedTotal, aiCostTokensTotal } from '@/lib/metrics';
 import { getClientIp } from '@/lib/client-ip';
 
 // AI test 限流：5 req/min/IP（比 generate 更严，单次探测即可）
@@ -107,6 +107,8 @@ export async function POST(
     const response = completion.choices[0]?.message?.content;
     const used = completion.usage?.total_tokens ?? Math.ceil((response ?? '').length / 4);
     await recordAiUsage(used);
+    // 观测性：与 generate route 对齐，上报 token 消耗到 Prometheus（ai-test 维度）
+    aiCostTokensTotal.inc({ provider: `ai-test:${provider.provider}` }, used);
 
     if (!response) {
       return Errors.badRequest('Provider returned no response content');
