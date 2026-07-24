@@ -9,8 +9,8 @@
  * 修复后:改为数组,每次 push {key:'',value:''},两行独立存在。
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { ResponseRuleEditor } from '@/components/ResponseRuleEditor';
 import * as apiClient from '@/lib/api-client';
 
@@ -45,6 +45,10 @@ describe('P0-3: ResponseRuleEditor matchRule 不丢数据', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listMock.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it('连点两次"添加 query 匹配"应得到两行(旧行为会合并成一行)', async () => {
