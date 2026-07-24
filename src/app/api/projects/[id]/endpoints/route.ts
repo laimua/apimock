@@ -84,14 +84,18 @@ export async function GET(
 
   const whereClause = conditions.length > 1 ? and(...conditions) : conditions[0];
 
-  // 获取总数
-  const [{ count }] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(endpoints)
-    .where(whereClause);
-
   // 如果没有分页参数，返回全部（向后兼容）
   const usePagination = searchParams.has('page') || searchParams.has('pageSize');
+
+  // 获取总数（仅分页时需要，无分页场景省一次 count 查询）
+  let count = 0;
+  if (usePagination) {
+    const countRows = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(endpoints)
+      .where(whereClause);
+    count = countRows[0]?.count ?? 0;
+  }
 
   let endpointList;
   if (usePagination) {

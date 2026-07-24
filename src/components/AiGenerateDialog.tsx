@@ -173,14 +173,14 @@ export function AiGenerateDialog({
           {providers.length > 0 && (
             <div className="mb-4">
               <label
-                htmlFor="provider"
+                htmlFor="ai-provider"
                 className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
               >
                 <Cpu className="w-4 h-4 mr-1" />
                 AI 模型
               </label>
               <select
-                id="provider"
+                id="ai-provider"
                 value={selectedProviderId}
                 onChange={(e) => setSelectedProviderId(e.target.value)}
                 disabled={loadingProviders}
@@ -222,13 +222,13 @@ export function AiGenerateDialog({
           {/* Prompt Input */}
           <div className="mb-4">
             <label
-              htmlFor="prompt"
+              htmlFor="ai-prompt"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               数据描述
             </label>
             <textarea
-              id="prompt"
+              id="ai-prompt"
               value={prompt}
               onChange={(e) => {
                 setPrompt(e.target.value);
@@ -243,13 +243,13 @@ export function AiGenerateDialog({
           {/* Count Input */}
           <div className="mb-4">
             <label
-              htmlFor="count"
+              htmlFor="ai-count"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               生成数量: {count}
             </label>
             <input
-              id="count"
+              id="ai-count"
               type="range"
               min="1"
               max="100"

@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { projects, endpoints } from '@/lib/schema';
 import { eq, asc, and } from 'drizzle-orm';
 import { Errors } from '@/lib/api';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,7 +69,7 @@ export async function GET(
       baseUrl,
     });
   } catch (error) {
-    console.error('Share API error:', error);
+    logger.error({ err: error }, 'Share API error');
     return Errors.internal();
   }
 }

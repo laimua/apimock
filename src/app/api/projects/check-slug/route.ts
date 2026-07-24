@@ -7,6 +7,7 @@ import { NextRequest } from 'next/server';
 import { success, Errors } from '@/lib/api';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { projects } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { isReservedSlug } from '@/lib/slug';
@@ -38,9 +39,9 @@ export async function GET(request: NextRequest) {
       return success({ slug: validated.slug, available: false, reason: 'reserved' });
     }
 
-    // 检查 slug 是否已存在
+    // 检查 slug 是否已存在（只取 id 判存在，不拉全列）
     const existingProjects = await db
-      .select()
+      .select({ id: projects.id })
       .from(projects)
       .where(eq(projects.slug, validated.slug));
 
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
       ...(isAvailable ? {} : { reason: 'exists' as const }),
     });
   } catch (err: unknown) {
-    console.error('Check slug API error:', err);
+    logger.error({ err }, 'Check slug API error');
     if (err instanceof Error && err.name === 'ZodError') {
       return Errors.validation((err as unknown as { issues: z.ZodIssue[] }).issues);
     }

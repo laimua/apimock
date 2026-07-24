@@ -383,11 +383,12 @@ export default function NewEndpointPage() {
 
               {/* 路径 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="endpoint-path" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   路径 <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
+                    id="endpoint-path"
                     type="text"
                     value={form.path}
                     onChange={(e) => handlePathChange(e.target.value)}
@@ -470,10 +471,11 @@ export default function NewEndpointPage() {
 
               {/* 名称 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="endpoint-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   名称
                 </label>
                 <input
+                  id="endpoint-name"
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -485,10 +487,11 @@ export default function NewEndpointPage() {
 
               {/* 描述 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="endpoint-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   描述
                 </label>
                 <textarea
+                  id="endpoint-description"
                   value={form.description}
                   onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
@@ -500,10 +503,11 @@ export default function NewEndpointPage() {
 
               {/* 标签 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="endpoint-tags" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   标签
                 </label>
                 <input
+                  id="endpoint-tags"
                   type="text"
                   value={form.tags.join(', ')}
                   onChange={(e) => {
@@ -538,10 +542,11 @@ export default function NewEndpointPage() {
 
               {/* 模拟延迟 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="endpoint-delay" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   模拟延迟 (ms)
                 </label>
                 <input
+                  id="endpoint-delay"
                   type="number"
                   value={form.delayMs}
                   onChange={(e) => setForm((prev) => ({ ...prev, delayMs: parseInt(e.target.value) || 0 }))}
@@ -617,10 +622,11 @@ export default function NewEndpointPage() {
 
                 {/* 下拉框（选择其他状态码） */}
                 <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  <label htmlFor="endpoint-status-code" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                     或选择其他状态码
                   </label>
                   <select
+                    id="endpoint-status-code"
                     value={form.statusCode}
                     onChange={(e) => setForm((prev) => ({ ...prev, statusCode: parseInt(e.target.value) }))}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
@@ -638,10 +644,11 @@ export default function NewEndpointPage() {
 
             {/* Content-Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="endpoint-content-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Content-Type
               </label>
               <select
+                id="endpoint-content-type"
                 value={form.contentType}
                 onChange={(e) => handleContentTypeChange(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
@@ -658,7 +665,7 @@ export default function NewEndpointPage() {
             {/* 响应数据 */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="endpoint-response-body" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   响应数据
                 </label>
                 <div className="flex items-center gap-2">
@@ -699,6 +706,7 @@ export default function NewEndpointPage() {
                   />
                 ) : (
                   <textarea
+                    id="endpoint-response-body"
                     value={form.responseBody}
                     onChange={(e) => {
                       setForm((prev) => ({ ...prev, responseBody: e.target.value }));
