@@ -247,6 +247,78 @@ describe('Requests API', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
+      // B2: deleted 应为该端点的实际请求数(2),而非端点计数
+      expect(data.data.deleted).toBe(2);
+
+      const remainingRequests = await mockDb.select().from(requests);
+      expect(remainingRequests).toHaveLength(0);
+    });
+
+    // B2 针对性验证:inArray 批量删只删目标端点,不影响其它端点;
+    // deleted 返回真实删除行数而非端点数
+    it('B2: 多端点场景按 endpointId 删除只删目标端点的请求', async () => {
+      // 新增第二个端点及其请求
+      const secondEndpoint = { ...testEndpoint, id: 'ep2', path: '/posts', name: 'List posts' };
+      await mockDb.insert(endpoints).values(secondEndpoint);
+      const secondEndpointRequests = [
+        {
+          id: 'req3',
+          endpointId: 'ep2',
+          method: 'GET',
+          path: '/posts',
+          query: null,
+          headers: null,
+          body: null,
+          responseStatus: 200,
+          createdAt: Date.now(),
+        },
+        {
+          id: 'req4',
+          endpointId: 'ep2',
+          method: 'POST',
+          path: '/posts',
+          query: null,
+          headers: null,
+          body: null,
+          responseStatus: 201,
+          createdAt: Date.now(),
+        },
+      ];
+      await mockDb.insert(requests).values(secondEndpointRequests);
+
+      // 删除 ep1 的请求(ep1 有 2 条,ep2 有 2 条)
+      const request = new Request(`http://localhost/api/projects/proj1/requests?endpointId=ep1`, {
+        method: 'DELETE',
+      });
+      const response = await DELETE_PROJECT_REQUESTS(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      // deleted 是 ep1 的 2 条,不是端点数 1,也不是全部 4 条
+      expect(data.data.deleted).toBe(2);
+
+      // ep2 的 2 条请求应保留
+      const remaining = await mockDb.select().from(requests);
+      expect(remaining).toHaveLength(2);
+      expect(remaining.every((r) => r.endpointId === 'ep2')).toBe(true);
+    });
+
+    // B2: 删除不存在的端点验证归属(防越权删别人的端点)
+    it('B2: 删除不属于该项目的端点返回 400', async () => {
+      const request = new Request(`http://localhost/api/projects/proj1/requests?endpointId=foreign-ep`, {
+        method: 'DELETE',
+      });
+      const response = await DELETE_PROJECT_REQUESTS(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      // 原有请求不应被删
+      const remaining = await mockDb.select().from(requests);
+      expect(remaining).toHaveLength(2);
     });
   });
 
@@ -318,6 +390,111 @@ describe('Requests API', () => {
       });
 
       const response = await DELETE_ENDPOINT_REQUESTS(asReq(request), {
+        params: Promise.resolve({ id: testProject.id, endpointId: 'non-existent' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data.success).toBe(false);
+    });
+  });
+
+  // ============================================
+  // B3 针对性验证:端点级 GET 形状统一 + page/pageSize 换算
+  // 原有测试只覆盖项目级 GET,端点级 GET(GET_ENDPOINT_REQUESTS)
+  // 从未在测试中调用。这里验证 CC 的 limit/offset→page/pageSize 换算、
+  // items 内容、limit 上限、NaN 防护等关键改动。
+  // ============================================
+  describe('GET /api/projects/[id]/endpoints/[endpointId]/requests (B3 形状验证)', () => {
+    it('返回统一分页形状 {items,total,page,pageSize}(非旧 {requests,limit,offset})', async () => {
+      const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/requests');
+      const response = await GET_ENDPOINT_REQUESTS(asReq(request), {
+        params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      // 新形状字段存在
+      expect(data.data.items).toBeDefined();
+      expect(data.data.total).toBeDefined();
+      expect(data.data.page).toBeDefined();
+      expect(data.data.pageSize).toBeDefined();
+      // 旧形状字段不存在
+      expect(data.data.requests).toBeUndefined();
+      expect(data.data.limit).toBeUndefined();
+      expect(data.data.offset).toBeUndefined();
+    });
+
+    it('默认 limit=50/offset=0 正确换算为 page=1/pageSize=50', async () => {
+      const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/requests');
+      const response = await GET_ENDPOINT_REQUESTS(asReq(request), {
+        params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
+      });
+      const data = await response.json();
+
+      expect(data.data.page).toBe(1);
+      expect(data.data.pageSize).toBe(50);
+      expect(data.data.total).toBe(2);
+      expect(data.data.items).toHaveLength(2);
+    });
+
+    it('自定义 limit=1/offset=1 正确换算为 page=2/pageSize=1', async () => {
+      const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/requests?limit=1&offset=1');
+      const response = await GET_ENDPOINT_REQUESTS(asReq(request), {
+        params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
+      });
+      const data = await response.json();
+
+      // page = floor(offset/limit)+1 = floor(1/1)+1 = 2
+      expect(data.data.page).toBe(2);
+      expect(data.data.pageSize).toBe(1);
+      expect(data.data.items).toHaveLength(1);
+      expect(data.data.total).toBe(2); // total 是全部计数,不受分页影响
+    });
+
+    it('items 内容正确:query/headers 已 JSON 解析,非原始字符串', async () => {
+      const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/requests');
+      const response = await GET_ENDPOINT_REQUESTS(asReq(request), {
+        params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
+      });
+      const data = await response.json();
+
+      const firstItem = data.data.items[0];
+      // query 应被解析为对象,而非 JSON 字符串
+      expect(firstItem.query).toEqual({ page: '1' });
+      expect(typeof firstItem.query).toBe('object');
+      // headers 同理
+      expect(firstItem.headers).toEqual({ 'content-type': 'application/json' });
+      // 基础字段
+      expect(firstItem.method).toBe('GET');
+      expect(firstItem.path).toBe('/users');
+    });
+
+    it('limit=NaN 回退默认值 50(Q1 NaN 防护)', async () => {
+      const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/requests?limit=abc');
+      const response = await GET_ENDPOINT_REQUESTS(asReq(request), {
+        params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.data.pageSize).toBe(50); // NaN 回退
+    });
+
+    it('limit 超上限被夹紧到 200(Q7)', async () => {
+      const request = new Request('http://localhost/api/projects/proj1/endpoints/ep1/requests?limit=999999');
+      const response = await GET_ENDPOINT_REQUESTS(asReq(request), {
+        params: Promise.resolve({ id: testProject.id, endpointId: testEndpoint.id }),
+      });
+      const data = await response.json();
+
+      expect(data.data.pageSize).toBe(200);
+    });
+
+    it('不存在的端点返回 404', async () => {
+      const request = new Request('http://localhost/api/projects/proj1/endpoints/non-existent/requests');
+      const response = await GET_ENDPOINT_REQUESTS(asReq(request), {
         params: Promise.resolve({ id: testProject.id, endpointId: 'non-existent' }),
       });
       const data = await response.json();
