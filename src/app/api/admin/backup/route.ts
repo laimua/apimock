@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server';
 import { backupSqlite } from '@/lib/backup';
 import { logger } from '@/lib/logger';
 import { safeEqual } from '@/lib/crypto-utils';
+import { success, Errors } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,16 +37,22 @@ export async function POST(request: Request) {
   if (denied) return denied;
 
   const result = await backupSqlite();
-  return NextResponse.json({ success: result.ok, data: result }, { status: result.ok ? 200 : 500 });
+  if (!result.ok) {
+    return Errors.internal(result.error || 'Backup failed');
+  }
+  return success(result);
 }
 
 export async function GET(request: Request) {
   const denied = checkAdminToken(request);
   if (denied) return denied;
 
+  const rawKeep = Number(process.env.BACKUP_KEEP);
+  const keep = Number.isInteger(rawKeep) && rawKeep >= 0 ? rawKeep : 7;
+
   return NextResponse.json({
     enabled: true,
     backupDir: process.env.BACKUP_DIR || './data/backups',
-    keep: Number(process.env.BACKUP_KEEP) || 7,
+    keep,
   });
 }

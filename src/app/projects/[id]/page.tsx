@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { projectsApi, endpointsApi, projectRequestsApi, Project, Endpoint, ApiError, ListEndpointsResponse, RequestRecord } from '@/lib/api-client';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -379,6 +379,7 @@ function ProjectPageInner() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const projectId = params.id as string;
   const { success, error: toastError } = useToast();
 
@@ -419,6 +420,17 @@ function ProjectPageInner() {
   // 引导弹窗状态
   const [showEmptyProjectGuide, setShowEmptyProjectGuide] = useState(false);
 
+  // 空项目引导"不再提示"标记（localStorage 持久化，SSR 下安全降级）
+  const onboardingStorageKey = `apimock:onboarding-dismissed:${projectId}`;
+  const isOnboardingDismissed = () =>
+    typeof window !== 'undefined' && window.localStorage.getItem(onboardingStorageKey) === '1';
+  const dismissOnboarding = () => {
+    setShowEmptyProjectGuide(false);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(onboardingStorageKey, '1');
+    }
+  };
+
   // 确认对话框状态
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showClearRequestsDialog, setShowClearRequestsDialog] = useState(false);
@@ -451,23 +463,31 @@ function ProjectPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, requestsPage, requestsEndpointFilter, activeTab]);
 
-  // 在空项目首次加载时显示引导
+  // 在空项目首次加载时显示引导（用户已关闭过则不再提示）
   useEffect(() => {
     if (!loading && project && endpoints.length === 0 && !debouncedSearch && !methodFilter && !tagFilter) {
       // 延迟显示引导，避免与页面加载冲突
       const timer = setTimeout(() => {
-        setShowEmptyProjectGuide(true);
+        if (!isOnboardingDismissed()) {
+          setShowEmptyProjectGuide(true);
+        }
       }, 500);
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, project, endpoints.length, debouncedSearch, methodFilter, tagFilter]);
 
   // 消费 ?edit=true：从项目列表点编辑铅笔跳转后自动打开编辑弹窗
   useEffect(() => {
     if (searchParams.get('edit') === 'true' && !loading && project) {
       setIsEditDialogOpen(true);
+      // 剥离 edit 参数，避免后续 state 变化反复触发本 effect 重开弹窗
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('edit');
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
     }
-  }, [searchParams, loading, project]);
+  }, [searchParams, loading, project, router, pathname]);
 
   async function loadData() {
     try {
@@ -1149,14 +1169,14 @@ function ProjectPageInner() {
         primaryAction={{
           label: '添加端点',
           onClick: () => {
-            setShowEmptyProjectGuide(false);
+            dismissOnboarding();
             router.push(`/projects/${projectId}/endpoints/new`);
           },
         }}
         secondaryAction={{
           label: '导入 OpenAPI',
           onClick: () => {
-            setShowEmptyProjectGuide(false);
+            dismissOnboarding();
             setIsImportOpen(true);
           },
         }}
@@ -1165,7 +1185,7 @@ function ProjectPageInner() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         }
-        onClose={() => setShowEmptyProjectGuide(false)}
+        onClose={dismissOnboarding}
       />
 
       {/* Delete Project Confirm Dialog */}
