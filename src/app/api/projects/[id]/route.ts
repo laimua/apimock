@@ -107,6 +107,9 @@ export async function PUT(
 
     // 返回更新后的数据
     const updated = await db.select().from(projects).where(eq(projects.id, id));
+    if (!updated[0]) {
+      return Errors.notFound('Project');
+    }
     return success(formatProject(updated[0]));
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'ValidationError') {
