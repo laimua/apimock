@@ -601,6 +601,50 @@ describe('AI Providers API', () => {
       expect(response.status).toBe(404);
       expect(data.success).toBe(false);
     });
+
+    // B4 针对性验证:rate limit(ai-test:IP 5/min)第 6 次返 429
+    it('B4: 连续调用超过 5/min 限流触发 429', async () => {
+      const { reset } = await import('@/lib/rate-limit');
+      await reset(); // 清掉前面测试累积的限流计数
+
+      const makeReq = () => new Request('http://localhost/api/ai/providers/provider1/test', { method: 'POST' });
+
+      // 前 5 次应成功(或因 OpenAI mock 返回正常)
+      for (let i = 0; i < 5; i++) {
+        const res = await TEST_POST(asReq(makeReq()), { params: Promise.resolve({ id: 'provider1' }) });
+        expect(res.status).not.toBe(429);
+      }
+
+      // 第 6 次应被限流
+      const blocked = await TEST_POST(asReq(makeReq()), { params: Promise.resolve({ id: 'provider1' }) });
+      expect(blocked.status).toBe(429);
+      const blockedData = await blocked.json();
+      expect(blockedData.success).toBe(false);
+
+      await reset(); // 清理,避免影响后续测试
+    });
+
+    // B4 针对性验证:预算超额时拒绝调用
+    it('B4: 预算超额时返回拒绝(不调用 OpenAI)', async () => {
+      const { reset } = await import('@/lib/rate-limit');
+      const { _resetBudgetForTest, recordAiUsage } = await import('@/lib/ai-budget');
+      await reset();
+      await _resetBudgetForTest();
+
+      // 预先消耗大量 token 超过默认额度(1_000_000),触发 token_limit 超额
+      await recordAiUsage(2_000_000);
+
+      const request = new Request('http://localhost/api/ai/providers/provider1/test', { method: 'POST' });
+      const response = await TEST_POST(asReq(request), { params: Promise.resolve({ id: 'provider1' }) });
+
+      // 预算超额应被拒绝(非 200 success)
+      expect(response.status).not.toBe(200);
+      const data = await response.json();
+      expect(data.success).toBe(false);
+
+      await _resetBudgetForTest();
+      await reset();
+    });
   });
 
   describe('POST /api/ai/providers/[id]/default', () => {
