@@ -9,7 +9,7 @@ import { success, Errors, validate, ValidationError, error } from '@/lib/api';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { aiProviders } from '@/lib/schema';
-import { eq, ne, and } from 'drizzle-orm';
+import { eq, ne, and, asc } from 'drizzle-orm';
 import { encrypt } from '@/lib/encryption';
 import { validateUrlSafe } from '@/lib/ssrf';
 
@@ -78,11 +78,24 @@ export async function PATCH(
     if (data.models !== undefined) updates.models = JSON.stringify(data.models);
     if (data.defaultModel !== undefined) updates.defaultModel = data.defaultModel;
     if (data.systemPrompt !== undefined) updates.systemPrompt = data.systemPrompt;
-    if (data.isActive !== undefined) updates.isActive = data.isActive ? 1 : 0;
+    if (data.isActive !== undefined) {
+      updates.isActive = data.isActive ? 1 : 0;
+      // 停用 provider 时同步清除默认标记：generate 路由会跳过 isActive≠1 的
+      // provider，不清默认会留下"配了默认却不可用"的死状态。
+      // 注意：此处只清当前 provider 的默认，不自动转移给其它 active provider，
+      // 需用户手动重设默认（最小改动，避免隐式改写其它 provider 状态）。
+      if (!data.isActive) {
+        updates.isDefault = 0;
+      }
+    }
 
-    // 如果只提供 models 但没有 defaultModel，使用 models[0]
+    // 只提供 models 但未给 defaultModel：仅当现有 defaultModel 不在新 models 列表内
+    // 时才重置为 models[0]。若用户原默认仍在新列表内则保留，避免静默覆盖。
     if (data.models && !data.defaultModel) {
-      updates.defaultModel = data.models[0];
+      const currentDefault = existing.defaultModel;
+      if (!currentDefault || !data.models.includes(currentDefault)) {
+        updates.defaultModel = data.models[0];
+      }
     }
 
     // 更新数据库
@@ -158,8 +171,11 @@ export async function DELETE(
     // 如果删除的是默认 provider，需要将其他 provider 设为默认
     if (existing.isDefault === 1) {
       // 找一个其它可用 provider 设为默认（不能是正在被删除的自己）
+      // orderBy createdAt asc：使新默认确定（选最早创建的 active provider），
+      // 避免 findMany 无 orderBy 时随机选
       const otherProviders = await db.query.aiProviders.findMany({
         where: and(ne(aiProviders.id, id), eq(aiProviders.isActive, 1)),
+        orderBy: [asc(aiProviders.createdAt)],
       });
 
       if (otherProviders.length > 0) {

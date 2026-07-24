@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { projectsApi, Project } from '@/lib/api-client';
 import { Card, CardBody } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { useDebounce } from '@/lib/hooks';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -24,9 +25,23 @@ export default function ProjectsPage() {
   const debouncedSearch = useDebounce(searchQuery, 300);
   const [page, setPage] = useState(1);
   const pageSize = 12;
+  const { success } = useToast();
 
   useEffect(() => {
     loadProjects();
+  }, []);
+
+  // 页面从隐藏切回可见(如从其它页面返回/切回标签)时刷新列表，避免读到旧数据
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadProjects();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    // loadProjects 闭包读取最新 state，无需加入依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadProjects() {
@@ -47,6 +62,7 @@ export default function ProjectsPage() {
     try {
       setDeletingId(deleteDialog.project.id);
       await projectsApi.delete(deleteDialog.project.id);
+      success('项目已删除');
       setProjects(projects.filter(p => p.id !== deleteDialog.project!.id));
       setDeleteDialog({ isOpen: false, project: null });
       // 删完当前页最后一项且不在第一页时，回退一页，避免停留在空白页
