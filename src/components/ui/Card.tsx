@@ -1,18 +1,24 @@
-import { ReactNode } from 'react';
+import { KeyboardEvent, ReactNode } from 'react';
 
 interface CardProps {
   children: ReactNode;
   className?: string;
   onClick?: () => void;
+  role?: string;
+  tabIndex?: number;
+  onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
 }
 
-export function Card({ children, className = '', onClick }: CardProps) {
+export function Card({ children, className = '', onClick, role, tabIndex, onKeyDown }: CardProps) {
   return (
     <div
       className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm ${
         onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''
       } ${className}`}
       onClick={onClick}
+      role={role}
+      tabIndex={tabIndex}
+      onKeyDown={onKeyDown}
     >
       {children}
     </div>

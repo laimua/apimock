@@ -760,9 +760,11 @@ function ProjectPageInner() {
         {/* Tab Navigation */}
         <div className="mb-4 sm:mb-6">
           <div className="border-b border-gray-200 dark:border-gray-700">
-            <nav className="flex gap-4 sm:gap-8">
+            <nav className="flex gap-4 sm:gap-8" role="tablist">
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === 'endpoints'}
                 onClick={() => setActiveTab('endpoints')}
                 className={`py-3 px-1 sm:px-2 border-b-2 font-medium text-sm transition-colors flex-1 sm:flex-none ${
                   activeTab === 'endpoints'
@@ -774,6 +776,8 @@ function ProjectPageInner() {
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === 'requests'}
                 onClick={() => setActiveTab('requests')}
                 className={`py-3 px-1 sm:px-2 border-b-2 font-medium text-sm transition-colors flex-1 sm:flex-none ${
                   activeTab === 'requests'
@@ -1077,9 +1081,18 @@ function ProjectPageInner() {
                   <Card
                     key={req.id}
                     className="hover:shadow-md transition-shadow cursor-pointer"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
                       setSelectedRequest(req);
                       setIsRequestDetailOpen(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedRequest(req);
+                        setIsRequestDetailOpen(true);
+                      }
                     }}
                   >
                     <CardBody className="py-3">

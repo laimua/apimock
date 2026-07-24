@@ -118,7 +118,14 @@ export function TemplateLibraryDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') handleClose();
+      }}
+    >
       {/* Backdrop */}
       <div data-testid="template-library-backdrop" className="absolute inset-0 bg-black/50" onClick={handleClose} />
 

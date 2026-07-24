@@ -13,7 +13,7 @@ import { NextResponse } from 'next/server';
 import { metricsOutput, register } from '@/lib/metrics';
 import { logger } from '@/lib/logger';
 import { safeEqual } from '@/lib/crypto-utils';
-import { Errors } from '@/lib/api';
+import { Errors, error } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,10 +21,7 @@ export async function GET(request: Request) {
   const expected = process.env.METRICS_TOKEN;
   if (!expected) {
     logger.warn('METRICS_TOKEN not set, metrics endpoint disabled');
-    return NextResponse.json(
-      { success: false, error: 'METRICS_TOKEN not configured' },
-      { status: 503 }
-    );
+    return error('METRICS_NOT_CONFIGURED', 'METRICS_TOKEN not configured', 503);
   }
 
   const bearer = request.headers.get('authorization');
@@ -32,7 +29,7 @@ export async function GET(request: Request) {
 
   if (!gotHeader || !safeEqual(gotHeader, expected)) {
     logger.warn({ ip: request.headers.get('x-forwarded-for') }, 'metrics unauthorized');
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    return Errors.unauthorized();
   }
 
   let body: string;
