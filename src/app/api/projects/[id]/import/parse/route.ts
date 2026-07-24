@@ -6,6 +6,9 @@
 import { NextRequest } from 'next/server';
 import { success, Errors } from '@/lib/api';
 import { parseAndExtract, detectFormat } from '@/lib/openapi-parser';
+import { db } from '@/lib/db';
+import { projects } from '@/lib/schema';
+import { eq } from 'drizzle-orm';
 
 // ============================================
 // POST /api/projects/[id]/import/parse
@@ -16,8 +19,13 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: _projectId } = await params;
-    void _projectId;
+    const { id: projectId } = await params;
+
+    // 验证项目是否存在（与 import 写库路由对称）
+    const projectList = await db.select().from(projects).where(eq(projects.id, projectId));
+    if (projectList.length === 0) {
+      return Errors.notFound('Project');
+    }
 
     // 解析 multipart/form-data
     const formData = await request.formData();

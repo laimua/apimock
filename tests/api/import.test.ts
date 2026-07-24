@@ -270,7 +270,7 @@ describe('Import API', () => {
       expect(dbEndpoints).toHaveLength(0);
     });
 
-    it('should parse even for non-existent project', async () => {
+    it('should return 404 for non-existent project (I4: parse 校验项目存在)', async () => {
       const formData = new FormData();
       formData.append('file', new File(['valid content'], 'openapi.json', { type: 'application/json' }));
 
@@ -284,10 +284,9 @@ describe('Import API', () => {
       });
       const data = await response.json();
 
-      // Parse endpoint doesn't check project existence, it just parses the file
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
-      expect(data.data.endpoints).toBeDefined();
+      // I4: parse 现在校验项目存在(与 import 写库对称),非存在项目返 404
+      expect(response.status).toBe(404);
+      expect(data.success).toBe(false);
     });
 
     it('should return error when no file is uploaded', async () => {

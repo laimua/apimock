@@ -15,7 +15,9 @@ import * as path from 'path';
 import { logger } from './logger';
 
 const BACKUP_DIR = process.env.BACKUP_DIR || './data/backups';
-const KEEP_COUNT = Number(process.env.BACKUP_KEEP) || 7;
+const rawKeep = Number(process.env.BACKUP_KEEP);
+// BACKUP_KEEP=0 表示禁用保留（删全部历史备份），不能被 `|| 7` 静默覆盖
+const KEEP_COUNT = Number.isInteger(rawKeep) && rawKeep >= 0 ? rawKeep : 7;
 
 export interface BackupResult {
   ok: boolean;
