@@ -66,6 +66,15 @@ export async function PATCH(
       }
     }
 
+    // 单独传 defaultModel（不带 models）时校验是否在现有 models 列表内（A10）。
+    // 同时传 models 和 defaultModel 的情形已由 schema refine 覆盖。
+    if (data.defaultModel && !data.models) {
+      const existingModels = JSON.parse(existing.models) as string[];
+      if (!existingModels.includes(data.defaultModel)) {
+        return Errors.badRequest('defaultModel must be in the models list');
+      }
+    }
+
     const now = Date.now();
     const updates: Partial<typeof aiProviders.$inferInsert> = {
       updatedAt: now,

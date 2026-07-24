@@ -462,6 +462,36 @@ describe('AI Providers API', () => {
       // gpt-4 不在新列表,defaultModel 应重置为 models[0]='claude-3'
       expect(data.data.defaultModel).toBe('claude-3');
     });
+
+    // B2 针对性验证:单独传 defaultModel(不传 models)时,若不在现有 models 内返 400
+    it('B2: 单独传 defaultModel 不在现有 models 内时返 400', async () => {
+      // provider1 现有 models=['gpt-4'], defaultModel='gpt-4'
+      const request = new Request('http://localhost/api/ai/providers/provider1', {
+        method: 'PATCH',
+        body: JSON.stringify({ defaultModel: 'nonexistent-model' }),
+      });
+      const response = await PATCH(asReq(request), {
+        params: Promise.resolve({ id: 'provider1' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+    });
+
+    // B2 补充:单独传 defaultModel 在现有 models 内时正常通过
+    it('B2: 单独传 defaultModel 在现有 models 内时正常更新', async () => {
+      // 现有 models=['gpt-4'],传 defaultModel='gpt-4' 应通过
+      const request = new Request('http://localhost/api/ai/providers/provider1', {
+        method: 'PATCH',
+        body: JSON.stringify({ defaultModel: 'gpt-4' }),
+      });
+      const response = await PATCH(asReq(request), {
+        params: Promise.resolve({ id: 'provider1' }),
+      });
+
+      expect(response.status).toBe(200);
+    });
   });
 
   describe('DELETE /api/ai/providers/[id]', () => {

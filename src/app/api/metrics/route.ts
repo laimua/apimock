@@ -9,9 +9,10 @@
  */
 
 import { NextResponse } from 'next/server';
-import { metricsOutput } from '@/lib/metrics';
+import { metricsOutput, register } from '@/lib/metrics';
 import { logger } from '@/lib/logger';
 import { safeEqual } from '@/lib/crypto-utils';
+import { Errors } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,16 +36,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = await metricsOutput();
+  let body: string;
+  try {
+    body = await metricsOutput();
+  } catch (err) {
+    logger.error({ err }, 'metrics output failed');
+    return Errors.internal('Failed to render metrics');
+  }
   return new NextResponse(body, {
     status: 200,
     headers: {
-      'Content-Type': registerContentType(),
+      'Content-Type': register.contentType,
       'Cache-Control': 'no-store',
     },
   });
-}
-
-function registerContentType(): string {
-  return 'text/plain; version=0.0.4; charset=utf-8';
 }
