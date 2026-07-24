@@ -154,6 +154,28 @@ function parseTags(tags: unknown): string[] {
   return [];
 }
 
+// 把服务端 Endpoint 归一化为表单状态。初始加载与保存成功后回写共用同一份逻辑，
+// 保证 form / initialForm / endpoint 三者源一致，isDirty 比较不会错位。
+function endpointToForm(data: Endpoint): InitialFormState {
+  const responseBodyStr =
+    typeof data.responseBody === 'string'
+      ? data.responseBody
+      : JSON.stringify(data.responseBody || {}, null, 2);
+
+  return {
+    path: data.path,
+    method: data.method,
+    name: data.name || '',
+    description: data.description || '',
+    delayMs: data.delayMs || 0,
+    statusCode: data.statusCode || 200,
+    contentType: data.contentType || 'application/json',
+    responseBody: responseBodyStr || DEFAULT_RESPONSES['application/json'],
+    tags: parseTags(data.tags),
+    isShareable: data.isShareable !== false,
+  };
+}
+
 export default function EditEndpointPage() {
   const router = useRouter();
   const params = useParams();
@@ -247,25 +269,8 @@ export default function EditEndpointPage() {
       setProject(projectData);
       setEndpoint(endpointData);
 
-      // 设置表单数据
-      const responseBodyStr =
-        typeof endpointData.responseBody === 'string'
-          ? endpointData.responseBody
-          : JSON.stringify(endpointData.responseBody || {}, null, 2);
-
-      const newForm = {
-        path: endpointData.path,
-        method: endpointData.method,
-        name: endpointData.name || '',
-        description: endpointData.description || '',
-        delayMs: endpointData.delayMs || 0,
-        statusCode: endpointData.statusCode || 200,
-        contentType: endpointData.contentType || 'application/json',
-        responseBody: responseBodyStr || DEFAULT_RESPONSES['application/json'],
-        tags: parseTags(endpointData.tags),
-        isShareable: endpointData.isShareable !== false,
-      };
-
+      // 设置表单数据（统一归一化，保证 form/initialForm/endpoint 一致）
+      const newForm = endpointToForm(endpointData);
       setForm(newForm);
       setInitialForm(newForm); // 保存初始值用于比较
     } catch (err) {
@@ -383,8 +388,10 @@ export default function EditEndpointPage() {
 
       // 直接更新本地状态，无需重新加载
       setEndpoint(updated);
-      // 更新初始表单状态，清除 isDirty 标记
-      setInitialForm(form);
+      // 基于服务端返回值归一化 form 与 initialForm，使 form/initialForm/endpoint 三者一致
+      const savedForm = endpointToForm(updated);
+      setForm(savedForm);
+      setInitialForm(savedForm);
 
       success('保存成功！');
     } catch (err) {
@@ -448,14 +455,12 @@ export default function EditEndpointPage() {
     success(`已应用错误场景: ${scenario.name}`);
   };
 
-  // 处理返回链接点击
-  const handleBackClick = (e: React.MouseEvent) => {
-    if (isDirty) {
-      e.preventDefault();
-      setPendingNavigation(`/projects/${projectId}`);
-      setShowUnsavedDialog(true);
-    }
-    // 如果没有修改，则允许默认导航
+  // 统一处理会离开页面的导航（面包屑各级）：有未保存修改时弹确认离开，否则放行默认导航
+  const handleNavigate = (e: React.MouseEvent, href: string) => {
+    if (!isDirty) return;
+    e.preventDefault();
+    setPendingNavigation(href);
+    setShowUnsavedDialog(true);
   };
 
   // 处理取消按钮点击
@@ -553,9 +558,9 @@ export default function EditEndpointPage() {
       {/* Main */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Breadcrumb items={[
-          { label: '首页', href: '/' },
-          { label: '项目列表', href: '/projects' },
-          { label: project.name, href: `/projects/${projectId}`, onClick: handleBackClick },
+          { label: '首页', href: '/', onClick: (e) => handleNavigate(e, '/') },
+          { label: '项目列表', href: '/projects', onClick: (e) => handleNavigate(e, '/projects') },
+          { label: project.name, href: `/projects/${projectId}`, onClick: (e) => handleNavigate(e, `/projects/${projectId}`) },
           { label: '编辑端点' },
         ]} />
 

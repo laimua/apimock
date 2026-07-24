@@ -408,6 +408,60 @@ describe('AI Providers API', () => {
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
     });
+
+    // B4 针对性验证:停用默认 provider 时同步清 isDefault(防死状态)
+    it('B4: 停用 isDefault=1 的 provider 时同步清除默认标记', async () => {
+      // 先把 provider1 设为默认
+      await mockDb.update(aiProviders).set({ isDefault: 1 }).where(eq(aiProviders.id, 'provider1'));
+
+      const request = new Request('http://localhost/api/ai/providers/provider1', {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive: false }),
+      });
+      const response = await PATCH(asReq(request), {
+        params: Promise.resolve({ id: 'provider1' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.data.isActive).toBe(false);
+      // 关键:isDefault 应被同步清为 false(原为 true)
+      expect(data.data.isDefault).toBe(false);
+    });
+
+    // B6 针对性验证:改 models 但现有 defaultModel 仍在列表内→保留不覆盖
+    it('B6: 改 models 但 defaultModel 仍在列表内时保留不重置', async () => {
+      // provider1 默认 models=['gpt-4'], defaultModel='gpt-4'
+      // 改 models 加入新模型但保留 gpt-4,defaultModel 应仍是 gpt-4
+      const request = new Request('http://localhost/api/ai/providers/provider1', {
+        method: 'PATCH',
+        body: JSON.stringify({ models: ['gpt-4', 'gpt-4o', 'gpt-4-turbo'] }),
+      });
+      const response = await PATCH(asReq(request), {
+        params: Promise.resolve({ id: 'provider1' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      // gpt-4 仍在列表内,defaultModel 不应被重置为 models[0]
+      expect(data.data.defaultModel).toBe('gpt-4');
+    });
+
+    // B6 补充:改 models 且 defaultModel 不在新列表内→重置为 models[0]
+    it('B6: 改 models 且 defaultModel 不在列表内时重置为 models[0]', async () => {
+      const request = new Request('http://localhost/api/ai/providers/provider1', {
+        method: 'PATCH',
+        body: JSON.stringify({ models: ['claude-3', 'claude-3-opus'] }),
+      });
+      const response = await PATCH(asReq(request), {
+        params: Promise.resolve({ id: 'provider1' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      // gpt-4 不在新列表,defaultModel 应重置为 models[0]='claude-3'
+      expect(data.data.defaultModel).toBe('claude-3');
+    });
   });
 
   describe('DELETE /api/ai/providers/[id]', () => {
@@ -473,6 +527,49 @@ describe('AI Providers API', () => {
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.data.deleted).toBe(true);
+    });
+
+    // B5 针对性验证:删默认 provider 后,多候选时选最早创建的为默认(orderBy 确定性)
+    it('B5: 删默认 provider 后,多个 active 候选中选最早创建的为默认', async () => {
+      // 清空并重建:一个默认 + 两个不同 createdAt 的候选
+      await clearTestDb(mockDb);
+      await mockDb.insert(aiProviders).values([
+        {
+          id: 'def', name: 'Default', provider: 'openai', baseUrl: null,
+          apiKey: 'k1', models: JSON.stringify(['m']), defaultModel: 'm',
+          systemPrompt: null, isActive: 1, isDefault: 1,
+          createdAt: 1000, updatedAt: 1000,
+        },
+        {
+          id: 'newer', name: 'Newer', provider: 'openai', baseUrl: null,
+          apiKey: 'k2', models: JSON.stringify(['m']), defaultModel: 'm',
+          systemPrompt: null, isActive: 1, isDefault: 0,
+          createdAt: 3000, updatedAt: 3000,
+        },
+        {
+          id: 'older', name: 'Older', provider: 'openai', baseUrl: null,
+          apiKey: 'k3', models: JSON.stringify(['m']), defaultModel: 'm',
+          systemPrompt: null, isActive: 1, isDefault: 0,
+          createdAt: 2000, updatedAt: 2000,
+        },
+      ]);
+
+      // 删默认 def,应提 older(createdAt=2000,比 newer=3000 早)为默认
+      const request = new Request('http://localhost/api/ai/providers/def?confirmed=true', {
+        method: 'DELETE',
+      });
+      const response = await DELETE(asReq(request), {
+        params: Promise.resolve({ id: 'def' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.data.deleted).toBe(true);
+
+      // 验证 older(最早创建)被设为默认,而非 newer
+      const providers = await mockDb.select().from(aiProviders);
+      const newDefault = providers.find((p) => p.isDefault === 1);
+      expect(newDefault?.id).toBe('older');
     });
 
     it('should return 404 for non-existent provider', async () => {
