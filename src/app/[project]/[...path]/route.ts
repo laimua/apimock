@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse, after } from 'next/server';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { responses, requests } from '@/lib/schema';
 import type { Endpoint, Response, HttpMethod } from '@/lib/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -81,7 +82,7 @@ async function recordRequest(
     });
   } catch (err) {
     // 静默失败，不影响响应
-    console.error('Failed to record request:', err);
+    logger.error({ err }, 'Failed to record request');
   }
 }
 

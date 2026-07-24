@@ -271,11 +271,12 @@ export default function NewProjectPage() {
             <CardBody className="space-y-6">
               {/* 项目名称 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="project-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   项目名称 <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
+                    id="project-name"
                     type="text"
                     data-testid="project-name-input"
                     value={form.name}
@@ -317,7 +318,7 @@ export default function NewProjectPage() {
 
               {/* Slug */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="project-slug" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Slug <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -326,6 +327,7 @@ export default function NewProjectPage() {
                       /project/
                     </span>
                     <input
+                      id="project-slug"
                       type="text"
                       data-testid="project-slug-input"
                       value={form.slug}
@@ -398,10 +400,11 @@ export default function NewProjectPage() {
 
               {/* 描述 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="project-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   描述
                 </label>
                 <textarea
+                  id="project-description"
                   value={form.description}
                   onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                   onBlur={() => handleBlur('description')}

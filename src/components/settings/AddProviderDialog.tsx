@@ -177,10 +177,11 @@ export default function AddProviderDialog({
 
           {/* 名称 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="provider-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               名称 <span className="text-red-500">*</span>
             </label>
             <input
+              id="provider-name"
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -191,10 +192,11 @@ export default function AddProviderDialog({
 
           {/* Provider 类型 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="provider-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Provider 类型
             </label>
             <select
+              id="provider-type"
               value={formData.provider}
               onChange={(e) => setFormData({ ...formData, provider: e.target.value as Provider['provider'] })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -207,10 +209,11 @@ export default function AddProviderDialog({
 
           {/* Base URL */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="provider-base-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               API 地址
             </label>
             <input
+              id="provider-base-url"
               type="url"
               value={formData.baseUrl}
               onChange={(e) => setFormData({ ...formData, baseUrl: e.target.value })}
@@ -221,10 +224,11 @@ export default function AddProviderDialog({
 
           {/* API Key */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="provider-api-key" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               API Key <span className="text-red-500">*</span>
             </label>
             <input
+              id="provider-api-key"
               type="password"
               value={formData.apiKey}
               onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
@@ -236,10 +240,11 @@ export default function AddProviderDialog({
 
           {/* Models */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="provider-models" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               模型列表（JSON 数组） <span className="text-red-500">*</span>
             </label>
             <textarea
+              id="provider-models"
               value={JSON.stringify(formData.models, null, 2)}
               onChange={(e) => {
                 try {
@@ -257,10 +262,11 @@ export default function AddProviderDialog({
 
           {/* Default Model */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="provider-default-model" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               默认模型 <span className="text-red-500">*</span>
             </label>
             <input
+              id="provider-default-model"
               type="text"
               value={formData.defaultModel}
               onChange={(e) => setFormData({ ...formData, defaultModel: e.target.value })}
@@ -271,10 +277,11 @@ export default function AddProviderDialog({
 
           {/* System Prompt */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="provider-system-prompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               System Prompt（可选）
             </label>
             <textarea
+              id="provider-system-prompt"
               value={formData.systemPrompt}
               onChange={(e) => setFormData({ ...formData, systemPrompt: e.target.value })}
               rows={4}
@@ -288,12 +295,12 @@ export default function AddProviderDialog({
             <div className="flex items-center">
               <input
                 type="checkbox"
-                id="isDefault"
+                id="provider-is-default"
                 checked={formData.isDefault}
                 onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
-              <label htmlFor="isDefault" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+              <label htmlFor="provider-is-default" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                 设为默认模型
               </label>
             </div>

@@ -432,10 +432,11 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
               {/* 基本信息 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="response-rule-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     响应名称 <span className="text-red-500">*</span>
                   </label>
                   <input
+                    id="response-rule-name"
                     type="text"
                     value={form.name}
                     onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -445,10 +446,11 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="response-rule-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     描述
                   </label>
                   <input
+                    id="response-rule-description"
                     type="text"
                     value={form.description}
                     onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -458,10 +460,11 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="response-rule-priority" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     优先级
                   </label>
                   <input
+                    id="response-rule-priority"
                     type="number"
                     value={form.priority}
                     onChange={(e) => setForm((prev) => ({ ...prev, priority: parseInt(e.target.value) || 0 }))}
@@ -476,10 +479,11 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
               {/* 响应配置 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="response-rule-status-code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     状态码
                   </label>
                   <select
+                    id="response-rule-status-code"
                     value={form.statusCode}
                     onChange={(e) => setForm((prev) => ({ ...prev, statusCode: parseInt(e.target.value) }))}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -494,10 +498,11 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="response-rule-content-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Content-Type
                   </label>
                   <select
+                    id="response-rule-content-type"
                     value={form.contentType}
                     onChange={(e) => handleContentTypeChange(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -635,7 +640,7 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
 
               {/* 响应数据 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="response-rule-body" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   响应数据
                 </label>
                 {form.contentType === 'application/json' ? (
@@ -647,6 +652,7 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
                   />
                 ) : (
                   <textarea
+                    id="response-rule-body"
                     value={typeof form.body === 'string' ? form.body : JSON.stringify(form.body)}
                     onChange={(e) => setForm((prev) => ({ ...prev, body: e.target.value }))}
                     className="w-full px-4 py-2 font-mono text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 resize-none"
@@ -660,13 +666,13 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  id="isDefault"
+                  id="response-rule-is-default"
                   checked={form.isDefault}
                   onChange={(e) => setForm((prev) => ({ ...prev, isDefault: e.target.checked }))}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   disabled={saving}
                 />
-                <label htmlFor="isDefault" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                <label htmlFor="response-rule-is-default" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                   设为默认响应（当其他规则都不匹配时返回此响应）
                 </label>
               </div>

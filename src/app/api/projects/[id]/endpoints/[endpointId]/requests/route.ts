@@ -6,7 +6,6 @@
 
 import { NextRequest } from 'next/server';
 import { success, Errors } from '@/lib/api';
-import { z } from 'zod';
 import { db } from '@/lib/db';
 import { endpoints, requests } from '@/lib/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
@@ -92,9 +91,6 @@ export async function GET(
       pageSize: limit,
     });
   } catch (err) {
-    if (err instanceof z.ZodError) {
-      return Errors.validation(err.issues);
-    }
     return Errors.internal(err instanceof Error ? err.message : 'Unknown error');
   }
 }

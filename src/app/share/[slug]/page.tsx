@@ -431,10 +431,11 @@ function EndpointTestPanel({
             {/* Request Body */}
             {needsBody && (
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                <label htmlFor={`share-test-body-${endpoint.id}`} className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                   请求体 (JSON)
                 </label>
                 <textarea
+                  id={`share-test-body-${endpoint.id}`}
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   placeholder='{"key": "value"}'
