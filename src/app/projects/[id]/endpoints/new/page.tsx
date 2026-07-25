@@ -549,7 +549,7 @@ export default function NewEndpointPage() {
                   id="endpoint-delay"
                   type="number"
                   value={form.delayMs}
-                  onChange={(e) => setForm((prev) => ({ ...prev, delayMs: parseInt(e.target.value) || 0 }))}
+                  onChange={(e) => setForm((prev) => ({ ...prev, delayMs: Math.max(0, parseInt(e.target.value) || 0) }))}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                   min={0}
                   placeholder="0"
@@ -628,7 +628,7 @@ export default function NewEndpointPage() {
                   <select
                     id="endpoint-status-code"
                     value={form.statusCode}
-                    onChange={(e) => setForm((prev) => ({ ...prev, statusCode: parseInt(e.target.value) }))}
+                    onChange={(e) => setForm((prev) => ({ ...prev, statusCode: parseInt(e.target.value) || 200 }))}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                     disabled={loading}
                   >
