@@ -37,6 +37,7 @@ export default function NewProjectPage() {
 
   // Slug 校验状态
   const [slugStatus, setSlugStatus] = useState<SlugValidationStatus>('idle');
+  const [slugReason, setSlugReason] = useState<'reserved' | 'exists' | undefined>(undefined);
   const slugValidationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const slugAbortControllerRef = useRef<AbortController | null>(null);
 
@@ -108,6 +109,8 @@ export default function NewProjectPage() {
         const result = await projectsApi.checkSlug(slug, controller.signal);
         if (controller.signal.aborted) return;
         setSlugStatus(result.available ? 'available' : 'exists');
+        // FE7:区分 reserved(保留字)与 exists(已被占用),避免误显"已被使用"
+        setSlugReason(!result.available ? (result.reason ?? 'exists') : undefined);
       } catch (err) {
         // 被新校验或 unmount 中止时静默忽略，不更新状态
         if (controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) {
@@ -385,7 +388,7 @@ export default function NewProjectPage() {
                     <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
-                    此 Slug 已被使用，请更换
+                    此 Slug {slugReason === 'reserved' ? '为保留字' : '已被使用'}，请更换
                   </p>
                 )}
                 {errors.slug && slugStatus !== 'exists' && (

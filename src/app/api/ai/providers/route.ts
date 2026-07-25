@@ -37,19 +37,24 @@ export async function GET(_request: NextRequest) {
     });
 
     // 不返回 apiKey
-    const safeProviders = providers.map((p) => ({
+    const safeProviders = providers.map((p) => {
+      // A14:safe parse models,坏数据返空数组而非让整个列表 500
+      let models: string[] = [];
+      try { models = JSON.parse(p.models); } catch { /* 坏数据返空 */ }
+      return {
       id: p.id,
       name: p.name,
       provider: p.provider,
       baseUrl: p.baseUrl,
-      models: JSON.parse(p.models),
+      models,
       defaultModel: p.defaultModel,
       systemPrompt: p.systemPrompt,
       isActive: p.isActive === 1,
       isDefault: p.isDefault === 1,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
-    }));
+      };
+    });
 
     return success(safeProviders);
   } catch (err: unknown) {
