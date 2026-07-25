@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { responses, endpoints } from '@/lib/schema';
 import { eq, and } from 'drizzle-orm';
+import { runInTransaction } from '@/lib/db-transaction';
 
 // ============================================
 // Schema
@@ -146,17 +147,21 @@ export async function PATCH(
       updateData.matchRules = JSON.stringify(data.matchRules);
     }
 
-    // 如果设置为默认响应，需要清除其他响应的默认标记
-    if (data.isDefault === true) {
-      await db.update(responses)
-        .set({ isDefault: 0, updatedAt: now })
-        .where(and(eq(responses.endpointId, endpointId)));
-    }
-
-    // 更新响应
-    await db.update(responses)
-      .set(updateData)
-      .where(and(eq(responses.id, responseId), eq(responses.endpointId, endpointId)));
+    // "清全部默认 + update 当前行"包事务,防并发互覆盖(R4)
+    await runInTransaction(
+      (tx) => {
+        if (data.isDefault === true) {
+          tx.update(responses).set({ isDefault: 0, updatedAt: now }).where(eq(responses.endpointId, endpointId)).run();
+        }
+        tx.update(responses).set(updateData).where(and(eq(responses.id, responseId), eq(responses.endpointId, endpointId))).run();
+      },
+      async (tx) => {
+        if (data.isDefault === true) {
+          await tx.update(responses).set({ isDefault: 0, updatedAt: now }).where(eq(responses.endpointId, endpointId));
+        }
+        await tx.update(responses).set(updateData).where(and(eq(responses.id, responseId), eq(responses.endpointId, endpointId)));
+      },
+    );
 
     // 获取更新后的响应
     const updatedList = await db

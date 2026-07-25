@@ -13,6 +13,7 @@ import { endpoints, responses, projects } from '@/lib/schema';
 import type { HttpMethod } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { invalidateEndpointCache } from '@/lib/endpoint-cache';
+import { runInTransaction } from '@/lib/db-transaction';
 
 // ============================================
 // 类型定义
@@ -119,16 +120,19 @@ async function batchCreateEndpoints(
   }
 
   try {
-    // 批量 insert（无事务：better-sqlite3 的 transaction 是 sync callback，
-    // 不能装 await；批量 insert 已显著减少 N+M → 2 次 query，atomicity 损失
-    // 可接受，import 是低频操作）
-    if (endpointInserts.length > 0) {
-      await db.insert(endpoints).values(endpointInserts);
-      invalidateEndpointCache(projectId);
-    }
-    if (responseInserts.length > 0) {
-      await db.insert(responses).values(responseInserts);
-    }
+    // 批量 insert 包事务:任一失败整体回滚,不留无响应的半成品端点(I1)
+    // 用 runInTransaction 封装双栈(sqlite sync / mysql async)差异
+    await runInTransaction(
+      (tx) => {
+        if (endpointInserts.length > 0) tx.insert(endpoints).values(endpointInserts).run();
+        if (responseInserts.length > 0) tx.insert(responses).values(responseInserts).run();
+      },
+      async (tx) => {
+        if (endpointInserts.length > 0) await tx.insert(endpoints).values(endpointInserts);
+        if (responseInserts.length > 0) await tx.insert(responses).values(responseInserts);
+      },
+    );
+    if (endpointInserts.length > 0) invalidateEndpointCache(projectId);
     result.created = toCreate.length;
   } catch (e: unknown) {
     result.errors.push(`Batch insert failed: ${e instanceof Error ? e.message : String(e)}`);
