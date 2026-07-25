@@ -219,7 +219,13 @@ export default function NewProjectPage() {
 
     // 检查 slug 是否可用
     if (slugStatus !== 'available' && slugStatus !== 'idle') {
-      toastError(slugStatus === 'exists' ? '该 Slug 已被使用' : '请等待 Slug 验证完成');
+      toastError(
+        slugStatus === 'exists'
+          ? (slugReason === 'reserved' ? '该 Slug 为保留字，请更换' : '该 Slug 已被使用')
+          : slugStatus === 'error'
+            ? 'Slug 格式无效，请检查'
+            : '请等待 Slug 验证完成'
+      );
       return;
     }
 

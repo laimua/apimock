@@ -100,8 +100,9 @@ async function generateWithProvider(prompt: string, count: number, provider: typ
   // 解密 API Key
   const apiKey = decrypt(provider.apiKey);
 
-  // 解析 models
-  const models = JSON.parse(provider.models);
+  // 解析 models(A18:safe parse,坏数据返空数组而非 500)
+  let models: string[] = [];
+  try { models = JSON.parse(provider.models); } catch { /* 坏数据返空 */ }
   const modelToUse = provider.defaultModel || models[0];
 
   // SSRF 校验

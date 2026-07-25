@@ -71,8 +71,9 @@ export async function POST(
       return Errors.internal('Failed to decrypt API key');
     }
 
-    // 解析 models
-    const models = JSON.parse(provider.models);
+    // 解析 models(A18:safe parse,坏数据返空数组而非 500)
+    let models: string[] = [];
+    try { models = JSON.parse(provider.models); } catch { /* 坏数据返空 */ }
     const modelToTest = provider.defaultModel || models[0];
 
     // SSRF 校验
