@@ -99,6 +99,8 @@ return toResponseObj(endpoint, fallback);  // 导入的 isDefault 响应永远�
 `src/lib/db-sqlite.ts:20-23` 只设了 WAL，未执行 `PRAGMA foreign_keys = ON`（SQLite 默认 OFF，按连接生效）。`ON DELETE cascade`（`drizzle/0000_moaning_leopardon.sql:16,49`）不生效，删项目/端点后 endpoints/responses/requests 全成孤儿；MySQL 栈正常 → 双栈行为不一致。
 **修复**：建连后加 `sqliteDb.pragma('foreign_keys = ON')`，并补一次性清理孤儿行的迁移。
 
+**复核注记(段 C 验收,2026-07-26)**：验收时实测发现 `better-sqlite3@12.10.0`(本项目锁定版本)在打开连接时由**驱动层主动置 `foreign_keys=ON`**(5/5 稳定,级联实证生效),非 SQLite 引擎原生默认(引擎原生仍 OFF,上面"SQLite 默认 OFF"指引擎语义,无误)。故本条描述的"级联删除全部失效"在当前依赖版本下**生产中并未实际触发**。但修复仍正确且必要:① 显式 pragma 文档化意图;② 驱动版本变更/换库会失效(此便利行为非 SQLite 语义保证);③ 清理 FK OFF 期间(如 legacy `scripts/migrate.ts` 路径)可能残留的存量孤儿。**维持 P1**(成本极低 + 防御性正确 + 双栈一致性),但"实际触发"层面如实降级为"潜在风险"。
+
 **P1-5 404 请求记录（endpointId=NULL）永不查询、永不清理 → 表无限增长**
 - mock 未命中写 `recordRequest(null, ...)`（`[project]/[...path]/route.ts:353-354`）；项目级 requests GET/DELETE 用 `inArray(endpointId, ids)`（`requests/route.ts:71,222-225`），NULL 行永不匹配；requests 表无 projectId 列，无法关联无法清理。
 - `src/lib/request-retention.ts:43-48` 的自连接 `ON r2.endpoint_id = r1.endpoint_id` 对 NULL 永假 → NULL 行 COUNT 恒 0，永远排不进 keep 之后，**prune 对它们永不删除**。

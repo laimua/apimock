@@ -29,6 +29,13 @@
       "when": 1776000000000,
       "tag": "0003_is_shareable",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784999247421,
+      "tag": "0004_orphan_cleanup",
+      "breakpoints": true
     }
   ]
 }
