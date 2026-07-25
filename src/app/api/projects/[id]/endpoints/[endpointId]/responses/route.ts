@@ -11,6 +11,7 @@ import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { responses, endpoints } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+import { runInTransaction } from '@/lib/db-transaction';
 
 // ============================================
 // Schema
@@ -125,13 +126,6 @@ export async function POST(
       ? (typeof data.body === 'string' ? data.body : JSON.stringify(data.body))
       : null;
 
-    // 如果设置为默认响应，需要清除其他响应的默认标记
-    if (data.isDefault) {
-      await db.update(responses)
-        .set({ isDefault: 0, updatedAt: now })
-        .where(eq(responses.endpointId, endpointId));
-    }
-
     const newResponse = {
       id: responseId,
       endpointId,
@@ -148,7 +142,21 @@ export async function POST(
       updatedAt: now,
     };
 
-    await db.insert(responses).values(newResponse);
+    // 设默认时"清其它默认 + insert 新行"包事务,防并发留多默认(R3)
+    await runInTransaction(
+      (tx) => {
+        if (data.isDefault) {
+          tx.update(responses).set({ isDefault: 0, updatedAt: now }).where(eq(responses.endpointId, endpointId)).run();
+        }
+        tx.insert(responses).values(newResponse).run();
+      },
+      async (tx) => {
+        if (data.isDefault) {
+          await tx.update(responses).set({ isDefault: 0, updatedAt: now }).where(eq(responses.endpointId, endpointId));
+        }
+        await tx.insert(responses).values(newResponse);
+      },
+    );
 
     // 解析用于返回
     let parsedBody: unknown = null;
