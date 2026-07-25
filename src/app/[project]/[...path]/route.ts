@@ -11,7 +11,7 @@ import { responses, requests } from '@/lib/schema';
 import type { Endpoint, Response, HttpMethod } from '@/lib/schema';
 import { eq, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
-import { isBodyTooLarge, utf8ByteLength } from '@/lib/body-size-limit';
+import { isBodyTooLarge, readBodyWithLimit } from '@/lib/body-size-limit';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/client-ip';
 import { getCachedProject } from '@/lib/project-cache';
@@ -318,25 +318,30 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
   }
 
   // 获取请求体（用于记录）+ 大小守卫（覆盖所有 content-type）
+  // 流式守卫：通过 `request.clone()` 读取 clone 的 body，
+  // 原 request 不被消费，下游（如需 request.json()/text()）仍可用。
+  // 流式读取在累计字节超 MAX_BODY_BYTES 时立即 cancel + 413，
+  // 堵住 `Transfer-Encoding: chunked`（无 content-length）绕过 fast-path 的内存放大。
   let requestBody: unknown = null;
   const contentType = request.headers.get('content-type');
   if (contentType?.includes('application/json')) {
     try {
       const cloned = request.clone();
-      const rawText = await cloned.text();
-      if (isBodyTooLarge(utf8ByteLength(rawText))) {
-        return makePayloadTooLarge();
+      // cloned.body 在 GET/HEAD 等无 body 场景可能为 null；非 JSON 分支已隔离，此处 JSON 必有 body
+      if (cloned.body) {
+        const { tooLarge, text: rawText } = await readBodyWithLimit(cloned.body);
+        if (tooLarge) {
+          return makePayloadTooLarge();
+        }
+        requestBody = JSON.parse(rawText);
       }
-      requestBody = JSON.parse(rawText);
     } catch {
       // 忽略解析错误
     }
   } else if (method !== 'GET' && method !== 'HEAD' && declaredContentLength > 0) {
-    // 非 JSON 请求：仅当 content-length 超标时拒绝（不全量读 body）
-    if (isBodyTooLarge(declaredContentLength)) {
-      return makePayloadTooLarge();
-    }
-    // 不读取 body（不必要且浪费内存）；如需记录可后续按需 stream
+    // 非 JSON 请求：content-length 超标时拒绝（不全量读 body）。
+    // fast-path(:316) 已对 declaredContentLength 做过同样判断，此处不再重复，
+    // 仅保留分支用于未来按需 stream 非 JSON body 的扩展位。
   }
 
   // 构建请求 headers map（小写 key）
