@@ -102,17 +102,28 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-900 dark:text-white">请求记录</h2>
-            {requests.length > 0 && (
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
-                variant="danger"
+                variant="secondary"
                 size="sm"
-                onClick={() => setShowClearDialog(true)}
-                disabled={clearing}
+                onClick={loadRequests}
+                disabled={loading}
               >
-                清空记录
+                刷新
               </Button>
-            )}
+              {requests.length > 0 && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setShowClearDialog(true)}
+                  disabled={clearing}
+                >
+                  清空记录
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardBody>
