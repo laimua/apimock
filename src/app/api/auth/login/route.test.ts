@@ -7,7 +7,7 @@
  * mock next/headers.cookies 以验证 cookie 种植，不引入 Next 运行时。
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 // vi.mock 被 hoist；用 vi.hoisted 暴露 mock store 给测试断言

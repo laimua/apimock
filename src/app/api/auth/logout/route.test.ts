@@ -4,7 +4,7 @@
  * 验证：删除 cookie + 返 200。mock next/headers.cookies 断言 delete 调用。
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const { cookieStore } = vi.hoisted(() => ({
   cookieStore: {

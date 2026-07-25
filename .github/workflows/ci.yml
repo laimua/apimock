@@ -77,6 +77,8 @@ jobs:
       NODE_ENV: test
       DB_TYPE: sqlite
       SQLITE_PATH: ./data/apimock-ci.db
+      # G1 鉴权:E2E 需登录才能访问管理面。globalSetup 用此 token 登录种 cookie
+      MANAGE_TOKEN: ci-e2e-manage-token
 
     steps:
       - name: Checkout
@@ -99,6 +101,9 @@ jobs:
 
       - name: Ensure data dir exists
         run: mkdir -p ./data
+
+      - name: Ensure e2e auth dir exists (G1 storageState)
+        run: mkdir -p ./e2e/.auth
 
       - name: Sync DB schema (drizzle-kit push，CI 一次性环境比 migrate 更稳)
         run: pnpm db:push
