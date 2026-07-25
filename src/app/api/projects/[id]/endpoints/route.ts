@@ -51,8 +51,10 @@ export async function GET(
 
   // 解析查询参数
   const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const pageSize = parseInt(searchParams.get('pageSize') || '20', 10);
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  // pageSize 上限保护(防 DoS:无上限可一次拉巨量数据)
+  const rawPageSize = parseInt(searchParams.get('pageSize') || '20', 10) || 20;
+  const pageSize = Math.min(Math.max(1, rawPageSize), 200);
   const search = searchParams.get('search') || '';
   const method = searchParams.get('method') || '';
   const tag = searchParams.get('tag') || '';

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { projectsApi, endpointsApi, projectRequestsApi, Project, Endpoint, ApiError, ListEndpointsResponse, RequestRecord } from '@/lib/api-client';
+import { projectsApi, endpointsApi, projectRequestsApi, Project, Endpoint, ApiError, RequestRecord } from '@/lib/api-client';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -511,17 +511,9 @@ function ProjectPageInner() {
 
       setProject(projectData);
 
-      // 判断返回的是分页数据还是数组（向后兼容）
-      if (endpointsData && typeof endpointsData === 'object' && 'items' in endpointsData) {
-        const paginatedData = endpointsData as ListEndpointsResponse;
-        setEndpoints(paginatedData.items);
-        setTotal(paginatedData.total);
-      } else {
-        // 向后兼容：直接是数组的情况
-        const endpointArray = endpointsData as Endpoint[];
-        setEndpoints(endpointArray);
-        setTotal(endpointArray.length);
-      }
+      // 统一分页形状(G4:endpointsApi.list 始终返回 ListEndpointsResponse)
+      setEndpoints(endpointsData.items);
+      setTotal(endpointsData.total);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '加载失败');
     } finally {
@@ -546,9 +538,7 @@ function ProjectPageInner() {
       ]);
       setRequests(data.items);
       setRequestsTotal(data.total);
-      const allEndpoints = (allEndpointsResp && typeof allEndpointsResp === 'object' && 'items' in allEndpointsResp
-        ? (allEndpointsResp as ListEndpointsResponse).items
-        : (allEndpointsResp as Endpoint[]));
+      const allEndpoints = allEndpointsResp.items;
       setRequestFilterEndpoints(allEndpoints);
     } catch (err: unknown) {
       toastError(err instanceof Error ? err.message : '加载请求记录失败');

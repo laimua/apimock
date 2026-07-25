@@ -188,6 +188,7 @@ export default function EditEndpointPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
@@ -421,6 +422,7 @@ export default function EditEndpointPage() {
   }
 
   async function handleDelete() {
+    setDeleting(true);
     try {
       await endpointsApi.delete(projectId, endpointId);
       success('端点已删除');
@@ -432,6 +434,8 @@ export default function EditEndpointPage() {
         toastError('删除失败');
       }
       setShowDeleteDialog(false);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -564,9 +568,10 @@ export default function EditEndpointPage() {
         isOpen={showDeleteDialog}
         title="删除端点"
         message="确定要删除此端点吗？此操作无法撤销。"
-        confirmText="删除"
+        confirmText={deleting ? '删除中...' : '删除'}
         cancelText="取消"
         variant="danger"
+        confirmDisabled={deleting}
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteDialog(false)}
       />
@@ -759,7 +764,7 @@ export default function EditEndpointPage() {
                       id="endpoint-delay"
                       type="number"
                       value={form.delayMs}
-                      onChange={(e) => setForm((prev) => ({ ...prev, delayMs: parseInt(e.target.value) || 0 }))}
+                      onChange={(e) => setForm((prev) => ({ ...prev, delayMs: Math.max(0, parseInt(e.target.value) || 0) }))}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                       min={0}
                       disabled={saving}
@@ -952,7 +957,7 @@ export default function EditEndpointPage() {
                         id="endpoint-status-code"
                         data-testid="status-code-select"
                         value={form.statusCode}
-                        onChange={(e) => setForm((prev) => ({ ...prev, statusCode: parseInt(e.target.value) }))}
+                        onChange={(e) => setForm((prev) => ({ ...prev, statusCode: parseInt(e.target.value) || 200 }))}
                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                         disabled={saving}
                       >

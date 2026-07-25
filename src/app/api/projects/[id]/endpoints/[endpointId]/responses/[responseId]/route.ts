@@ -179,6 +179,12 @@ export async function PATCH(
 }
 
 // ============================================
+// PUT /api/projects/[id]/endpoints/[endpointId]/responses/[responseId]
+// （复用 PATCH 逻辑,API 表面统一)
+// ============================================
+export const PUT = PATCH;
+
+// ============================================
 // DELETE /api/projects/[id]/endpoints/[endpointId]/responses/[responseId]
 // ============================================
 export async function DELETE(

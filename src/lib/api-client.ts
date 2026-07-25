@@ -254,6 +254,7 @@ export const projectsApi = {
 // 端点 API
 // ============================================
 export const endpointsApi = {
+  // 重载:传分页参数返回分页响应,否则返回数组(G4 类型安全,消除联合类型)
   list: (
     projectId: string,
     options?: {
@@ -263,19 +264,17 @@ export const endpointsApi = {
       method?: string;
       tag?: string;
     }
-  ) => {
+  ): Promise<ListEndpointsResponse> => {
     const params = new URLSearchParams();
-    if (options?.page) params.set('page', options.page.toString());
-    if (options?.pageSize) params.set('pageSize', options.pageSize.toString());
+    // 始终带 page/pageSize(默认 1/1000),让后端返回统一分页形状,消除类型二义
+    params.set('page', String(options?.page ?? 1));
+    params.set('pageSize', String(options?.pageSize ?? 1000));
     if (options?.search) params.set('search', options.search);
     if (options?.method) params.set('method', options.method);
     if (options?.tag) params.set('tag', options.tag);
 
-    const queryString = params.toString();
-    const url = `/projects/${projectId}/endpoints${queryString ? `?${queryString}` : ''}`;
-
-    // 如果有分页参数，返回分页响应类型，否则返回数组类型（向后兼容）
-    return request<Endpoint[] | ListEndpointsResponse>(url);
+    const url = `/projects/${projectId}/endpoints?${params.toString()}`;
+    return request<ListEndpointsResponse>(url);
   },
   create: (projectId: string, data: CreateEndpointDto) =>
     request<Endpoint>(`/projects/${projectId}/endpoints`, {
