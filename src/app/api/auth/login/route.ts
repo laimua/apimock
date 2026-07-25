@@ -24,7 +24,7 @@ const LOGIN_RATE_LIMIT = 10;
 export async function POST(request: NextRequest) {
   // 限流(防暴力撞 token)
   const ip = getClientIp(request.headers) ?? 'unknown';
-  const rl = await rateLimit(`login:${ip}`, LOGIN_RATE_LIMIT);
+  const rl = await rateLimit(`login:${ip}`, LOGIN_RATE_LIMIT, 60, 'login');
   if (!rl.allowed) {
     return error('RATE_LIMITED', 'Too many login attempts, try again later', 429);
   }

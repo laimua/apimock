@@ -221,7 +221,7 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
 
   // 限流：100 req/min/IP
   const clientIp = ip || 'unknown';
-  const rl = await rateLimit(`mock:${clientIp}`, MOCK_RATE_LIMIT);
+  const rl = await rateLimit(`mock:${clientIp}`, MOCK_RATE_LIMIT, 60, 'mock');
   if (!rl.allowed) {
     rateLimitRejectedTotal.inc({ kind: 'mock' });
     return NextResponse.json(
