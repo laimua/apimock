@@ -93,7 +93,11 @@ async function batchCreateEndpoints(
       tags: '[]',
       statusCode: 200,
       contentType: 'application/json',
-      responseBody: '{}',
+      // P1-2 修复：导入时 responseBody 置 null，让 mock 路由的 fallback 链路生效，
+      // 由 responses 表的 isDefault 响应承载真实示例体。原值 '{}' 会因求值顺序
+      // （端点级 responseBody 在 responses fallback 之前返回）恒抢占，导致导入端点永远返回 '{}'。
+      // 详见 docs/CODE-REVIEW-2026-07-25.md P1-2 节。
+      responseBody: null,
       createdAt: now,
       updatedAt: now,
     });

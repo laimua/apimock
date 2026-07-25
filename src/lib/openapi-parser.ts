@@ -52,26 +52,57 @@ export function parseOpenAPIFile(content: string, format: 'yaml' | 'json'): Json
 }
 
 /**
+ * 循环引用检测：深度上限（防超深嵌套/意外退化为链表的情况）
+ */
+const RESOLVE_DEPTH_LIMIT = 50;
+
+/**
  * T5: Resolve all $ref references in the document
  * Recursively finds and resolves JSON References like #/components/schemas/Xxx
- * @param doc - OpenAPI document node
+ *
+ * 实现要点（P1-1 修复）：
+ *   1. **root 参数透传**：首次调用传入文档根，递归到 `$ref` 节点时用 **root** 而非当前节点
+ *      去查 pointer，否则 `#/components/schemas/X` 永远在当前节点下查不到 → 静默返回 `{$ref}`。
+ *   2. **循环 guard 用「解析栈」**：记录当前正在解析的 $ref 指针路径（Set），进入 push / 退出 pop。
+ *      这样 DAG 共享引用（同一 schema 被多个属性引用，但不在同一条解析链上）**不会被误杀**，
+ *      只有真环（同一 pointer 在同一条解析链上重复出现）才断。codex 重点关注项 ①。
+ *   3. **深度上限**：防超深嵌套或意外退化的兜底。
+ *
+ * @param doc - OpenAPI 文档（首次调用）或子节点（递归）
+ * @param root - 文档根（用于 $ref 指针查找）；省略时等价于 doc
+ * @param stack - 解析栈（内部用，外部不传）
+ * @param depth - 当前递归深度（内部用，外部不传）
  * @returns Node with all references resolved
  */
-export function resolveRefs(doc: JsonValue): JsonValue {
+export function resolveRefs(
+  doc: JsonValue,
+  root?: JsonValue,
+  stack?: Set<string>,
+  depth?: number,
+): JsonValue {
+  const rootDoc = root ?? doc;
+  const seen = stack ?? new Set<string>();
+  const d = depth ?? 0;
+
+  if (d > RESOLVE_DEPTH_LIMIT) {
+    // 超深嵌套：避免极端/退化输入导致栈溢出
+    return doc;
+  }
+
   if (doc === null || typeof doc !== 'object') {
     return doc;
   }
 
   // Handle arrays
   if (Array.isArray(doc)) {
-    return doc.map(item => resolveRefs(item));
+    return doc.map(item => resolveRefs(item, rootDoc, seen, d + 1));
   }
 
   // Handle $ref
   if ('$ref' in doc) {
     const refPath = doc.$ref;
-    if (typeof refPath === 'string' && refPath.startsWith('#/')) {
-      return resolveRefPointer(doc, refPath);
+    if (typeof refPath === 'string' && refPath.startsWith('#')) {
+      return resolveRefPointer(rootDoc, refPath, seen, d);
     }
     return doc;
   }
@@ -79,17 +110,41 @@ export function resolveRefs(doc: JsonValue): JsonValue {
   // Recursively resolve refs in object properties
   const result: JsonObject = {};
   for (const [key, value] of Object.entries(doc)) {
-    result[key] = resolveRefs(value);
+    result[key] = resolveRefs(value, rootDoc, seen, d + 1);
   }
   return result;
 }
 
 /**
  * Resolve a JSON Pointer reference (e.g., #/components/schemas/User)
+ *
+ * P1-1 + P2-18 修复：
+ *   - **root 参数**：始终用文档根做查找（由调用方透传）。
+ *   - **空 pointer（P2-18）**：`{"$ref":"#"}` 或 `"#/"` → parts 为空 → 直接返回根节点本身，
+ *     避免对自身无限递归导致 RangeError。
+ *   - **循环 guard（解析栈）**：进入时把 pointer 推入 stack，退出时弹出。
+ *     若 pointer 已在 stack 中 → 真环，返回原 `{$ref}` 节点（不断、不抛、不死循环）。
+ *     DAG 共享引用（同一 schema 被多个属性引用）因不在同一条解析链上，**不会**误杀。
  */
-function resolveRefPointer(rootDoc: JsonValue, pointer: string): JsonValue {
-  // Remove leading # and split by /
+function resolveRefPointer(
+  rootDoc: JsonValue,
+  pointer: string,
+  stack: Set<string>,
+  depth: number,
+): JsonValue {
+  // P2-18：parts 为空（"#"/"#/"）→ 返回根节点本身，不递归调用 resolveRefs(rootDoc)
+  // （否则 rootDoc === root 会在 resolveRefs 内对 root 自身递归 → 无限循环 → RangeError）
   const parts = pointer.substring(1).split('/').filter(Boolean);
+
+  // 真环检测：同一 pointer 在当前解析链上重复出现 → 断开，返回原 {$ref}
+  if (stack.has(pointer)) {
+    return { $ref: pointer };
+  }
+
+  if (parts.length === 0) {
+    // 指向根：直接返回根节点本身（不再向下 resolve，避免 root→root 无限递归）
+    return rootDoc;
+  }
 
   let current: JsonValue = rootDoc;
   for (const part of parts) {
@@ -101,8 +156,13 @@ function resolveRefPointer(rootDoc: JsonValue, pointer: string): JsonValue {
     }
   }
 
-  // Recursively resolve refs in the referenced value
-  return resolveRefs(current);
+  // Recursively resolve refs in the referenced value（入栈/出栈 guard DAG vs 环）
+  stack.add(pointer);
+  try {
+    return resolveRefs(current, rootDoc, stack, depth + 1);
+  } finally {
+    stack.delete(pointer);
+  }
 }
 
 /**

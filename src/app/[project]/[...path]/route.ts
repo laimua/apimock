@@ -8,7 +8,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { responses, requests } from '@/lib/schema';
-import type { Endpoint, Response, HttpMethod } from '@/lib/schema';
+import type { Endpoint, HttpMethod } from '@/lib/schema';
 import { eq, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { isBodyTooLarge, readBodyWithLimit } from '@/lib/body-size-limit';
@@ -17,6 +17,7 @@ import { getClientIp } from '@/lib/client-ip';
 import { getCachedProject } from '@/lib/project-cache';
 import { getCachedEndpointsByMethod } from '@/lib/endpoint-cache';
 import { mockRequestsTotal, mockRequestDuration, rateLimitRejectedTotal } from '@/lib/metrics';
+import { selectResponse } from '@/lib/mock-response-selector';
 
 // Mock 服务限流：100 req/min/IP
 const MOCK_RATE_LIMIT = 100;
@@ -87,83 +88,9 @@ async function recordRequest(
 }
 
 // ============================================
-// 解析响应体
+// matchRules 匹配评估（已抽到 src/lib/mock-response-selector.ts，供单测覆盖）
+// route.ts 仅保留 buildEndpointResponse 的 DB 查询 + 装配；选择逻辑委派 selectResponse
 // ============================================
-function parseJsonSafe(raw: string | null | undefined): unknown {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return raw;
-  }
-}
-
-// ============================================
-// matchRules 匹配评估
-// ============================================
-type MatchRules = { query?: Record<string, string>; header?: Record<string, string> };
-
-function parseMatchRules(raw: string | null | undefined): MatchRules {
-  if (!raw || raw === '{}' || raw === '') return {};
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed === 'object' && parsed !== null) return parsed;
-  } catch { /* ignore */ }
-  return {};
-}
-
-function hasRules(rules: MatchRules): boolean {
-  const qLen = Object.keys(rules.query || {}).length;
-  const hLen = Object.keys(rules.header || {}).length;
-  return qLen + hLen > 0;
-}
-
-function matchRule(
-  rules: MatchRules,
-  requestQuery: Record<string, string>,
-  requestHeaders: Record<string, string>
-): boolean {
-  if (rules.query) {
-    for (const [key, value] of Object.entries(rules.query)) {
-      if (requestQuery[key] !== value) return false;
-    }
-  }
-  if (rules.header) {
-    const lowerHeaders: Record<string, string> = {};
-    for (const [k, v] of Object.entries(requestHeaders)) {
-      lowerHeaders[k.toLowerCase()] = v;
-    }
-    for (const [key, value] of Object.entries(rules.header)) {
-      if (lowerHeaders[key.toLowerCase()] !== value) return false;
-    }
-  }
-  return true;
-}
-
-type ResponseSource = { statusCode: number | null; contentType: string | null; headers: string | null; body: string | null } | null;
-
-function toResponseObj(endpoint: Endpoint, resp: ResponseSource): { endpoint: Endpoint; response: { statusCode: number; contentType: string; headers: Record<string, string>; body: unknown }; delay: number } {
-  let parsedHeaders: Record<string, string> = {};
-  if (resp?.headers) {
-    try {
-      parsedHeaders = typeof resp.headers === 'string'
-        ? JSON.parse(resp.headers)
-        : resp.headers;
-    } catch {
-      parsedHeaders = {};
-    }
-  }
-  return {
-    endpoint,
-    response: {
-      statusCode: resp?.statusCode || 200,
-      contentType: resp?.contentType || 'application/json',
-      headers: parsedHeaders,
-      body: parseJsonSafe(resp?.body),
-    },
-    delay: endpoint.delayMs || 0,
-  };
-}
 
 // ============================================
 // 构建 endpoint 的 mock 响应
@@ -173,46 +100,46 @@ async function buildEndpointResponse(
   requestQuery: Record<string, string>,
   requestHeaders: Record<string, string>
 ): Promise<{ endpoint: Endpoint; response: { statusCode: number; contentType: string; headers: Record<string, string>; body: unknown }; delay: number }> {
-  // 查找 responses 表（规则匹配优先于端点级 responseBody）
+  // 查找 responses 表（按 priority desc；P2-13 已知次级键缺失，本路由暂不改）
   const responseList = await db
     .select()
     .from(responses)
     .where(eq(responses.endpointId, endpoint.id))
     .orderBy(desc(responses.priority));
 
-  // 分组：规则匹配 > 默认 > 无规则
-  let matched: Response | null = null;
-  let fallback: Response | null = null;
-
-  for (const resp of responseList) {
-    const rules = parseMatchRules(resp.matchRules);
-
-    if (hasRules(rules)) {
-      if (!matched && matchRule(rules, requestQuery, requestHeaders)) {
-        matched = resp;
-      }
-    } else if (resp.isDefault) {
-      if (!fallback) fallback = resp;
-    } else if (!fallback) {
-      fallback = resp;
-    }
-  }
-
-  if (matched) {
-    return toResponseObj(endpoint, matched);
-  }
-
-  // 端点级 responseBody 作 fallback（responses 无匹配或为空时使用）
-  if (endpoint.responseBody !== null && endpoint.responseBody !== undefined) {
-    return toResponseObj(endpoint, {
+  // 选择逻辑委派纯函数 selectResponse（P1-2/P1-3 抽离 + P1-3 修复 defaultResp 优先）。
+  // 语义保持：matched（规则命中）> 端点级 responseBody > responses fallback > 空 200。
+  // 选择内部 P1-3 修正：fallback 内 isDefault 优先于非默认无规则响应（不影响 matched 优先级）。
+  const sel = selectResponse(
+    {
+      responseBody: endpoint.responseBody,
       statusCode: endpoint.statusCode,
       contentType: endpoint.contentType,
-      headers: '{}',
-      body: endpoint.responseBody,
-    });
-  }
+      delayMs: endpoint.delayMs,
+    },
+    responseList.map((r) => ({
+      statusCode: r.statusCode,
+      contentType: r.contentType,
+      headers: r.headers,
+      body: r.body,
+      isDefault: r.isDefault,
+      priority: r.priority,
+      matchRules: r.matchRules,
+    })),
+    requestQuery,
+    requestHeaders,
+  );
 
-  return toResponseObj(endpoint, fallback);
+  return {
+    endpoint,
+    response: {
+      statusCode: sel.statusCode,
+      contentType: sel.contentType,
+      headers: sel.headers,
+      body: sel.body,
+    },
+    delay: sel.delay,
+  };
 }
 
 // ============================================

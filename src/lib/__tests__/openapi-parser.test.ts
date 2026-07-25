@@ -127,10 +127,17 @@ describe('resolveRefs', () => {
     const schema = (((paths['/users'] as Obj).get as Obj).responses as Obj)['200'] as Obj;
     const jsonContent = (schema.content as Obj)['application/json'] as Obj;
     const resolvedSchema = jsonContent.schema;
-    // The function returns a new object with refs resolved
-    expect(resolvedSchema).toBeDefined();
-    // Check that we get the resolved structure (not just $ref)
-    expect(typeof resolvedSchema).toBe('object');
+    // P1-1 强化断言：旧实现只断言 typeof === 'object'（{$ref} 也是 object，掩盖了 bug）。
+    // 现在必须解析出完整目标 schema（值相等），而不是 { $ref: '...' } 字面值。
+    expect(resolvedSchema).toEqual({
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        name: { type: 'string' },
+      },
+    });
+    // 并且不再含 $ref 字段
+    expect(resolvedSchema).not.toHaveProperty('$ref');
   });
 
   it('should resolve nested $ref', () => {
@@ -185,9 +192,11 @@ describe('resolveRefs', () => {
     // Verify the refs were resolved in the array
     expect(Array.isArray(data)).toBe(true);
     expect(data).toHaveLength(2);
-    // The refs should be resolved to the Item schema
-    expect(data[0]).toBeDefined();
-    expect(data[1]).toBeDefined();
+    // P1-1 强化：两个数组元素都应解析为目标 schema（值相等），而非 { $ref }
+    expect(data[0]).toEqual({ type: 'string' });
+    expect(data[1]).toEqual({ type: 'string' });
+    expect(data[0]).not.toHaveProperty('$ref');
+    expect(data[1]).not.toHaveProperty('$ref');
   });
 
   it('should preserve non-resolvable $ref', () => {
