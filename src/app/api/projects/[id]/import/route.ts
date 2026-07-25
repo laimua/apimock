@@ -98,6 +98,9 @@ async function batchCreateEndpoints(
       updatedAt: now,
     });
 
+    // I2:每个端点最多一个默认响应。原逻辑 statusCode===200 即设默认,
+    // 多个 200 响应会产生多个 isDefault=1。改为只把该端点第一个 200 设默认。
+    let first200ForEndpoint = true;
     for (const response of parsed.responses) {
       const bodyObj = (response.body && typeof response.body === 'object' && !Array.isArray(response.body))
         ? response.body as Record<string, unknown>
@@ -111,11 +114,12 @@ async function batchCreateEndpoints(
         headers: '{}',
         body: JSON.stringify(response.body),
         contentType: 'application/json',
-        isDefault: response.statusCode === 200 ? 1 : 0,
+        isDefault: response.statusCode === 200 && first200ForEndpoint ? 1 : 0,
         priority: 0,
         createdAt: now,
         updatedAt: now,
       });
+      if (response.statusCode === 200) first200ForEndpoint = false;
     }
   }
 
