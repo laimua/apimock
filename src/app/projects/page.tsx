@@ -41,7 +41,6 @@ export default function ProjectsPage() {
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
     // loadProjects 闭包读取最新 state，无需加入依赖
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadProjects() {
