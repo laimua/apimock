@@ -170,7 +170,9 @@ export default function NewEndpointPage() {
 
   // AI 生成响应数据
   const handleAiGenerated = (data: unknown) => {
-    setForm((prev) => ({ ...prev, responseBody: JSON.stringify(data, null, 2) }));
+    // FE23:防 undefined(AI 可能返空),JSON.stringify(undefined) 返 undefined 非字符串致 JsonEditor 崩
+    const jsonString = JSON.stringify(data ?? {}, null, 2);
+    setForm((prev) => ({ ...prev, responseBody: jsonString }));
   };
 
   // 应用模板
@@ -336,6 +338,18 @@ export default function NewEndpointPage() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-gray-500 dark:text-gray-400">加载中...</div>
+      </div>
+    );
+  }
+
+  // FE20:项目加载失败(404/网络错)时,不渲染表单,避免用户填完提交才报错
+  if (!project) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-gray-500 dark:text-gray-400 mb-4">项目不存在或加载失败</div>
+          <Link href="/projects" className="text-blue-600 dark:text-blue-400 hover:underline">返回项目列表</Link>
+        </div>
       </div>
     );
   }

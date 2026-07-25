@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Bot, Zap, Wrench } from 'lucide-react';
+import { DEMO_PROJECT_SLUG } from '@/lib/demo-seed';
 
 export default function HomePage() {
   return (
@@ -71,7 +72,7 @@ export default function HomePage() {
             </div>
             <div className="p-4 sm:p-6 bg-gray-900 text-green-400 font-mono text-xs sm:text-sm overflow-x-auto">
               <pre>{`# 获取用户列表
-$ curl http://localhost:3000/demo-project/users
+$ curl http://localhost:3000/${DEMO_PROJECT_SLUG}/users
 
 {
   "code": 0,

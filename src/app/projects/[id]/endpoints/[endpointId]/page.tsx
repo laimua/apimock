@@ -440,7 +440,8 @@ export default function EditEndpointPage() {
   }
 
   const handleAiGenerated = (data: unknown) => {
-    const jsonString = JSON.stringify(data, null, 2);
+    // FE23:防 undefined(AI 可能返空),JSON.stringify(undefined) 返 undefined 非字符串致 JsonEditor 崩
+    const jsonString = JSON.stringify(data ?? {}, null, 2);
     setForm((prev) => ({ ...prev, responseBody: jsonString }));
   };
 
