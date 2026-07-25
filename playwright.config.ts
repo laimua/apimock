@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  // G1 鉴权:globalSetup 登录种 cookie,所有测试共享(有 MANAGE_TOKEN 时)
+  globalSetup: process.env.MANAGE_TOKEN ? './e2e/global-setup.ts' : undefined,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -11,6 +13,8 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'html',
   use: {
     baseURL: 'http://localhost:3000',
+    // G1 鉴权:加载 globalSetup 存的 cookie(有 MANAGE_TOKEN 时)
+    storageState: process.env.MANAGE_TOKEN ? './e2e/.auth/state.json' : undefined,
     // 诊断模式：所有 run 都留 trace + screenshot + video，失败立即可查
     // 定位完测试问题后可收紧回 'on-first-retry'
     trace: 'on',

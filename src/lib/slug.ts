@@ -14,7 +14,7 @@ export const MAX_SLUG_LENGTH = 100;
  * 保留字：与 Next.js 顶层应用路由段冲突的 slug 必须拒绝。
  * slug 正则 `^[a-z0-9-]+$` 已天然排除带下划线的 `_next` 等。
  */
-export const RESERVED_SLUGS = ['api', 'projects', 'share', 'settings', 'demo-project'];
+export const RESERVED_SLUGS = ['api', 'projects', 'share', 'settings', 'demo-project', 'login', 'auth'];
 
 /**
  * 从项目名生成 slug：小写化 + 非 [a-z0-9] 替换为连字符 + 去首尾连字符。

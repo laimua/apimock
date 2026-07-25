@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Menu, X, Plus, Github } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Menu, X, Plus, Github, LogOut } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
 import { trackEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 
@@ -17,11 +17,26 @@ const GITHUB_REPO_URL = 'https://github.com/laimua/apimock';
 export default function GlobalHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   const isActive = (href: string) => pathname.startsWith(href);
+  // 登录页不显示退出按钮
+  const showLogout = pathname !== '/login';
 
   const handleGithubClick = () => {
     trackEvent(ANALYTICS_EVENTS.GITHUB_STAR_CLICK, { source: 'header' });
+  };
+
+  const handleLogout = async () => {
+    try {
+      const res = await fetch('/api/auth/logout', { method: 'POST' });
+      if (res.ok) {
+        setMobileOpen(false);
+        router.push('/');
+      }
+    } catch {
+      // 网络异常时保留登录态,不跳转
+    }
   };
 
   return (
@@ -67,6 +82,16 @@ export default function GlobalHeader() {
               <Plus className="w-4 h-4" />
               New Project
             </Link>
+            {showLogout && (
+              <button
+                onClick={handleLogout}
+                aria-label="退出登录"
+                className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                退出
+              </button>
+            )}
           </nav>
 
           <div className="flex items-center gap-2 sm:hidden">
@@ -115,6 +140,15 @@ export default function GlobalHeader() {
               <Plus className="w-4 h-4" />
               New Project
             </Link>
+            {showLogout && (
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 justify-center"
+              >
+                <LogOut className="w-4 h-4" />
+                退出
+              </button>
+            )}
           </nav>
         </div>
       )}

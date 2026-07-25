@@ -203,6 +203,13 @@ async function request<T>(
 
   const data = await response.json();
 
+  // 401:浏览器环境直接跳登录页(替代抛 ApiError,体验更好);SSR 环境仍走下方抛错
+  if (response.status === 401 && typeof window !== 'undefined') {
+    window.location.href = '/login';
+    // 挂起当前请求,避免跳转完成前调用方继续处理错误响应
+    return new Promise<T>(() => {});
+  }
+
   if (!response.ok || !data.success) {
     throw new ApiError(
       response.status,

@@ -39,3 +39,4 @@ scripts/memory-*.db
 
 # Claude Code 本地配置
 .claude/
+e2e/.auth/
