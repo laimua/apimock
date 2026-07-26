@@ -233,7 +233,10 @@ describe('AI Providers API', () => {
         apiKey: 'sk-test-key',
         models: ['gpt-4'],
         defaultModel: 'gpt-4',
-        baseUrl: 'https://api.openai.com/v1',
+        // 用公网 IP 字面量而非域名,避免依赖 live DNS(P2-27 补 198.18.0.0/15 后,
+        // 本机被污染的 DNS 把 api.openai.com 解析到 198.18.0.7 会被正确拦截)。
+        // IP 字面量绕过 dns.lookup,SSRF 校验直接走 isPrivateIPv4 公网放行。
+        baseUrl: 'https://1.1.1.1/v1',
         systemPrompt: 'You are a helpful assistant',
       };
 
@@ -246,7 +249,7 @@ describe('AI Providers API', () => {
       const data = await response.json();
 
       expect(response.status).toBe(201);
-      expect(data.data.baseUrl).toBe('https://api.openai.com/v1');
+      expect(data.data.baseUrl).toBe('https://1.1.1.1/v1');
       expect(data.data.systemPrompt).toBe('You are a helpful assistant');
     });
 

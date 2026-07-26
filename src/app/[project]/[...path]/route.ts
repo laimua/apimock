@@ -9,7 +9,7 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { responses, requests } from '@/lib/schema';
 import type { Endpoint, HttpMethod } from '@/lib/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, asc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { isBodyTooLarge, readBodyWithLimit } from '@/lib/body-size-limit';
 import { rateLimit } from '@/lib/rate-limit';
@@ -181,12 +181,13 @@ async function buildEndpointResponse(
   requestQuery: Record<string, string>,
   requestHeaders: Record<string, string>
 ): Promise<{ endpoint: Endpoint; response: { statusCode: number; contentType: string; headers: Record<string, string>; body: unknown }; delay: number }> {
-  // 查找 responses 表（按 priority desc；P2-13 已知次级键缺失，本路由暂不改）
+  // 查找 responses 表（按 priority desc；P2-13:加次级键 createdAt asc,
+  // priority 并列时按创建时间确定性排序——此前无次级键,并列时选哪条依赖存储顺序）
   const responseList = await db
     .select()
     .from(responses)
     .where(eq(responses.endpointId, endpoint.id))
-    .orderBy(desc(responses.priority));
+    .orderBy(desc(responses.priority), asc(responses.createdAt));
 
   // 选择逻辑委派纯函数 selectResponse（P1-2/P1-3 抽离 + P1-3 修复 defaultResp 优先）。
   // 语义保持：matched（规则命中）> 端点级 responseBody > responses fallback > 空 200。

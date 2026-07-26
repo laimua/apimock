@@ -19,6 +19,15 @@ const PRIVATE_RANGES: Array<{ start: number; end: number }> = [
   { start: 0xA9FE0000, end: 0xA9FEFFFF },
   // 0.0.0.0/8
   { start: 0x00000000, end: 0x00FFFFFF },
+  // P2-27:补四段内网/保留段(纵深防御,便宜)
+  // 100.64.0.0/10 (CGNAT RFC 6598,Tailscale/内网 NAT 常用)
+  { start: 0x64400000, end: 0x647FFFFF },
+  // 198.18.0.0/15 (RFC 2544 网络互联设备性能基准测试保留)
+  { start: 0xC6120000, end: 0xC613FFFF },
+  // 224.0.0.0/4 (RFC 5771 组播,mock 不应主动连接)
+  { start: 0xE0000000, end: 0xEFFFFFFF },
+  // 240.0.0.0/4 (RFC 1112 保留,含 255.255.255.255 有限广播)
+  { start: 0xF0000000, end: 0xFFFFFFFF },
 ];
 
 function ipv4ToInt(octets: number[]): number {

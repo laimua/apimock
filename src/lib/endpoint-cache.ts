@@ -9,7 +9,7 @@
 
 import { db } from '@/lib/db';
 import { endpoints } from '@/lib/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, asc } from 'drizzle-orm';
 
 type HttpMethod = string;
 
@@ -33,10 +33,15 @@ export async function getCachedEndpointsByMethod(
   }
   if (entry) cache.delete(k);
 
+  // P2-12:加 ORDER BY created_at 保证命中确定性。此前无 ORDER BY,
+  // 当多个参数模式同时命中(如 /:type/list 与 /admin/:page)时结果依赖
+  // 存储顺序,SQLite/MySQL 无保证 → 选择不确定。按 createdAt asc 取最早
+  // 创建的端点。更优的"按具体度(字面段数)优先"排序较复杂,留优化。
   const list = await db
     .select()
     .from(endpoints)
-    .where(and(eq(endpoints.projectId, projectId), eq(endpoints.method, method as typeof endpoints.method.enumValues[number])));
+    .where(and(eq(endpoints.projectId, projectId), eq(endpoints.method, method as typeof endpoints.method.enumValues[number])))
+    .orderBy(asc(endpoints.createdAt));
 
   cache.set(k, { list, expiresAt: now + TTL_MS });
   return list;
