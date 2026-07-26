@@ -20,6 +20,18 @@ end
 return cur
 `;
 
+// P2-32: INCRBY + 首次 EXPIRE（原子）。
+// after = INCRBY(key, by)；after === by 表示 key 是这次新建的（之前为 0）。
+// 仅新建时设 EXPIRE，已存在 key 再 incrby 不重置 TTL（与 INCR 路径语义一致）。
+const INCRBY_WITH_TTL_LUA = `
+local by = tonumber(ARGV[1])
+local after = redis.call('INCRBY', KEYS[1], by)
+if after == by and ARGV[2] then
+  redis.call('EXPIRE', KEYS[1], ARGV[2])
+end
+return after
+`;
+
 export async function createRedisKv(url: string): Promise<KVStore> {
   const client = new Redis(url, {
     lazyConnect: false,
@@ -36,6 +48,11 @@ export async function createRedisKv(url: string): Promise<KVStore> {
     lua: INCR_WITH_TTL_LUA,
   });
   await incrScript;
+  const incrbyScript = client.defineCommand('incrbyWithTtl', {
+    numberOfKeys: 1,
+    lua: INCRBY_WITH_TTL_LUA,
+  });
+  await incrbyScript;
 
   // pub/sub 用独立连接（ioredis 同连接 subscribe 后不能发普通命令）
   let subClient: Redis | null = null;
@@ -68,6 +85,12 @@ export async function createRedisKv(url: string): Promise<KVStore> {
         return Number(result);
       }
       if (by !== 1) {
+        if (ttlSec) {
+          // P2-32: 原子 INCRBY + 首次 EXPIRE（仅新建 key 设过期，已存在不重置）
+          // @ts-expect-error defineCommand 类型推断有限
+          const after = await client.incrbyWithTtl(key, String(by), String(ttlSec));
+          return Number(after);
+        }
         const after = await client.incrby(key, by);
         return Number(after);
       }

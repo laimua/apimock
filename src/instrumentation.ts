@@ -11,8 +11,15 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
 
   // OTel 必须最先启动（在其它模块 import 之前 patch HTTP/DB driver）
-  const { startOtelIfConfigured } = await import('./lib/otel');
-  startOtelIfConfigured();
+  // P2-35: OTLP 配置错误（坏 URL / 构造 exporter 抛错）不能让整个启动失败，
+  // 降级为 "OTel 禁用 + error log"，其余功能继续起。
+  try {
+    const { startOtelIfConfigured } = await import('./lib/otel');
+    startOtelIfConfigured();
+  } catch (err) {
+    const { logger } = await import('./lib/logger');
+    logger.error({ err }, 'OTel startup failed, continuing with OTel disabled');
+  }
 
   const { startCleanup } = await import('./lib/rate-limit');
   startCleanup();
