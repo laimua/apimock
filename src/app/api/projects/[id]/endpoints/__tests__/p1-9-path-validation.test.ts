@@ -4,8 +4,9 @@
  * 报告:`endpoints/route.ts:20` 与 `[endpointId]/route.ts:21` 的 zod 仅 min(1).max(500),
  * 导致 `users`(无前导斜杠)与 `/users/`(尾斜杠)可被创建但**永不匹配** mock 请求。
  *
- * 本测试用真实 SQLite(测试默认数据源)起 project + endpoint,直接调路由 handler,
- * 验证 zod regex 拒绝非法路径、允许合法路径,且 PUT 改 path 撞唯一索引返回 409 而非 500。
+ * 本测试用真实 better-sqlite3 + :memory: 库 + 自建 schema 起 project + endpoint,
+ * 直接调路由 handler,验证 zod regex 拒绝非法路径、允许合法路径,且 PUT 改 path
+ * 撞唯一索引返回 409 而非 500。
  *
  * 覆盖:
  *   1. POST `users`(无前导斜杠)→ 400
@@ -14,15 +15,94 @@
  *   4. POST `/users/:id`(参数路径)→ 201
  *   5. PUT 改 path 为非法(无斜杠)→ 400
  *   6. (P2-9) PUT 改 path/method 撞唯一索引 → 409
+ *
+ * CI 兼容性:不依赖生产 db 单例(连文件库 ./data/apimock.db,CI 干净环境无表会炸)。
+ * 用 vi.mock('@/lib/db', factory) 注入一个 :memory: better-sqlite3 + drizzle 实例,
+ * factory 内自建 schema(与 drizzle/0001+0003 跑完后的表结构一致)。
+ * route handler 顶部 import { db } 拿到的就是这个 mock,模块加载无副作用。
+ * 参考样板:p1-4-foreign-keys / p1-5-request-retention(:memory: 自建,不落盘)。
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import Database from 'better-sqlite3';
+import { projects } from '@/lib/schema';
+import * as schema from '@/lib/schema-sqlite';
 import { NextRequest } from 'next/server';
-import { db } from '@/lib/db';
-import { projects, endpoints } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
-import { POST } from '../route';
-import { PUT } from '../[endpointId]/route';
+
+// 自建一个 :memory: better-sqlite3 + drizzle(带真实 schema),供被测 route handler 使用。
+// 不落盘、不依赖生产 db 单例(连 ./data/apimock.db 的文件库,CI 干净环境无表会炸)。
+// 表结构与 drizzle/0000+0001+0003 跑完后一致(含 is_shareable / 唯一索引)。
+const rawDb = new Database(':memory:');
+rawDb.pragma('foreign_keys = ON');
+rawDb.exec(`
+  CREATE TABLE projects (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    description TEXT,
+    base_path TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    settings TEXT DEFAULT '{}',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX projects_slug_unique ON projects (slug);
+  CREATE UNIQUE INDEX projects_slug_idx ON projects (slug);
+  CREATE TABLE endpoints (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL,
+    path TEXT NOT NULL,
+    method TEXT NOT NULL DEFAULT 'GET',
+    name TEXT,
+    description TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    is_shareable INTEGER NOT NULL DEFAULT 1,
+    delay_ms INTEGER DEFAULT 0,
+    tags TEXT DEFAULT '[]',
+    status_code INTEGER DEFAULT 200,
+    content_type TEXT DEFAULT 'application/json',
+    response_body TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+  CREATE UNIQUE INDEX endpoints_project_method_path_idx ON endpoints (project_id, method, path);
+  CREATE TABLE responses (
+    id TEXT PRIMARY KEY NOT NULL,
+    endpoint_id TEXT NOT NULL,
+    name TEXT,
+    description TEXT,
+    status_code INTEGER NOT NULL DEFAULT 200,
+    headers TEXT DEFAULT '{}',
+    body TEXT,
+    content_type TEXT DEFAULT 'application/json',
+    match_rules TEXT DEFAULT '{}',
+    is_default INTEGER DEFAULT 0,
+    priority INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (endpoint_id) REFERENCES endpoints(id) ON DELETE CASCADE
+  );
+  CREATE TABLE requests (
+    id TEXT PRIMARY KEY NOT NULL,
+    endpoint_id TEXT,
+    method TEXT NOT NULL,
+    path TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (endpoint_id) REFERENCES endpoints(id) ON DELETE CASCADE
+  );
+`);
+const memoryDb = drizzle(rawDb, { schema });
+
+// vi.mock 被 vitest hoist 到所有 import 之前(含 route handler 内部的 '@/lib/db')。
+// factory 引用 memoryDb —— 它是模块顶层 const,在 factory 真正被调用时(模块求值完)
+// 已初始化。route handler 拿到的就是这个 :memory: db,模块加载无副作用。
+vi.mock('@/lib/db', () => ({ db: memoryDb }));
+
+// 在 mock 生效后动态 import route handler,拿到注入的 :memory: db。
+const { POST } = await import('../route');
+const { PUT } = await import('../[endpointId]/route');
 
 function makePostReq(projectId: string, body: unknown): NextRequest {
   return new NextRequest(`http://localhost/api/projects/${projectId}/endpoints`, {
@@ -51,8 +131,11 @@ describe('P1-9: 端点路径规范化校验', () => {
   let projectId: string;
 
   beforeEach(async () => {
+    // 每个用例前清表,确保起点干净(:memory: 库跨用例复用)
+    rawDb.exec('DELETE FROM endpoints');
+    rawDb.exec('DELETE FROM projects');
     projectId = nanoid();
-    await db.insert(projects).values({
+    await memoryDb.insert(projects).values({
       id: projectId,
       name: `p1-9-test-${projectId}`,
       slug: `p1-9-test-${projectId}`,
@@ -61,11 +144,6 @@ describe('P1-9: 端点路径规范化校验', () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
-  });
-
-  afterEach(async () => {
-    await db.delete(endpoints).where(eq(endpoints.projectId, projectId));
-    await db.delete(projects).where(eq(projects.id, projectId));
   });
 
   it('1. POST 无前导斜杠 `users` → 400 VALIDATION_ERROR', async () => {

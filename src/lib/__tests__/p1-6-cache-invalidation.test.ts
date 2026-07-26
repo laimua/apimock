@@ -22,17 +22,70 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import Database from 'better-sqlite3';
+import * as schema from '@/lib/schema-sqlite';
+
+// CI 兼容性:层 1 测试用 vi.mock('@/lib/db') 注入一个 :memory: better-sqlite3
+// + 自建 schema 的 drizzle 实例,避免依赖生产 db 单例(连 ./data/apimock.db 的文件库,
+// CI 干净环境无表会炸)。缓存模块(project-cache / endpoint-cache)顶部 import
+// { db } from '@/lib/db' 会拿到这个 mock,层 1 真实查 :memory: 库(空表亦无妨)。
+// 参考样板:p1-4-foreign-keys / p1-5-request-retention。
+const rawDb = new Database(':memory:');
+rawDb.pragma('foreign_keys = ON');
+rawDb.exec(`
+  CREATE TABLE projects (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    description TEXT,
+    base_path TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    settings TEXT DEFAULT '{}',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX projects_slug_unique ON projects (slug);
+  CREATE UNIQUE INDEX projects_slug_idx ON projects (slug);
+  CREATE TABLE endpoints (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL,
+    path TEXT NOT NULL,
+    method TEXT NOT NULL DEFAULT 'GET',
+    name TEXT,
+    description TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    is_shareable INTEGER NOT NULL DEFAULT 1,
+    delay_ms INTEGER DEFAULT 0,
+    tags TEXT DEFAULT '[]',
+    status_code INTEGER DEFAULT 200,
+    content_type TEXT DEFAULT 'application/json',
+    response_body TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+  CREATE UNIQUE INDEX endpoints_project_method_path_idx ON endpoints (project_id, method, path);
+`);
+const memoryDb = drizzle(rawDb, { schema });
+
+// vi.mock 被 vitest hoist 到 import 之前,factory 引用的 memoryDb 在 factory 真正被
+// 调用(首次 import '@/lib/db')时已初始化。
+vi.mock('@/lib/db', () => ({ db: memoryDb }));
 
 // ---- 层 1:缓存函数本身 ----
-import {
+// 用 top-level await 动态 import 缓存模块,确保 memoryDb 已初始化后再触发它们的
+// import { db } from '@/lib/db'(拿到的是上面的 :memory: 实例)。静态 import 会在
+// memoryDb 初始化前求值,触发 vi.mock factory 引用未初始化的 binding(TDZ)。
+const {
   getCachedProject,
   invalidateProjectCache,
-} from '@/lib/project-cache';
-import {
+} = await import('@/lib/project-cache');
+const {
   getCachedEndpointsByMethod,
   invalidateEndpointCache,
-} from '@/lib/endpoint-cache';
-import { db } from '@/lib/db';
+} = await import('@/lib/endpoint-cache');
+const { db } = await import('@/lib/db');
 
 // ---- 层 2:被测路由 handler ----
 // 注意:route handler 在用例内用动态 import + vi.doMock 重载,不在此 top-level
