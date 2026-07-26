@@ -67,7 +67,7 @@ export function splitTags(input: string): string[] {
  * 无需兼容字符串 error 形态(后端已清理)。兜底返回 fallback。
  */
 export function readErrorMessage(
-  json: { error?: { message?: string } } | undefined | null,
+  json: { error?: { code?: string; message?: string } } | undefined | null,
   fallback = '操作失败',
 ): string {
   return json?.error?.message ?? fallback;
