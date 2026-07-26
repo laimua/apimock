@@ -9,6 +9,7 @@ import {
   extractPaths,
   parseAndExtract,
   detectFormat,
+  detectCircularRef,
   type JsonValue,
 } from '../openapi-parser';
 
@@ -562,5 +563,93 @@ describe('Integration tests', () => {
     const result = parseAndExtract(JSON.stringify(doc), 'json');
     expect(result.endpoints).toHaveLength(1);
     expect(result.endpoints[0].path).toBe('/users');
+  });
+});
+
+// ============================================
+// P2-16:循环引用检测(detectCircularRef + parseAndExtract 集成)
+// ============================================
+describe('detectCircularRef (P2-16)', () => {
+  it('无环文档返回 null', () => {
+    const doc = { openapi: '3.0.0', paths: { '/users': { get: {} } } };
+    expect(detectCircularRef(doc)).toBeNull();
+  });
+
+  it('基本类型 / null / 数组元素无环返回 null', () => {
+    expect(detectCircularRef(null)).toBeNull();
+    expect(detectCircularRef('str')).toBeNull();
+    expect(detectCircularRef(42)).toBeNull();
+    expect(detectCircularRef([1, { a: 2 }, 'x'])).toBeNull();
+  });
+
+  it('对象自引用(直接环)→ 命中', () => {
+    const obj: Record<string, unknown> = { name: 'a' };
+    obj.self = obj;
+    const hit = detectCircularRef(obj);
+    expect(hit).not.toBeNull();
+    expect(hit).toContain('self');
+  });
+
+  it('嵌套环 a.b.c → a → 命中并返回路径', () => {
+    const a: Record<string, unknown> = {};
+    const b: Record<string, unknown> = { parent: a };
+    const c: Record<string, unknown> = { parent: b };
+    a.child = c; // a → c → b → a (环)
+    const hit = detectCircularRef(a);
+    expect(hit).not.toBeNull();
+    // 路径应从 root 开始
+    expect(hit).toMatch(/^root\./);
+  });
+
+  it('数组内环 → 命中(路径含 [n])', () => {
+    const arr: unknown[] = [1, 2];
+    arr.push(arr); // 自环
+    const hit = detectCircularRef(arr);
+    expect(hit).not.toBeNull();
+    expect(hit).toMatch(/\[\d+\]/);
+  });
+
+  it('DAG 共享引用(非环)→ 返回 null,不误杀', () => {
+    // 共享子对象被多个属性引用,但不在同一条向下路径上 → 不是环
+    const shared = { value: 1 };
+    const doc = { a: { child: shared }, b: { child: shared } };
+    expect(detectCircularRef(doc)).toBeNull();
+  });
+});
+
+describe('parseAndExtract 循环引用 (P2-16)', () => {
+  it('YAML 锚点/别名形成的循环对象 → 返回空端点 + 明确错误(不抛 500)', () => {
+    // 真实场景:YAML `&anchor` + `*alias` 自引用 → js-yaml 解析产出 JS 堆中的环对象。
+    // 此前 JSON.stringify(response.body) 必抛 → 路由 500。P2-16 在 parseAndExtract
+    // 内提前 detectCircularRef,命中即返回空端点 + 明确错误,路由据此返 400。
+    const cyclicYaml = `
+openapi: 3.0.0
+info:
+  title: Loop
+  version: 1.0.0
+paths: &paths
+  /users:
+    get:
+      responses:
+        '200':
+          description: ok
+  back: *paths
+`;
+    const result = parseAndExtract(cyclicYaml, 'yaml');
+    expect(result.endpoints).toHaveLength(0);
+    expect(result.errors.length).toBeGreaterThan(0);
+    // 错误信息应明确提及"循环引用",便于前端展示
+    expect(result.errors.some((e) => e.includes('循环引用'))).toBe(true);
+  });
+
+  it('正常 OpenAPI 文档(无环)→ 解析正常,循环检测不影响', () => {
+    const spec = JSON.stringify({
+      openapi: '3.0.0',
+      info: { title: 'T', version: '1' },
+      paths: { '/users': { get: { responses: { '200': { description: 'ok' } } } } },
+    });
+    const result = parseAndExtract(spec, 'json');
+    expect(result.errors).toHaveLength(0);
+    expect(result.endpoints).toHaveLength(1);
   });
 });

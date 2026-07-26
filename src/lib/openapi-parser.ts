@@ -52,6 +52,56 @@ export function parseOpenAPIFile(content: string, format: 'yaml' | 'json'): Json
 }
 
 /**
+ * P2-16 修复:循环引用检测。
+ *
+ * 背景:YAML 锚点/别名(`&anchor` / `*alias`)可造出循环对象图,JSON.parse 不会
+ * (JSON 标准不支持引用)。一旦解析产物含环,后续 `JSON.stringify(response.body)`
+ * 必抛 `Converting circular structure to JSON` → 路由 500。
+ *
+ * 本函数用 DFS + 路径栈(WeakSet 记录"当前路径上"的对象,进入 add / 退出 delete):
+ *   - 同一对象在**同一条**向下路径上重复出现 → 真环,返回路径描述
+ *   - 同一对象被多条兄弟路径共享(DAG)→ 不算环(进入前不在栈上)
+ * 这与 resolveRefs 的 $ref 解析栈思路一致,但针对的是 JS 堆中的原生环对象。
+ *
+ * 递归实现:正常 OpenAPI 文档深度有限(<50),不会栈溢出;resolveRefs 内部已用
+ * `RESOLVE_DEPTH_LIMIT=50` 兜底超深输入。
+ *
+ * @param doc - 解析后的文档对象
+ * @returns 命中环时返回形如 `"root.a.b.a"` 的路径;无环返回 null
+ */
+export function detectCircularRef(doc: unknown): string | null {
+  if (doc === null || typeof doc !== 'object') return null;
+  const onPath = new WeakSet<object>();
+
+  function visit(value: unknown, path: string): string | null {
+    if (value === null || typeof value !== 'object') return null;
+    const obj = value as object;
+    if (onPath.has(obj)) {
+      return path; // 命中环:返回从 root 到环回点的路径
+    }
+    onPath.add(obj);
+    try {
+      if (Array.isArray(value)) {
+        for (let i = 0; i < value.length; i++) {
+          const hit = visit(value[i], `${path}[${i}]`);
+          if (hit) return hit;
+        }
+      } else {
+        for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+          const hit = visit(v, path === 'root' ? `root.${k}` : `${path}.${k}`);
+          if (hit) return hit;
+        }
+      }
+      return null;
+    } finally {
+      onPath.delete(obj);
+    }
+  }
+
+  return visit(doc, 'root');
+}
+
+/**
  * 循环引用检测：深度上限（防超深嵌套/意外退化为链表的情况）
  */
 const RESOLVE_DEPTH_LIMIT = 50;
@@ -279,6 +329,15 @@ export function parseAndExtract(content: string, format: 'yaml' | 'json'): OpenA
   // Validate basic structure
   if (!doc || typeof doc !== 'object') {
     errors.push('Invalid OpenAPI document: not an object');
+    return result;
+  }
+
+  // P2-16:检测循环引用。YAML 锚点/别名可造出循环对象图,后续 JSON.stringify 必抛
+  // → 路由 500。此处提前检测,若命中则返回空端点 + 明确错误,让路由返 400
+  // (INVALID_OPENAPI)。注意 resolveRefs 的 $ref 解析栈只防 $ref 环,不防 JS 原生环。
+  const cyclePath = detectCircularRef(doc);
+  if (cyclePath) {
+    errors.push(`文档含循环引用(命中路径:${cyclePath}),请去除 YAML 锚点/别名形成的环`);
     return result;
   }
 

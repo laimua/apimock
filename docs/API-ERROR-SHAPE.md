@@ -47,6 +47,8 @@
 | `FORBIDDEN`                | 已登录但无权限                        | 403        |
 | `DEMO_PROTECTED`           | demo 项目受保护,禁止改动             | 403        |
 | `CONFLICT`                 | 唯一约束冲突(如 slug 重复)          | 409        |
+| `PAYLOAD_TOO_LARGE`        | 上传文件超大小上限(如 OpenAPI 导入) | 413        |
+| `INVALID_OPENAPI`          | OpenAPI 文档无法解析(含循环引用等)  | 400        |
 | `RATE_LIMITED`             | 触发限流                              | 429        |
 | `PROVIDER_ERROR`           | 上游 AI Provider 返回错误(透传状态码) | 上游状态码 |
 | `INTERNAL_ERROR`           | 服务端内部错误                        | 500        |

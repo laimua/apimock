@@ -10,6 +10,13 @@ import { db } from '@/lib/db';
 import { projects } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
+/**
+ * P2-15:与 import 写库路由对称的文件大小上限(5MB)。超限返 413,
+ * 避免整文件读内存 + 序列化预览浪费。两端点(写库 / 预览)必须用同一上限,
+ * 否则会出现"预览通过但导入 413"的不一致体验。
+ */
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+
 // ============================================
 // POST /api/projects/[id]/import/parse
 // ============================================
@@ -35,6 +42,13 @@ export async function POST(
       return Errors.badRequest('No file uploaded');
     }
 
+    // P2-15:文件大小上限(与 import 写库路由对称)。超限返 413。
+    if (file.size > MAX_IMPORT_BYTES) {
+      return Errors.payloadTooLarge(
+        `File too large: ${file.size} bytes (max ${MAX_IMPORT_BYTES} bytes)`,
+      );
+    }
+
     // 读取文件内容
     const content = await file.text();
 
@@ -49,7 +63,9 @@ export async function POST(
     const parseResult = parseAndExtract(content, format);
 
     if (parseResult.errors.length > 0 && parseResult.endpoints.length === 0) {
-      return Errors.badRequest('Failed to parse OpenAPI file', parseResult.errors);
+      // P2-16:解析阶段无端点产出(含循环引用、结构非法等)→ 400 INVALID_OPENAPI
+      // 不再返通用 BAD_REQUEST,改用更精确的业务码便于前端区分"格式坏" vs "其它参数错"
+      return Errors.invalidOpenApi('Failed to parse OpenAPI file', parseResult.errors);
     }
 
     // 转换为前端期望的格式
