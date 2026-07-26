@@ -10,6 +10,7 @@ import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,12 @@ export async function GET() {
     await db.select({ c: sql`1` }).from(sql`(select 1 as c) as t`);
     checks.push({ name: 'db', ok: true });
   } catch (err) {
-    checks.push({ name: 'db', ok: false, error: err instanceof Error ? err.message : String(err) });
+    // P2-21: health/ready 是公开路由（匿名访问者可触发）。原始异常 message
+    // 可能含驱动/SQL 路径细节（如 `SQLITE_CANTOPEN: /app/data/x.db`），
+    // 泄露给匿名访问者属低危信息泄露。细节进 logger（受 redact 保护，
+    // 仅服务端可见），对外只回固定文案。
+    logger.error({ err }, 'health/ready database check failed');
+    checks.push({ name: 'db', ok: false, error: 'database check failed' });
   }
 
   // 2. 数据目录可写（仅 SQLite 模式；MySQL 模式无本地文件，跳过避免误判）
@@ -37,7 +43,9 @@ export async function GET() {
       fs.unlinkSync(probe);
       checks.push({ name: 'fs', ok: true });
     } catch (err) {
-      checks.push({ name: 'fs', ok: false, error: err instanceof Error ? err.message : String(err) });
+      // P2-21: 同上，文件系统异常 message 可能含绝对路径细节，不外泄给匿名访问者。
+      logger.error({ err }, 'health/ready filesystem check failed');
+      checks.push({ name: 'fs', ok: false, error: 'filesystem check failed' });
     }
   }
 

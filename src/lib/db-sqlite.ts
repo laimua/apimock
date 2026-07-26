@@ -26,6 +26,10 @@ sqliteDb.pragma('wal_autocheckpoint = 1000'); // 每 1000 页 checkpoint，防 W
 // （MySQL 栈默认开 FK，故双栈行为不一致）。必须在连接创建处立即设，
 // 不能在某次查询前临时设 —— better-sqlite3 每个 new Database 都是独立连接。
 sqliteDb.pragma('foreign_keys = ON');
+// P2-34: 多进程并发写时（如 Node 进程 + migrator + 备份脚本同时打开同一 db），
+// 默认 busy_timeout=0 会让第二个写者立即拿到 SQLITE_BUSY 报错（即便只是短暂竞争）。
+// 设 5000ms 让获取写锁的连接在锁释放后重试，显著降低偶发 SQLITE_BUSY。SQLite-only。
+sqliteDb.pragma('busy_timeout = 5000');
 
 export const db = drizzle(sqliteDb, { schema, logger: process.env.DB_LOG_SQL === 'true' });
 

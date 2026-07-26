@@ -9,6 +9,7 @@ import { db } from '@/lib/db';
 import { aiProviders } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { runInTransaction } from '@/lib/db-transaction';
+import { logger } from '@/lib/logger';
 
 // ============================================
 // POST /api/ai/providers/[id]/default
@@ -63,7 +64,7 @@ export async function POST(
       updatedAt: now,
     });
   } catch (err: unknown) {
-    console.error('Error setting default provider:', err);
+    logger.error({ err }, 'Failed to set default provider');
     return Errors.internal('Failed to set default provider');
   }
 }

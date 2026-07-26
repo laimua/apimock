@@ -25,13 +25,29 @@ const MOCK_RATE_LIMIT = 100;
 // ============================================
 // 敏感信息脱敏
 // ============================================
-function sanitizeHeaders(headers: Headers): Record<string, string> {
+export function sanitizeHeaders(headers: Headers): Record<string, string> {
   const sanitized: Record<string, string> = {};
-  const sensitiveHeaders = ['authorization', 'cookie', 'set-cookie', 'x-api-key'];
+  // P2-31: 扩 sensitiveHeaders 名单。原名单只有 authorization/cookie/set-cookie/x-api-key，
+  // 漏掉 proxy-authorization（代理凭证，泄露等同 authorization）、x-forwarded-for /
+  // x-real-ip / forwarded（可暴露真实 client IP 与代理拓扑）、x-forwarded-host /
+  // x-forwarded-proto（同样泄露代理内部信息）。这些都直接落 requests 表，匿名 mock
+  // 调用方可能借此探测部署拓扑。Set 用小写 key 比对（header 名大小写不敏感）。
+  const sensitiveHeaders = new Set([
+    'authorization',
+    'proxy-authorization',
+    'cookie',
+    'set-cookie',
+    'x-api-key',
+    'x-forwarded-for',
+    'x-forwarded-host',
+    'x-forwarded-proto',
+    'x-real-ip',
+    'forwarded',
+  ]);
 
   headers.forEach((value, key) => {
     const lowerKey = key.toLowerCase();
-    if (sensitiveHeaders.includes(lowerKey)) {
+    if (sensitiveHeaders.has(lowerKey)) {
       sanitized[key] = '[REDACTED]';
     } else {
       sanitized[key] = value;

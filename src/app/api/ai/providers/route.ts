@@ -14,6 +14,7 @@ import { encrypt } from '@/lib/encryption';
 import { validateUrlSafe } from '@/lib/ssrf';
 import { nanoid } from 'nanoid';
 import { runInTransaction } from '@/lib/db-transaction';
+import { logger } from '@/lib/logger';
 
 // ============================================
 // Schema
@@ -63,7 +64,7 @@ export async function GET(_request: NextRequest) {
 
     return success(safeProviders);
   } catch (err: unknown) {
-    console.error('Error fetching providers:', err);
+    logger.error({ err }, 'Failed to fetch providers');
     return Errors.internal('Failed to fetch providers');
   }
 }
@@ -175,7 +176,7 @@ export async function POST(request: NextRequest) {
       return Errors.validation(err.issues);
     }
 
-    console.error('Error creating provider:', err);
+    logger.error({ err }, 'Failed to create provider');
     return Errors.internal('Failed to create provider');
   }
 }

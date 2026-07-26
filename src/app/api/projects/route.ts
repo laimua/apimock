@@ -12,6 +12,7 @@ import { db } from '@/lib/db';
 import { projects } from '@/lib/schema';
 import { sql, desc, eq } from 'drizzle-orm';
 import { SLUG_REGEX, MAX_SLUG_LENGTH, generateSlug, isReservedSlug } from '@/lib/slug';
+import { logger } from '@/lib/logger';
 
 // ============================================
 // Schema
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (/unique constraint|duplicate key|duplicate entry|projects\.slug/i.test(msg)) {
-        console.error('Project slug unique violation:', msg);
+        logger.error({ slug, err: msg }, 'Project slug unique violation');
         return Errors.conflict(`Slug "${slug}" already exists`);
       }
       throw err;

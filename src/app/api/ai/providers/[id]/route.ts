@@ -13,6 +13,7 @@ import { eq, ne, and, asc } from 'drizzle-orm';
 import { encrypt } from '@/lib/encryption';
 import { validateUrlSafe } from '@/lib/ssrf';
 import { runInTransaction } from '@/lib/db-transaction';
+import { logger } from '@/lib/logger';
 
 // ============================================
 // Schema
@@ -157,7 +158,7 @@ export async function PATCH(
       return Errors.validation(err.issues);
     }
 
-    console.error('Error updating provider:', err);
+    logger.error({ err }, 'Failed to update provider');
     return Errors.internal('Failed to update provider');
   }
 }
@@ -239,7 +240,7 @@ export async function DELETE(
 
     return success({ id, deleted: true });
   } catch (err: unknown) {
-    console.error('Error deleting provider:', err);
+    logger.error({ err }, 'Failed to delete provider');
     return Errors.internal('Failed to delete provider');
   }
 }

@@ -16,6 +16,7 @@ import { DEMO_PROJECT_SLUG } from '@/lib/demo-seed';
 import { SLUG_REGEX, MAX_SLUG_LENGTH, isReservedSlug } from '@/lib/slug';
 import { invalidateProjectCache } from '@/lib/project-cache';
 import { invalidateEndpointCache } from '@/lib/endpoint-cache';
+import { logger } from '@/lib/logger';
 
 // ============================================
 // Schema
@@ -112,7 +113,7 @@ export async function PUT(
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (/unique constraint|duplicate key|duplicate entry|projects\.slug/i.test(msg)) {
-        console.error('Project slug unique violation (PUT):', msg);
+        logger.error({ err: msg }, 'Project slug unique violation (PUT)');
         return Errors.conflict(
           `Slug "${(updateData.slug as string | undefined) ?? existing[0].slug}" already exists`
         );

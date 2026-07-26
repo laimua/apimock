@@ -13,6 +13,7 @@ import { db } from '@/lib/db';
 import { requests } from './schema';
 import { sql } from 'drizzle-orm';
 import { pruneDeletedTotal } from './metrics';
+import { logger } from './logger';
 
 const DEFAULT_KEEP_PER_ENDPOINT = 1000;
 const DEFAULT_INTERVAL_MS = 10 * 60 * 1000; // 10 分钟
@@ -62,7 +63,7 @@ export async function pruneOldRequests(keep: number = DEFAULT_KEEP_PER_ENDPOINT)
     if (deleted > 0) pruneDeletedTotal.inc(deleted);
     return deleted;
   } catch (err) {
-    console.error('[request-retention] prune failed:', err);
+    logger.error({ err }, 'request-retention prune failed');
     return -1;
   }
 }
