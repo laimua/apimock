@@ -541,21 +541,23 @@ function ProjectPageInner() {
     const reqId = ++loadRequestsReqIdRef.current;
     try {
       setRequestsLoading(true);
-      // 单独拉一份全量端点列表用于下拉（不受端点列表分页影响）
+      // P2-50: 下拉用的全量端点列表只首次拉一次,后续翻页/筛选复用(避免每页都 pageSize=1000 重拉)
+      const needFetchEndpoints = requestFilterEndpoints.length === 0;
       const [data, allEndpointsResp] = await Promise.all([
         projectRequestsApi.list(projectId, {
           page: requestsPage,
           pageSize: requestsPageSize,
           endpointId: requestsEndpointFilter || undefined,
         }),
-        endpointsApi.list(projectId),
+        needFetchEndpoints ? endpointsApi.list(projectId) : Promise.resolve(null),
       ]);
       // 旧请求返回时丢弃,避免慢响应覆盖新数据
       if (reqId !== loadRequestsReqIdRef.current) return;
       setRequests(data.items);
       setRequestsTotal(data.total);
-      const allEndpoints = allEndpointsResp.items;
-      setRequestFilterEndpoints(allEndpoints);
+      if (allEndpointsResp) {
+        setRequestFilterEndpoints(allEndpointsResp.items);
+      }
     } catch (err: unknown) {
       if (reqId !== loadRequestsReqIdRef.current) return;
       toastError(err instanceof Error ? err.message : '加载请求记录失败');

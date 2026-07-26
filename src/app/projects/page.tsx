@@ -15,6 +15,9 @@ import { DEMO_PROJECT_SLUG } from '@/lib/demo-seed';
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  // P2-48: 后续重载(visibility 切回/搜索)用局部 reloading spinner,避免整页骨架闪白
+  const [reloading, setReloading] = useState(false);
+  const loadedOnce = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{
@@ -49,17 +52,25 @@ export default function ProjectsPage() {
   async function loadProjects() {
     const reqId = ++reqIdRef.current;
     try {
-      setLoading(true);
+      // P2-48: 首次加载整页骨架;后续重载只用局部 reloading spinner,避免整页闪白
+      if (loadedOnce.current) {
+        setReloading(true);
+      } else {
+        setLoading(true);
+      }
       const data = await projectsApi.list();
       // 旧请求返回时丢弃,避免慢响应覆盖新数据
       if (reqId !== reqIdRef.current) return;
       setProjects(data);
+      setError(null);
+      loadedOnce.current = true;
     } catch (err: unknown) {
       if (reqId !== reqIdRef.current) return;
       setError(err instanceof Error ? err.message : '加载失败');
     } finally {
       if (reqId === reqIdRef.current) {
         setLoading(false);
+        setReloading(false);
       }
     }
   }
