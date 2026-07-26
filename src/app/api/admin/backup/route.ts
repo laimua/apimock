@@ -14,7 +14,7 @@ import { NextResponse } from 'next/server';
 import { backupSqlite } from '@/lib/backup';
 import { logger } from '@/lib/logger';
 import { safeEqual } from '@/lib/crypto-utils';
-import { success, Errors } from '@/lib/api';
+import { success, Errors, error } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,12 +22,12 @@ function checkAdminToken(request: Request): NextResponse | null {
   const expected = process.env.ADMIN_TOKEN;
   if (!expected) {
     logger.error('ADMIN_TOKEN not set, backup endpoint disabled');
-    return NextResponse.json({ success: false, error: 'ADMIN_TOKEN not configured' }, { status: 503 });
+    return error('ADMIN_TOKEN_NOT_CONFIGURED', 'ADMIN_TOKEN not configured', 503);
   }
   const got = request.headers.get('x-admin-token');
   if (!safeEqual(got ?? '', expected)) {
     logger.warn({ ip: request.headers.get('x-forwarded-for') }, 'admin backup unauthorized');
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    return error('UNAUTHORIZED', 'Unauthorized', 401);
   }
   return null;
 }

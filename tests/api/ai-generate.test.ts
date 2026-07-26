@@ -182,5 +182,35 @@ describe('AI Generate API', () => {
       expect(response.status).toBe(500);
       expect(data.success).toBe(false);
     });
+
+    // P1-11 前置:429 限流响应的 error 必须是对象形状(含 code/message),不能是字符串
+    it('rate-limited response returns error as object with code/message', async () => {
+      const { reset } = await import('@/lib/rate-limit');
+      await reset(); // 清掉前面测试累积的限流计数
+
+      const makeReq = () =>
+        new Request('http://localhost/api/ai/generate', {
+          method: 'POST',
+          body: JSON.stringify({ prompt: 'Generate user data' }),
+        });
+
+      // 限流 10/min/IP,连发 10 次把额度用完
+      for (let i = 0; i < 10; i++) {
+        const res = await POST(asReq(makeReq()));
+        expect(res.status).not.toBe(429);
+      }
+
+      // 第 11 次应被限流
+      const blocked = await POST(asReq(makeReq()));
+      expect(blocked.status).toBe(429);
+      const blockedData = await blocked.json();
+      expect(blockedData.success).toBe(false);
+      // 错误形状契约:error 是对象,含 code/message
+      expect(typeof blockedData.error).toBe('object');
+      expect(blockedData.error.code).toBe('RATE_LIMITED');
+      expect(typeof blockedData.error.message).toBe('string');
+
+      await reset();
+    });
   });
 });

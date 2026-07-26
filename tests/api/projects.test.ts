@@ -108,6 +108,81 @@ describe('Projects API', () => {
       expect(data.data.page).toBe(2);
       expect(data.data.pageSize).toBe(2);
     });
+
+    // ============================================
+    // P1-8: GET /api/projects 分页 NaN 兜底 + handler try/catch
+    // 原 route:Math.max(1, parseInt('abc')) = NaN → limit(NaN).offset(NaN)
+    // 且 handler 无 try/catch,异常冒泡成 Next 默认 500 HTML(破坏统一错误形状)
+    // 修复后:|| 1 / || 20 兜底;异常返 {success:false,error:{code,message}}
+    // ============================================
+    describe('P1-8: page/pageSize NaN 兜底 + try/catch', () => {
+      it('page=abc 兜底为 1, 返回 200 正常分页(非 500)', async () => {
+        const now = Date.now();
+        await mockDb.insert(projects).values([
+          {
+            id: 'p1',
+            name: 'P1',
+            slug: 'p1',
+            description: null,
+            basePath: null,
+            isActive: 1,
+            settings: '{}',
+            createdAt: now,
+            updatedAt: now,
+          },
+        ]);
+
+        const request = new Request('http://localhost/api/projects?page=abc');
+        const response = await GET(asReq(request));
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.success).toBe(true);
+        expect(data.data.page).toBe(1);
+      });
+
+      it('pageSize=abc 兜底为 20', async () => {
+        const request = new Request('http://localhost/api/projects?pageSize=abc');
+        const response = await GET(asReq(request));
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.data.pageSize).toBe(20);
+      });
+
+      it('pageSize 超上限被夹紧到 200', async () => {
+        const request = new Request('http://localhost/api/projects?pageSize=999999');
+        const response = await GET(asReq(request));
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.data.pageSize).toBe(200);
+      });
+
+      it('handler 异常返回统一错误形状 {success,error:{code,message}}(非 Next HTML)', async () => {
+        // 临时让 db.select 抛错,验证 try/catch 兜成统一形状
+        const spy = vi.spyOn(mockDb, 'select').mockImplementation(() => {
+          throw new Error('boom from test');
+        });
+
+        const request = new Request('http://localhost/api/projects?page=1');
+        const response = await GET(asReq(request));
+        const data = await response.json();
+
+        expect(response.status).toBe(500);
+        expect(data.success).toBe(false);
+        expect(data.error).toEqual(
+          expect.objectContaining({
+            code: 'INTERNAL_ERROR',
+            message: expect.any(String),
+          })
+        );
+        // 确认 message 透传(非空 HTML)
+        expect(data.error.message).toContain('boom from test');
+
+        spy.mockRestore();
+      });
+    });
   });
 
   describe('POST /api/projects', () => {

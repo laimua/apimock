@@ -39,7 +39,7 @@ export async function rateLimit(
   key: string,
   limit: number,
   windowSec: number = DEFAULT_WINDOW_SEC,
-  kind: RateLimitKind = 'mock'
+  kind: RateLimitKind
 ): Promise<RateLimitResult> {
   const kv = await getKv();
   const kvKey = `rl:${key}`;

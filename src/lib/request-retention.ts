@@ -28,6 +28,12 @@ let retentionTimer: NodeJS.Timeout | null = null;
  *
  * 兼容 MySQL 5.7（无 ROW_NUMBER）+ SQLite 3.x。不依赖 window function。
  *
+ * NULL 桶：mock 未命中（404 探测/扫描）写 endpoint_id=NULL 的请求记录
+ * （route.ts recordRequest(null,...)）。SQL NULL = NULL 永假，原 ON
+ * `r2.endpoint_id = r1.endpoint_id` 对 NULL 行不配对，COUNT 恒 0，永不删除
+ * → 存储单调无限增长（P0-1 之上叠加持续写盘 DoS）。这里把所有 NULL 行归
+ * 同一虚拟桶（IS NULL AND IS NULL），与非 NULL 一样按 created_at 统一截断。
+ *
  * 顶层 db.delete().where() query builder（drizzle 一等 API，两方言都支持，
  * production bundle 不会被 minify 打断）。子查询走 sql`` 嵌入 where。
  */
@@ -41,7 +47,8 @@ export async function pruneOldRequests(keep: number = DEFAULT_KEEP_PER_ENDPOINT)
             SELECT r1.id
             FROM requests r1
             LEFT JOIN requests r2
-              ON r2.endpoint_id = r1.endpoint_id
+              ON (r2.endpoint_id = r1.endpoint_id
+                  OR (r2.endpoint_id IS NULL AND r1.endpoint_id IS NULL))
              AND (r2.created_at > r1.created_at
                   OR (r2.created_at = r1.created_at AND r2.id > r1.id))
             GROUP BY r1.id

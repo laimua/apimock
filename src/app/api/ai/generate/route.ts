@@ -171,7 +171,13 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) {
       rateLimitRejectedTotal.inc({ kind: 'ai' });
       return NextResponse.json(
-        { success: false, error: 'Too Many Requests. AI generate limit: 10/min/IP.' },
+        {
+          success: false,
+          error: {
+            code: 'RATE_LIMITED',
+            message: 'Too Many Requests. AI generate limit: 10/min/IP.',
+          },
+        },
         {
           status: 429,
           headers: {

@@ -64,7 +64,11 @@ describe('DELETE /api/projects/[id] - demo protection', () => {
 
     expect(response.status).toBe(403);
     const body = await response.json();
-    expect(body.error ?? body.message ?? JSON.stringify(body)).toMatch(/demo/i);
+    // 错误形状契约:error 是对象,含 code/message(P1-11 前置:服务端形状统一)
+    expect(body.success).toBe(false);
+    expect(typeof body.error).toBe('object');
+    expect(body.error.code).toBe('DEMO_PROTECTED');
+    expect(body.error.message).toEqual(expect.stringMatching(/demo/i));
   });
 
   it('allows deleting regular project', async () => {

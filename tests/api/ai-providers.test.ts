@@ -747,6 +747,10 @@ describe('AI Providers API', () => {
       expect(blocked.status).toBe(429);
       const blockedData = await blocked.json();
       expect(blockedData.success).toBe(false);
+      // 错误形状契约:error 是对象,含 code/message(P1-11 前置:服务端形状统一)
+      expect(typeof blockedData.error).toBe('object');
+      expect(blockedData.error.code).toBe('RATE_LIMITED');
+      expect(typeof blockedData.error.message).toBe('string');
 
       await reset(); // 清理,避免影响后续测试
     });

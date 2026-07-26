@@ -74,7 +74,13 @@ ApiMock 支持多种部署方式。本文档覆盖常见场景。
 
 `getClientIp()` 默认信任 `X-Real-IP` / `X-Forwarded-For`。**直连部署（无反代覆写这些头）时，客户端可自造 IP 轮换绕过限流**。务必在反代（Nginx/Caddy/CF）层覆写这两个头，或部署在天然覆写的平台（Railway/Fly/Render 等）后方。后续会加 `TRUST_PROXY` 显式开关。
 
+#### 缓存一致性（P1-6）
 
+mock 路由热路径用进程内 Map 缓存 project slug→row 与 endpoints（按 projectId+method），TTL 60s。项目删除/停用/改名（`projects/[id]/route.ts` 的 PUT/DELETE）成功后会调用 `invalidateProjectCache` / `invalidateEndpointCache` **清掉本进程缓存**。
+
+**单实例部署（默认 `replicas: 1`）**：删除/改名/关停立即生效，mock 不会再命中旧 slug。
+
+**多副本部署**：本进程失效**不传播**——KVStore 预留的 pub/sub 未接线，其它副本最长 **60s**（TTL）后才自然过期，期间旧 slug 的 mock 在其它副本上仍可命中旧缓存（改名/关停/删除同理）。多副本场景如需强一致：① 把 TTL 调小（`project-cache.ts` / `endpoint-cache.ts` 的 `TTL_MS`），或 ② 后续接入共享 KV 后端并把 invalidate 改为跨副本广播。
 
 ### 可观测性（可选）
 

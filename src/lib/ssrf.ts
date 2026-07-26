@@ -32,7 +32,7 @@ function isPrivateIPv4(v4Str: string): boolean {
   return PRIVATE_RANGES.some(r => int >= r.start && int <= r.end);
 }
 
-function isPrivateIP(ip: string): boolean {
+export function isPrivateIP(ip: string): boolean {
   // 统一去掉 IPv6 方括号并小写
   const normalized = ip.replace(/^\[|\]$/g, '').toLowerCase();
 
@@ -42,6 +42,9 @@ function isPrivateIP(ip: string): boolean {
   if (normalized.includes(':')) {
     // IPv6 ULA fc00::/7（本地单播，等价内网段）
     if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
+    // IPv6 link-local fe80::/10（fe80:: - febf::,含 fe8/fe9/fea/feb 开头）
+    // normalized 已小写;/10 表示高 10 位固定,即第三 nibble ∈ {8,9,a,b}
+    if (/^fe[89ab]/.test(normalized)) return true;
     // IPv4-mapped IPv6 ::ffff:a.b.c.d
     const v4Match = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
     if (v4Match) return isPrivateIPv4(v4Match[1]);

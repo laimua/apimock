@@ -29,8 +29,13 @@ export async function GET(
 
     // 解析查询参数
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const pageSize = parseInt(searchParams.get('pageSize') || '20', 10);
+    // 分页参数零校验(P1-7):page 兜底 1,pageSize 兜底 20 且上限 200
+    // - ?pageSize=10000000 拉全表(DoS) → 夹紧 200
+    // - ?pageSize=-1 → SQLite LIMIT -1 无上限 / MySQL 语法错误 500,夹紧 1 后两边一致
+    // - ?page=abc → NaN → offset(NaN) 未定义行为,兜底 1
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const rawPageSize = parseInt(searchParams.get('pageSize') || '20', 10) || 20;
+    const pageSize = Math.min(Math.max(1, rawPageSize), 200);
     const endpointId = searchParams.get('endpointId') || '';
     const startTime = searchParams.get('startTime');
     const endTime = searchParams.get('endTime');

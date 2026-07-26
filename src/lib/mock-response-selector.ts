@@ -240,3 +240,57 @@ export function selectResponse(
   // 4. 全空：返回 200 + 空 body（route.ts:215 toResponseObj(endpoint, null) 的行为）
   return toResult('empty', endpoint, null);
 }
+
+// ============================================
+// P1-10: mock 响应序列化决策（纯函数,便于单测覆盖）
+// ============================================
+
+/**
+ * mock 响应序列化形态。
+ * - `text`: 走 `new NextResponse(text)` 原始文本分支(body 原样返回,不经 JSON 序列化)
+ * - `json`: 走 `NextResponse.json(value)` 分支(对象/数组等输出合法 JSON)
+ */
+export type SerializedMockResponse =
+  | { kind: 'text'; text: string }
+  | { kind: 'json'; value: unknown };
+
+/**
+ * 决定 mock 响应如何序列化,与 `src/app/[project]/[...path]/route.ts` 的响应构建逻辑对齐。
+ *
+ * 分流规则(与 route.ts 末尾的 if 链逐字等价):
+ *   1. contentType 非 `application/json` → text(body 原样/降级 String())
+ *   2. body 是字符串 → text(P1-10:避免 NextResponse.json 把字符串再序列化成合法 JSON)
+ *   3. 否则 → json
+ *
+ * P1-10 关键:body 为字符串时**必须**走 text 分支。
+ *   反例:`malformed-json` 场景预设 body=`'{invalid json response}'`、contentType=`application/json`,
+ *   旧实现走到分支 3 用 `NextResponse.json(string)` → 输出合法 JSON 字符串(被引号包裹)→
+ *   客户端永远收不到 malformed JSON,该错误场景完全失效。
+ *   走 text 分支后 body 原样返回,客户端真正收到非法 JSON。
+ *
+ * 与 P2-39(contentType 精确比较 `!== 'application/json'` 把 `application/json; charset=utf-8`
+ * 误判到非 JSON 分支)无冲突:本函数不修改 contentType 比较逻辑,仅基于 typeof body 增加
+ * 一个独立分流条件。P2-39 的修复(改精确比较为 startsWith)可在后续批改 contentType 比较,
+ * 不影响本函数的字符串分支。
+ */
+export function serializeMockResponse(
+  body: unknown,
+  contentType: string,
+): SerializedMockResponse {
+  // 1. 非 JSON content-type → 原始文本
+  if (contentType !== 'application/json') {
+    const text = body !== null && body !== undefined
+      ? (typeof body === 'string' ? body : String(body))
+      : '';
+    return { kind: 'text', text };
+  }
+
+  // 2. P1-10: body 为字符串 → 原始文本(不经 JSON 序列化)
+  if (typeof body === 'string') {
+    return { kind: 'text', text: body };
+  }
+
+  // 3. 对象/数组/null/undefined → JSON 序列化(null/undefined 降级为 {})
+  return { kind: 'json', value: body ?? {} };
+}
+
