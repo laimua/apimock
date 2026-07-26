@@ -15,6 +15,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { METHODS } from '@/lib/constants';
+import { Trash2, Loader2 } from 'lucide-react';
 
 // 分页组件
 interface PaginationProps {
@@ -440,6 +441,9 @@ function ProjectPageInner() {
   // 确认对话框状态
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showClearRequestsDialog, setShowClearRequestsDialog] = useState(false);
+  // 端点删除弹窗：存目标端点而非布尔值，确认后才知道删哪条
+  const [deleteEndpointDialog, setDeleteEndpointDialog] = useState<{ isOpen: boolean; endpoint: Endpoint | null }>({ isOpen: false, endpoint: null });
+  const [deletingEndpointId, setDeletingEndpointId] = useState<string | null>(null);
 
   async function copyToClipboard(text: string, label: string) {
     try {
@@ -537,6 +541,33 @@ function ProjectPageInner() {
         setReloading(false);
         loadedOnce.current = true;
       }
+    }
+  }
+
+  // 删除端点：服务端分页下不本地 filter，走 loadData 重拉；
+  // 删的是当前页最后一条且不在第一页时先回退一页（page 变化由 useEffect 自动重载）
+  async function handleDeleteEndpoint(endpoint: Endpoint) {
+    setDeletingEndpointId(endpoint.id);
+    try {
+      await endpointsApi.delete(projectId, endpoint.id);
+      success(`端点已删除: ${endpoint.method} ${endpoint.path}`);
+      // 乐观移除被删行：立即让该行从列表消失，避免回退分支下
+      // finally 清空 spinner 后、新数据回来前出现"被删行 flash 回来成可删行"的窗口
+      const willPageBack = endpoints.length === 1 && page > 1;
+      setEndpoints((prev) => prev.filter((e) => e.id !== endpoint.id));
+      if (willPageBack) {
+        setPage(page - 1);
+      } else {
+        await loadData();
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        toastError(err.message);
+      } else {
+        toastError('删除失败');
+      }
+    } finally {
+      setDeletingEndpointId(null);
     }
   }
 
@@ -968,28 +999,51 @@ function ProjectPageInner() {
         ) : (
           <div className="flex flex-col gap-3">
             {endpoints.map((endpoint) => (
-              <Link key={endpoint.id} href={`/projects/${projectId}/endpoints/${endpoint.id}`}>
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardBody className="py-3">
-                    <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
-                      <Badge method={endpoint.method} />
-                      <code className="font-mono text-xs sm:text-sm text-gray-700 dark:text-gray-300 min-w-0 flex-1 truncate">
-                        {endpoint.path}
-                      </code>
-                      {endpoint.name && (
-                        <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm truncate">
-                          {endpoint.name}
-                        </span>
-                      )}
-                      {endpoint.delayMs > 0 && (
-                        <span className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 px-2 py-0.5 rounded whitespace-nowrap">
-                          延迟 {endpoint.delayMs}ms
-                        </span>
-                      )}
-                    </div>
-                  </CardBody>
-                </Card>
-              </Link>
+              <div key={endpoint.id} className="relative group">
+                <Link href={`/projects/${projectId}/endpoints/${endpoint.id}`}>
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardBody className="py-3">
+                      {/* pr-10 给右侧删除按钮留位，防长 path 被盖 */}
+                      <div className="flex items-center gap-2 sm:gap-4 flex-wrap pr-10">
+                        <Badge method={endpoint.method} />
+                        <code className="font-mono text-xs sm:text-sm text-gray-700 dark:text-gray-300 min-w-0 flex-1 truncate">
+                          {endpoint.path}
+                        </code>
+                        {endpoint.name && (
+                          <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm truncate">
+                            {endpoint.name}
+                          </span>
+                        )}
+                        {endpoint.delayMs > 0 && (
+                          <span className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 px-2 py-0.5 rounded whitespace-nowrap">
+                            延迟 {endpoint.delayMs}ms
+                          </span>
+                        )}
+                      </div>
+                    </CardBody>
+                  </Card>
+                </Link>
+                {/* 删除按钮：与 Link 兄弟节点（DOM 上不在 <a> 内），点击事件不冒泡到 Link、
+                    本就不会触发跳转；preventDefault/stopPropagation 仅作纯防御。 */}
+                <button
+                  type="button"
+                  aria-label={`删除端点 ${endpoint.path}`}
+                  disabled={deletingEndpointId === endpoint.id}
+                  onClick={(e) => {
+                    // button 是 Link 的兄弟而非子节点，点击不经过 <a>；防御性阻止，杜绝极端环境下的意外跳转
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDeleteEndpointDialog({ isOpen: true, endpoint });
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-h-9 min-w-9 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity disabled:opacity-50"
+                >
+                  {deletingEndpointId === endpoint.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             ))}
           </div>
         )}
@@ -1238,6 +1292,24 @@ function ProjectPageInner() {
           }
         }}
         onCancel={() => setShowDeleteDialog(false)}
+      />
+
+      {/* Delete Endpoint Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={deleteEndpointDialog.isOpen}
+        title="删除端点"
+        message={deleteEndpointDialog.endpoint ? `确定要删除端点 ${deleteEndpointDialog.endpoint.method} ${deleteEndpointDialog.endpoint.path} 吗？此操作不可恢复。` : ''}
+        confirmText="删除"
+        variant="danger"
+        confirmDisabled={deletingEndpointId !== null}
+        onConfirm={() => {
+          const endpoint = deleteEndpointDialog.endpoint;
+          setDeleteEndpointDialog({ isOpen: false, endpoint: null });
+          if (endpoint) {
+            void handleDeleteEndpoint(endpoint);
+          }
+        }}
+        onCancel={() => setDeleteEndpointDialog({ isOpen: false, endpoint: null })}
       />
 
       {/* Clear Requests Confirm Dialog */}
