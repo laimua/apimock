@@ -42,6 +42,59 @@ function sanitizeHeaders(headers: Headers): Record<string, string> {
 }
 
 // ============================================
+// P2-38: HTTP 响应头值 Latin-1 安全化
+// ============================================
+// undici/Next 的 Headers 实现要求 header value 为 Latin-1(0x00–0xFF),
+// 任何超出范围的字符(如中文 `\u4e2d`、emoji)会触发 `TypeError: Invalid value`
+// 未捕获 → 裸 500。mock 端点 path 含中文(`X-Mock-Endpoint: /用户/list`)或
+// 用户自定义响应头含中文时即触发。这里在构造 headers 对象时统一做安全处理。
+
+/**
+ * 把任意字符串安全化为 Latin-1 兼容的 header value。
+ * 超出 Latin-1(>0xFF)的码点替换为 `?`,保留 ASCII 与 Latin-1 补充字符。
+ * 选择 `?` 而非丢弃/编码:HTTP 头值本就不应承载二进制/多字节文本,`?` 是
+ * 最低惊讶的可读占位符(与浏览器渲染非法字符的行为一致)。
+ *
+ * 单独导出便于单测覆盖。非 header 值场景(如 X-Mock-Endpoint 的 path)用
+ * `encodeHeaderValueAsAscii` 做 percent-encoding,保留可还原语义。
+ */
+export function sanitizeHeaderValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const str = typeof value === 'string' ? value : String(value);
+  // 替换所有非 Latin-1 码点。charCodeAt 返回 UTF-16 code unit;
+  // 对于 BMP 外字符( surrogate pair),高位 surrogate(>0xFFFF 不会出现于单 charCodeAt)
+  // 仍会被各自的 code unit 过滤为 `?`,结果仍 Latin-1 安全。
+  let out = '';
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    out += code > 0xff ? '?' : str[i];
+  }
+  return out;
+}
+
+/**
+ * 用 percent-encoding 把任意字符串编码为纯 ASCII,适合需要可还原语义的头值
+ * (如 `X-Mock-Endpoint: <path>`)。`encodeURIComponent` 已把所有非 ASCII 与
+ * 部分 ASCII 保留字符编码,输出保证只含 ASCII(Latin-1 子集)。
+ */
+export function encodeHeaderValueAsAscii(value: string): string {
+  return encodeURIComponent(value);
+}
+
+/**
+ * 构造 Latin-1 安全的响应头对象:对所有 value 应用 sanitizeHeaderValue。
+ * 调用方对个别需要可还原语义的头(如 X-Mock-Endpoint path)在传入前自行
+ * 用 encodeHeaderValueAsAscii 预处理。
+ */
+function buildSafeHeaders(input: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(input)) {
+    out[key] = sanitizeHeaderValue(value);
+  }
+  return out;
+}
+
+// ============================================
 // Body 大小限制
 // ============================================
 function makePayloadTooLarge(): NextResponse {
@@ -316,14 +369,17 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
   const corsHeaders = getCorsHeaders();
 
   // 构建响应头
+  // P2-38:`X-Mock-Endpoint: <path>` 中 path 可能含中文等非 Latin-1 字符,
+  // 直接设置会让 undici Headers 抛 TypeError → 裸 500。这里对 path 做
+  // percent-encoding(纯 ASCII,可还原),用户自定义头值则在最后统一 sanitize。
   const headers: Record<string, string> = {
     ...corsHeaders,
     'X-Mock-Server': 'ApiMock',
     'X-Mock-Project': projectSlug,
-    'X-Mock-Endpoint': mock.endpoint.path,
+    'X-Mock-Endpoint': encodeHeaderValueAsAscii(mock.endpoint.path),
   };
 
-  // 合并自定义响应头（过滤 CORS 头，防止覆盖安全策略）
+  // 合并自定义响应头(过滤 CORS 头,防止覆盖安全策略)
   if (mock.response.headers) {
     for (const [key, value] of Object.entries(mock.response.headers)) {
       if (!key.toLowerCase().startsWith('access-control-')) {
@@ -335,6 +391,10 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
   // 处理 content-type
   const responseContentType = mock.response.contentType || 'application/json';
   headers['Content-Type'] = responseContentType;
+
+  // P2-38:对所有头值做 Latin-1 安全化(用户自定义头可能含中文等非法字符)。
+  // X-Mock-Endpoint 已 percent-encode,sanitizeHeaderValue 对纯 ASCII 是 no-op。
+  const safeHeaders = buildSafeHeaders(headers);
 
   // 返回 Mock 数据
   const body = mock.response.body;
@@ -370,12 +430,12 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
   if (serialized.kind === 'text') {
     return new NextResponse(serialized.text, {
       status: responseStatus,
-      headers,
+      headers: safeHeaders,
     });
   }
   return NextResponse.json(serialized.value, {
     status: responseStatus,
-    headers,
+    headers: safeHeaders,
   });
 }
 
