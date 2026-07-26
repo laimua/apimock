@@ -307,11 +307,19 @@ export function getErrorScenario(id: ErrorScenarioType): ErrorScenario | undefin
 }
 
 // 应用错误场景到表单
+// P2-43:补 headers 字段。此前 ApplyScenarioResult 不含 headers,导致 503 的
+// Retry-After、401 的 WWW-Authenticate 等预设响应头在 apply 时静默丢弃——
+// 调用方拿到结果只取 statusCode/contentType/delayMs/responseBody,headers 没被
+// 写入端点/响应表,mock 路由永远读不到。本字段补上后,调用方需把 headers 合并
+// 到响应头。注意:mock 路由本身已正确处理 mock.response.headers(route.ts:412-419),
+// 缺口仅在 applyErrorScenario 这一环——只要上游落库时把 headers 一并写入,
+// 现有 mock 路由无需改动。
 export interface ApplyScenarioResult {
   statusCode: number;
   contentType: string;
   delayMs: number;
   responseBody: string;
+  headers?: Record<string, string>;
 }
 
 export function applyErrorScenario(scenario: ErrorScenario): ApplyScenarioResult {
@@ -323,5 +331,6 @@ export function applyErrorScenario(scenario: ErrorScenario): ApplyScenarioResult
       typeof scenario.responseBody === 'string'
         ? scenario.responseBody
         : JSON.stringify(scenario.responseBody, null, 2),
+    headers: scenario.headers,
   };
 }

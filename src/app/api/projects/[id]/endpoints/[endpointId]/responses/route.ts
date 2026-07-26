@@ -12,17 +12,30 @@ import { db } from '@/lib/db';
 import { responses, endpoints } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { runInTransaction } from '@/lib/db-transaction';
+import { isBodyTooLarge, utf8ByteLength } from '@/lib/body-size-limit';
 
 // ============================================
 // Schema
 // ============================================
+// P2-10:body 加 1MB 大小限制,与 endpoints 路由一致(此前用 z.any() 无上限)。
+// 用 utf8ByteLength 而非 string.length:中文/emoji 单字符占多字节,string.length
+// 是 UTF-16 code unit 数,会低估真实字节。JSON.stringify 任意值后再算字节,
+// 字符串 body 直接算。null/undefined 放行。
+const bodyTooLargeMessage = 'Response body too large (max 1MB)';
 const CreateResponseSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().optional(),
   statusCode: z.number().min(100).max(599).default(200),
   contentType: z.string().default('application/json'),
   headers: z.record(z.string(), z.string()).optional(),
-  body: z.any().optional(),
+  body: z.any().refine(
+    (v) => {
+      if (v === undefined || v === null) return true;
+      const text = typeof v === 'string' ? v : JSON.stringify(v);
+      return !isBodyTooLarge(utf8ByteLength(text));
+    },
+    { message: bodyTooLargeMessage }
+  ).optional(),
   matchRules: z.object({
     query: z.record(z.string(), z.string()).optional(),
     header: z.record(z.string(), z.string()).optional(),
