@@ -492,6 +492,53 @@ describe('AI Providers API', () => {
 
       expect(response.status).toBe(200);
     });
+
+    // P2-22: existing.models 为脏 JSON 时,单独传 defaultModel 不应 500,降级为 []
+    // → defaultModel 不在 [] 内 → 返明确 BAD_REQUEST 400。
+    it('P2-22: existing.models 脏 JSON + 单独传 defaultModel → 400 非 500', async () => {
+      // 用脏 JSON 覆盖 provider1.models
+      await mockDb
+        .update(aiProviders)
+        .set({ models: 'not-json' })
+        .where(eq(aiProviders.id, 'provider1'));
+
+      const request = new Request('http://localhost/api/ai/providers/provider1', {
+        method: 'PATCH',
+        body: JSON.stringify({ defaultModel: 'gpt-4' }),
+      });
+      const response = await PATCH(asReq(request), {
+        params: Promise.resolve({ id: 'provider1' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+      expect(data.error.code).toBe('BAD_REQUEST');
+      expect(data.error.message).toContain('defaultModel must be in the models list');
+    });
+
+    // P2-22 回归:正常 PATCH(改 name)时,即便返回序列化读 models 也不应因脏 JSON 500,
+    // 降级为空数组返回成功。
+    it('P2-22 回归: existing.models 脏 JSON + 改 name → 200,models 降级为 []', async () => {
+      await mockDb
+        .update(aiProviders)
+        .set({ models: 'not-json' })
+        .where(eq(aiProviders.id, 'provider1'));
+
+      const request = new Request('http://localhost/api/ai/providers/provider1', {
+        method: 'PATCH',
+        body: JSON.stringify({ name: 'New Name' }),
+      });
+      const response = await PATCH(asReq(request), {
+        params: Promise.resolve({ id: 'provider1' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.data.name).toBe('New Name');
+      expect(data.data.models).toEqual([]);
+    });
   });
 
   describe('DELETE /api/ai/providers/[id]', () => {
@@ -774,6 +821,62 @@ describe('AI Providers API', () => {
       expect(data.success).toBe(false);
 
       await _resetBudgetForTest();
+      await reset();
+    });
+
+    // P2-23: models 脏 JSON 降级为 [] + defaultModel 为空/null → modelToTest undefined
+    // 时,不应发给 OpenAI(上游不友好的 400),应前置返明确 BAD_REQUEST 400。
+    it('P2-23: models 脏 JSON + defaultModel 为空 → 400 明确错,不发 OpenAI', async () => {
+      const { reset } = await import('@/lib/rate-limit');
+      await reset();
+
+      // 覆盖:models 为脏 JSON,defaultModel 设为空字符串(JSON.parse 失败降级 [],
+      // defaultModel || undefined)
+      await mockDb
+        .update(aiProviders)
+        .set({ models: 'not-json', defaultModel: '' })
+        .where(eq(aiProviders.id, 'provider1'));
+
+      const request = new Request('http://localhost/api/ai/providers/provider1/test', {
+        method: 'POST',
+      });
+      const response = await TEST_POST(asReq(request), {
+        params: Promise.resolve({ id: 'provider1' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+      expect(data.error.code).toBe('BAD_REQUEST');
+      expect(data.error.message).toMatch(/no model configured|models/i);
+
+      await reset();
+    });
+
+    // P2-23 回归:正常 models + defaultModel 仍走 OpenAI 调用,返回 200(已在
+    // 'should test provider connection' 覆盖,此处补一个 models 非空但 defaultModel
+    // 为空、用 models[0] 兜底的回归)。
+    it('P2-23 回归: defaultModel 为空但 models 非空 → 用 models[0] 成功 200', async () => {
+      const { reset } = await import('@/lib/rate-limit');
+      await reset();
+
+      await mockDb
+        .update(aiProviders)
+        .set({ defaultModel: '' })
+        .where(eq(aiProviders.id, 'provider1'));
+
+      const request = new Request('http://localhost/api/ai/providers/provider1/test', {
+        method: 'POST',
+      });
+      const response = await TEST_POST(asReq(request), {
+        params: Promise.resolve({ id: 'provider1' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.data.model).toBe('gpt-4');
+
       await reset();
     });
   });

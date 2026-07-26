@@ -108,7 +108,21 @@ export async function POST(request: NextRequest) {
       updatedAt: now,
     };
 
-    await db.insert(projects).values(newProject);
+    // P2-4: 上面的 slug 预检存在 TOCTOU 窗口(并发请求都通过预检后第二个撞唯一索引)。
+    // 捕获 insert 抛出的唯一约束冲突,转 409 而非裸 500 + SQL 错误透客户端。
+    // 双栈兼容:SQLite 抛 "UNIQUE constraint failed: projects.slug",MySQL 抛代码
+    // ER_DUP_ENTRY / 1062,PostgreSQL 抛 "duplicate key value violates unique constraint"。
+    // 用大小写不敏感的 multiple 检测避免漏判或误判普通列约束。
+    try {
+      await db.insert(projects).values(newProject);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/unique constraint|duplicate key|duplicate entry|projects\.slug/i.test(msg)) {
+        console.error('Project slug unique violation:', msg);
+        return Errors.conflict(`Slug "${slug}" already exists`);
+      }
+      throw err;
+    }
 
     return success({
       ...newProject,

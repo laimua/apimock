@@ -105,7 +105,20 @@ export async function PUT(
       updateData.isActive = data.isActive ? 1 : 0;
     }
 
-    await db.update(projects).set(updateData).where(eq(projects.id, id));
+    // P2-4: slug 预检存在 TOCTOU 窗口,并发 update 撞唯一索引时兜底转 409。
+    // 与 POST 路由和段 H 的 P2-9(endpoints PUT)模式一致,双栈兼容 SQL 错误格式。
+    try {
+      await db.update(projects).set(updateData).where(eq(projects.id, id));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/unique constraint|duplicate key|duplicate entry|projects\.slug/i.test(msg)) {
+        console.error('Project slug unique violation (PUT):', msg);
+        return Errors.conflict(
+          `Slug "${(updateData.slug as string | undefined) ?? existing[0].slug}" already exists`
+        );
+      }
+      throw err;
+    }
 
     // P1-6: 项目改名/关停/恢复后失效 project 缓存，避免 mock 路由继续命中旧 slug
     // 或旧的 isActive。改名场景同时失效旧 slug 和新 slug（旧 slug 缓存里还是

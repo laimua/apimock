@@ -68,8 +68,16 @@ export async function PATCH(
 
     // 单独传 defaultModel（不带 models）时校验是否在现有 models 列表内（A10）。
     // 同时传 models 和 defaultModel 的情形已由 schema refine 覆盖。
+    // P2-22: existing.models 可能为脏 JSON（历史数据/A18 修复遗漏点），裸 JSON.parse
+    // 会让 PATCH 整个 500。降级为空数组使校验自然失败（defaultModel 不在 [] 内），
+    // 返回明确的 BAD_REQUEST 而非 500。
     if (data.defaultModel && !data.models) {
-      const existingModels = JSON.parse(existing.models) as string[];
+      let existingModels: string[] = [];
+      try {
+        existingModels = JSON.parse(existing.models) as string[];
+      } catch {
+        existingModels = [];
+      }
       if (!existingModels.includes(data.defaultModel)) {
         return Errors.badRequest('defaultModel must be in the models list');
       }
@@ -119,12 +127,21 @@ export async function PATCH(
       return Errors.internal('Failed to update provider');
     }
 
+    // P2-22: updated.models 同样可能为脏 JSON,降级为空数组(与段 B 的 parseJsonSafe
+    // / parseTags 模式一致),避免成功更新后因序列化崩成 500。
+    let updatedModels: string[] = [];
+    try {
+      updatedModels = JSON.parse(updated.models) as string[];
+    } catch {
+      updatedModels = [];
+    }
+
     const safeProvider = {
       id: updated.id,
       name: updated.name,
       provider: updated.provider,
       baseUrl: updated.baseUrl,
-      models: JSON.parse(updated.models),
+      models: updatedModels,
       defaultModel: updated.defaultModel,
       systemPrompt: updated.systemPrompt,
       isActive: updated.isActive === 1,
