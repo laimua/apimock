@@ -148,7 +148,11 @@ export default function ProjectsPage() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Breadcrumb items={[{ label: '首页', href: '/' }, { label: '项目列表' }]} />
 
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">我的项目</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6 flex items-center gap-2">
+          我的项目
+          {/* P2-48: visibility 切回/搜索重载时局部 spinner,不整页骨架闪白 */}
+          {reloading && <Loader2 className="w-5 h-5 animate-spin text-gray-400" />}
+        </h1>
 
         {/* 搜索框 */}
         <div className="mb-6">

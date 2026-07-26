@@ -118,6 +118,9 @@ async function generateWithProvider(prompt: string, count: number, provider: typ
     apiKey,
     baseURL: provider.baseUrl || undefined,
     timeout: 30_000,
+    // P2-26: 手动处理重定向,防跨 origin 重定向把 Authorization 头带到内网
+    // (SSRF DNS rebinding 的副路径缓解;根治需连接层 pin DNS,见 backlog)
+    fetchOptions: { redirect: 'manual' },
   });
 
   // 使用 Provider 的 System Prompt 或默认 Prompt
@@ -240,7 +243,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 使用环境变量配置的 OpenAI（模型名走环境变量，默认 gpt-4o-mini）
-    const openai = new OpenAI({ apiKey, timeout: 30_000 });
+    // P2-26: env-openai fallback 路径同样手动处理重定向(防跨 origin 带 Authorization)
+    const openai = new OpenAI({ apiKey, timeout: 30_000, fetchOptions: { redirect: 'manual' } });
     const fallbackModel = process.env.OPENAI_FALLBACK_MODEL || 'gpt-4o-mini';
 
     const userPrompt = `请生成 ${count} 条数据：\n${prompt}`;

@@ -72,7 +72,7 @@ ApiMock 支持多种部署方式。本文档覆盖常见场景。
 
 #### 直连部署的 IP 伪造风险（P2-28）
 
-`getClientIp()` 默认信任 `X-Real-IP` / `X-Forwarded-For`。**直连部署（无反代覆写这些头）时，客户端可自造 IP 轮换绕过限流**。务必在反代（Nginx/Caddy/CF）层覆写这两个头，或部署在天然覆写的平台（Railway/Fly/Render 等）后方。后续会加 `TRUST_PROXY` 显式开关。
+`getClientIp()` 默认信任 `X-Real-IP` / `X-Forwarded-For`（`TRUST_PROXY=true`，适用于 Railway/Fly/Render 等 PaaS 或有反代覆写头的部署）。**直连部署（无反代覆写这些头）时，客户端可自造 IP 轮换绕过限流** —— 此时设 `TRUST_PROXY=false`，所有请求 IP 视为 unknown（限流全归同一桶），等价于关闭按 IP 限流但保留全局可用性。
 
 #### 缓存一致性（P1-6）
 
@@ -266,6 +266,7 @@ pnpm db:migrate
 | `MYSQL_PASSWORD` | ❌ | — | MySQL 密码 |
 | `MYSQL_DATABASE` | ❌ | `apimock` | MySQL 数据库名 |
 | `NODE_ENV` | ❌ | `development` | `production` 关闭 SQL 日志 + 启用 auto-seed |
+| `TRUST_PROXY` | ❌ | `true` | 是否信任 `X-Real-IP`/`X-Forwarded-For`。PaaS/反代部署保持默认；直连部署设 `false` 防伪造 IP 绕限流 |
 | `SKIP_SEED` | ❌ | — | `true` 禁用 auto-seed（测试用） |
 | `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | ❌ | — | Plausible 域名，留空禁用 analytics |
 | `OPENAI_API_KEY` | ❌ | — | OpenAI API key（也可在 `/settings/ai` 页面配置） |
