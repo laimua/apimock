@@ -19,34 +19,34 @@ describe('rateLimit', () => {
   });
 
   it('allows first hit and returns remaining count', async () => {
-    const result = await rateLimit('ip-1', 10);
+    const result = await rateLimit('ip-1', 10, 60, 'mock');
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(9);
   });
 
   it('blocks after limit reached', async () => {
     for (let i = 0; i < 10; i++) {
-      await rateLimit('ip-2', 10);
+      await rateLimit('ip-2', 10, 60, 'mock');
     }
-    const result = await rateLimit('ip-2', 10);
+    const result = await rateLimit('ip-2', 10, 60, 'mock');
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
   });
 
   it('resets counter after window expires', async () => {
     vi.useFakeTimers();
-    await rateLimit('ip-3', 5, 60);
+    await rateLimit('ip-3', 5, 60, 'mock');
     vi.advanceTimersByTime(61 * 1000);
-    const result = await rateLimit('ip-3', 5, 60);
+    const result = await rateLimit('ip-3', 5, 60, 'mock');
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(4);
     vi.useRealTimers();
   });
 
   it('keeps different keys independent', async () => {
-    for (let i = 0; i < 10; i++) await rateLimit('ip-A', 10);
-    const a = await rateLimit('ip-A', 10);
-    const b = await rateLimit('ip-B', 10);
+    for (let i = 0; i < 10; i++) await rateLimit('ip-A', 10, 60, 'mock');
+    const a = await rateLimit('ip-A', 10, 60, 'mock');
+    const b = await rateLimit('ip-B', 10, 60, 'mock');
     expect(a.allowed).toBe(false);
     expect(b.allowed).toBe(true);
     expect(b.remaining).toBe(9);
@@ -54,13 +54,13 @@ describe('rateLimit', () => {
 
   it('handles boundary: exactly limit hits allowed', async () => {
     for (let i = 0; i < 9; i++) {
-      const r = await rateLimit('ip-4', 10);
+      const r = await rateLimit('ip-4', 10, 60, 'mock');
       expect(r.allowed).toBe(true);
     }
-    const tenth = await rateLimit('ip-4', 10);
+    const tenth = await rateLimit('ip-4', 10, 60, 'mock');
     expect(tenth.allowed).toBe(true);
     expect(tenth.remaining).toBe(0);
-    const eleventh = await rateLimit('ip-4', 10);
+    const eleventh = await rateLimit('ip-4', 10, 60, 'mock');
     expect(eleventh.allowed).toBe(false);
   });
 });
@@ -75,7 +75,7 @@ describe('cleanup (noop under kv)', () => {
   });
 
   it('getBucketCount returns number (memory backend)', async () => {
-    await rateLimit('ip-X', 5);
+    await rateLimit('ip-X', 5, 60, 'mock');
     const n = await getBucketCount();
     expect(n).toBeGreaterThanOrEqual(0);
   });
@@ -131,7 +131,7 @@ describe('rateLimit fail-open on KV error (P1-19)', () => {
 
   it('KV incr throws → fail-open: allowed=true', async () => {
     _setKvForTest(makeThrowingKv());
-    const result = await rateLimit('partition-ip', 10);
+    const result = await rateLimit('partition-ip', 10, 60, 'mock');
     expect(result.allowed).toBe(true);
   });
 
@@ -140,7 +140,7 @@ describe('rateLimit fail-open on KV error (P1-19)', () => {
     // 避免暴露内部故障给客户端。resetAt 必须是未来时间戳。
     _setKvForTest(makeThrowingKv());
     const before = Date.now();
-    const result = await rateLimit('partition-ip', 10, 60);
+    const result = await rateLimit('partition-ip', 10, 60, 'mock');
     expect(result.remaining).toBe(9); // limit - 1 = 9
     expect(result.resetAt).toBeGreaterThanOrEqual(before + 59_000);
     expect(result.resetAt).toBeLessThanOrEqual(before + 61_000);
