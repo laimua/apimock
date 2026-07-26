@@ -7,6 +7,7 @@
  */
 
 import crypto from 'crypto';
+import { logger } from './logger';
 
 const ALGORITHM = 'aes-256-gcm';
 const LEGACY_SALT = 'salt';
@@ -47,7 +48,7 @@ function getSecret(): string {
   // P2-29: 启动期（首次访问）校验 key 强度。只 warn 一次，避免 decrypt 热路径
   // 反复打日志。抛错会让生产起不来，故选择非致命 warn + 鼓励轮换。
   if (!encryptionKeyWarned && secret.length < ENCRYPTION_KEY_MIN_LENGTH) {
-    console.warn(
+    logger.warn(
       `[security] ENCRYPTION_KEY is only ${secret.length} chars (< ${ENCRYPTION_KEY_MIN_LENGTH}). ` +
         'Use a strong key (>= 16 chars, ideally 32+ random bytes) and rotate as soon as possible.'
     );

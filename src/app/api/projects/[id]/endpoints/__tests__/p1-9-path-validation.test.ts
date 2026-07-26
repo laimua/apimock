@@ -180,6 +180,20 @@ describe('P1-9: 端点路径规范化校验', () => {
     expect(res.status).toBe(400);
   });
 
+  it('2d. POST 中段双斜杠 `//users` → 400(空段永不匹配)', async () => {
+    const res = await POST(makePostReq(projectId, { path: '//users', method: 'GET' }), {
+      params: Promise.resolve({ id: projectId }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('2e. POST 中段双斜杠 `/a//b` → 400(空段永不匹配)', async () => {
+    const res = await POST(makePostReq(projectId, { path: '/a//b', method: 'GET' }), {
+      params: Promise.resolve({ id: projectId }),
+    });
+    expect(res.status).toBe(400);
+  });
+
   it('3. POST 正常 `/users` → 201', async () => {
     const res = await POST(makePostReq(projectId, { path: '/users', method: 'GET' }), {
       params: Promise.resolve({ id: projectId }),

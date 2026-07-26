@@ -10,13 +10,15 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { projects } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
-import { isReservedSlug } from '@/lib/slug';
+import { isReservedSlug, SLUG_REGEX, MAX_SLUG_LENGTH } from '@/lib/slug';
 
 // ============================================
 // Schema
 // ============================================
+// P2-8: 与 projects POST/PUT 的 slug 校验对齐(SLUG_REGEX + MAX_SLUG_LENGTH=100)。
+// 原 max(255) 不校验 regex,导致 check-slug?slug=AbC 报 available,创建时被拒,结果误导。
 const CheckSlugSchema = z.object({
-  slug: z.string().min(1).max(255),
+  slug: z.string().min(1).max(MAX_SLUG_LENGTH).regex(SLUG_REGEX),
 });
 
 // ============================================

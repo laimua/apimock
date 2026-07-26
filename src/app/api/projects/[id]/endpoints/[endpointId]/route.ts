@@ -18,10 +18,10 @@ import { invalidateEndpointCache } from '@/lib/endpoint-cache';
 // Schema
 // ============================================
 // P1-9: 端点路径规范化校验（与 POST 一致，见 endpoints/route.ts 注释）。
-// 必须以 `/` 开头且不能以 `/` 结尾。
-const ENDPOINT_PATH_REGEX = /^\/.*[^/]$/;
+// 必须以 `/` 开头、不能以 `/` 结尾、不能含空段（`//users`、`/a//b`）。
+const ENDPOINT_PATH_REGEX = /^\/([^/]+\/)*[^/]+$/;
 const ENDPOINT_PATH_MESSAGE =
-  'path must start with "/" and must not end with "/" (e.g. "/users", "/users/:id")';
+  'path must start with "/" and must not end with "/" or contain empty segments (e.g. "/users", "/users/:id")';
 
 const UpdateEndpointSchema = z.object({
   path: z.string().min(1).max(500).regex(ENDPOINT_PATH_REGEX, ENDPOINT_PATH_MESSAGE).optional(),
