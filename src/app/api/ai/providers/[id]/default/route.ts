@@ -8,6 +8,7 @@ import { success, Errors } from '@/lib/api';
 import { db } from '@/lib/db';
 import { aiProviders } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+import { runInTransaction } from '@/lib/db-transaction';
 
 // ============================================
 // POST /api/ai/providers/[id]/default
@@ -30,17 +31,31 @@ export async function POST(
 
     const now = Date.now();
 
-    // 将所有 provider 的 isDefault 设为 0
-    await db
-      .update(aiProviders)
-      .set({ isDefault: 0, updatedAt: now })
-      .where(eq(aiProviders.isDefault, 1));
-
-    // 将指定的 provider 设为默认
-    await db
-      .update(aiProviders)
-      .set({ isDefault: 1, updatedAt: now })
-      .where(eq(aiProviders.id, id));
+    // P2-2:"clear-all + set-one"包事务(runInTransaction,双栈封装)。
+    // 防中途崩溃留下"零默认":两步原子执行,任一步失败整体回滚,
+    // 不会出现"已清所有默认但目标尚未设上"的中间态。
+    await runInTransaction(
+      (tx) => {
+        tx.update(aiProviders)
+          .set({ isDefault: 0, updatedAt: now })
+          .where(eq(aiProviders.isDefault, 1))
+          .run();
+        tx.update(aiProviders)
+          .set({ isDefault: 1, updatedAt: now })
+          .where(eq(aiProviders.id, id))
+          .run();
+      },
+      async (tx) => {
+        await tx
+          .update(aiProviders)
+          .set({ isDefault: 0, updatedAt: now })
+          .where(eq(aiProviders.isDefault, 1));
+        await tx
+          .update(aiProviders)
+          .set({ isDefault: 1, updatedAt: now })
+          .where(eq(aiProviders.id, id));
+      },
+    );
 
     return success({
       id,

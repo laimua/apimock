@@ -13,10 +13,14 @@ import { eq, desc } from 'drizzle-orm';
 import { encrypt } from '@/lib/encryption';
 import { validateUrlSafe } from '@/lib/ssrf';
 import { nanoid } from 'nanoid';
+import { runInTransaction } from '@/lib/db-transaction';
 
 // ============================================
 // Schema
 // ============================================
+// P2-1: isDefault 加入 schema 显式校验(原代码读未校验的 body.isDefault,
+// 客户端可传任意 truthy 值绕过 zod 边界)。默认 false(保持向后兼容:
+// 第一个 provider 的"自动默认"逻辑仍在下面显式处理)。
 const CreateProviderSchema = z.object({
   name: z.string().min(1).max(100),
   provider: z.enum(['openai', 'anthropic', 'openai-compatible']),
@@ -25,6 +29,7 @@ const CreateProviderSchema = z.object({
   models: z.array(z.string()).min(1),
   defaultModel: z.string().min(1),
   systemPrompt: z.string().optional(),
+  isDefault: z.boolean().optional(),
 });
 
 // ============================================
@@ -88,7 +93,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 如果设置为默认，先将其他 provider 的 isDefault 设为 0
+    // P2-1: isDefault 从校验过的 data 读(原代码读未校验的 body.isDefault)。
     const now = Date.now();
     let isDefault = false;
 
@@ -101,12 +106,8 @@ export async function POST(request: NextRequest) {
       isDefault = true;
     }
 
-    // 如果指定要设为默认，先更新其他 provider
-    if (body.isDefault) {
-      await db
-        .update(aiProviders)
-        .set({ isDefault: 0, updatedAt: now })
-        .where(eq(aiProviders.isDefault, 1));
+    // 如果指定要设为默认(显式 isDefault=true),覆盖上面的自动默认逻辑
+    if (data.isDefault) {
       isDefault = true;
     }
 
@@ -130,7 +131,28 @@ export async function POST(request: NextRequest) {
       updatedAt: now,
     };
 
-    await db.insert(aiProviders).values(provider);
+    // P2-1:"清其它默认 + insert"包事务(runInTransaction,双栈封装)。
+    // 防并发创建留下双默认:两步原子执行,任一步失败整体回滚。
+    await runInTransaction(
+      (tx) => {
+        if (isDefault) {
+          tx.update(aiProviders)
+            .set({ isDefault: 0, updatedAt: now })
+            .where(eq(aiProviders.isDefault, 1))
+            .run();
+        }
+        tx.insert(aiProviders).values(provider).run();
+      },
+      async (tx) => {
+        if (isDefault) {
+          await tx
+            .update(aiProviders)
+            .set({ isDefault: 0, updatedAt: now })
+            .where(eq(aiProviders.isDefault, 1));
+        }
+        await tx.insert(aiProviders).values(provider);
+      },
+    );
 
     // 返回创建的 provider（不含 apiKey）
     const safeProvider = {

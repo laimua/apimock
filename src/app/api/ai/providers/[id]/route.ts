@@ -12,6 +12,7 @@ import { aiProviders } from '@/lib/schema';
 import { eq, ne, and, asc } from 'drizzle-orm';
 import { encrypt } from '@/lib/encryption';
 import { validateUrlSafe } from '@/lib/ssrf';
+import { runInTransaction } from '@/lib/db-transaction';
 
 // ============================================
 // Schema
@@ -195,6 +196,10 @@ export async function DELETE(
     }
 
     // 如果删除的是默认 provider，需要将其他 provider 设为默认
+    // P2-3:"提升其它 provider 为默认 + 删除"包事务(runInTransaction,双栈封装)。
+    // 防删除失败时"既已提升其它为默认又没删掉原默认"留下双默认:两步原子,
+    // 任一步失败整体回滚。其它候选(otherProviders)的只读查询在事务外执行。
+    let promoteId: string | null = null;
     if (existing.isDefault === 1) {
       // 找一个其它可用 provider 设为默认（不能是正在被删除的自己）
       // orderBy createdAt asc：使新默认确定（选最早创建的 active provider），
@@ -205,15 +210,32 @@ export async function DELETE(
       });
 
       if (otherProviders.length > 0) {
-        await db
-          .update(aiProviders)
-          .set({ isDefault: 1, updatedAt: Date.now() })
-          .where(eq(aiProviders.id, otherProviders[0].id));
+        promoteId = otherProviders[0].id;
       }
     }
 
-    // 删除 provider
-    await db.delete(aiProviders).where(eq(aiProviders.id, id));
+    const deleteNow = Date.now();
+    const promoteTargetId = promoteId;
+    await runInTransaction(
+      (tx) => {
+        if (promoteTargetId) {
+          tx.update(aiProviders)
+            .set({ isDefault: 1, updatedAt: deleteNow })
+            .where(eq(aiProviders.id, promoteTargetId))
+            .run();
+        }
+        tx.delete(aiProviders).where(eq(aiProviders.id, id)).run();
+      },
+      async (tx) => {
+        if (promoteTargetId) {
+          await tx
+            .update(aiProviders)
+            .set({ isDefault: 1, updatedAt: deleteNow })
+            .where(eq(aiProviders.id, promoteTargetId));
+        }
+        await tx.delete(aiProviders).where(eq(aiProviders.id, id));
+      },
+    );
 
     return success({ id, deleted: true });
   } catch (err: unknown) {
