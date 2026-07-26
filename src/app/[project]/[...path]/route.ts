@@ -25,13 +25,29 @@ const MOCK_RATE_LIMIT = 100;
 // ============================================
 // 敏感信息脱敏
 // ============================================
-function sanitizeHeaders(headers: Headers): Record<string, string> {
+export function sanitizeHeaders(headers: Headers): Record<string, string> {
   const sanitized: Record<string, string> = {};
-  const sensitiveHeaders = ['authorization', 'cookie', 'set-cookie', 'x-api-key'];
+  // P2-31: 扩 sensitiveHeaders 名单。原名单只有 authorization/cookie/set-cookie/x-api-key，
+  // 漏掉 proxy-authorization（代理凭证，泄露等同 authorization）、x-forwarded-for /
+  // x-real-ip / forwarded（可暴露真实 client IP 与代理拓扑）、x-forwarded-host /
+  // x-forwarded-proto（同样泄露代理内部信息）。这些都直接落 requests 表，匿名 mock
+  // 调用方可能借此探测部署拓扑。Set 用小写 key 比对（header 名大小写不敏感）。
+  const sensitiveHeaders = new Set([
+    'authorization',
+    'proxy-authorization',
+    'cookie',
+    'set-cookie',
+    'x-api-key',
+    'x-forwarded-for',
+    'x-forwarded-host',
+    'x-forwarded-proto',
+    'x-real-ip',
+    'forwarded',
+  ]);
 
   headers.forEach((value, key) => {
     const lowerKey = key.toLowerCase();
-    if (sensitiveHeaders.includes(lowerKey)) {
+    if (sensitiveHeaders.has(lowerKey)) {
       sanitized[key] = '[REDACTED]';
     } else {
       sanitized[key] = value;
@@ -39,6 +55,71 @@ function sanitizeHeaders(headers: Headers): Record<string, string> {
   });
 
   return sanitized;
+}
+
+// ============================================
+// P2-38: HTTP 响应头值 Latin-1 安全化
+// ============================================
+// undici/Next 的 Headers 实现要求 header value 为 Latin-1(0x00–0xFF),
+// 任何超出范围的字符(如中文 `\u4e2d`、emoji)会触发 `TypeError: Invalid value`
+// 未捕获 → 裸 500。mock 端点 path 含中文(`X-Mock-Endpoint: /用户/list`)或
+// 用户自定义响应头含中文时即触发。这里在构造 headers 对象时统一做安全处理。
+
+/**
+ * 把任意字符串安全化为 Latin-1 兼容的 header value。
+ * 超出 Latin-1(>0xFF)的码点替换为 `?`,保留 ASCII 与 Latin-1 补充字符。
+ * 选择 `?` 而非丢弃/编码:HTTP 头值本就不应承载二进制/多字节文本,`?` 是
+ * 最低惊讶的可读占位符(与浏览器渲染非法字符的行为一致)。
+ *
+ * 单独导出便于单测覆盖。非 header 值场景(如 X-Mock-Endpoint 的 path)用
+ * `encodeHeaderValueAsAscii` 做 percent-encoding,保留可还原语义。
+ */
+export function sanitizeHeaderValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const str = typeof value === 'string' ? value : String(value);
+  // 替换所有非 Latin-1 码点。charCodeAt 返回 UTF-16 code unit;
+  // 对于 BMP 外字符( surrogate pair),高位 surrogate(>0xFFFF 不会出现于单 charCodeAt)
+  // 仍会被各自的 code unit 过滤为 `?`,结果仍 Latin-1 安全。
+  let out = '';
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    out += code > 0xff ? '?' : str[i];
+  }
+  return out;
+}
+
+/**
+ * 把任意字符串编码为 Latin-1 安全(0x00–0xFF),适合需要可还原语义的头值
+ * (如 `X-Mock-Endpoint: <path>`)。仅对超出 Latin-1 的码点(如中文、emoji)
+ * 做 percent-encoding,ASCII 与 Latin-1 补充字符(如 `café` 的 `é`)原样保留
+ * —— 这样 `/users`、`/items/:id` 等纯 ASCII 路径可读性不变,只有 `/用户/list`
+ * 这类含非 Latin-1 的路径才被编码。可还原:`decodeURIComponent`。
+ */
+export function encodeHeaderValueAsAscii(value: string): string {
+  let out = '';
+  for (const ch of value) {
+    const code = ch.codePointAt(0)!;
+    if (code > 0xFF) {
+      // 非 Latin-1:percent-encode(encodeURIComponent 对单字符安全)
+      out += encodeURIComponent(ch);
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+/**
+ * 构造 Latin-1 安全的响应头对象:对所有 value 应用 sanitizeHeaderValue。
+ * 调用方对个别需要可还原语义的头(如 X-Mock-Endpoint path)在传入前自行
+ * 用 encodeHeaderValueAsAscii 预处理。
+ */
+function buildSafeHeaders(input: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(input)) {
+    out[key] = sanitizeHeaderValue(value);
+  }
+  return out;
 }
 
 // ============================================
@@ -316,14 +397,17 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
   const corsHeaders = getCorsHeaders();
 
   // 构建响应头
+  // P2-38:`X-Mock-Endpoint: <path>` 中 path 可能含中文等非 Latin-1 字符,
+  // 直接设置会让 undici Headers 抛 TypeError → 裸 500。这里对 path 做
+  // percent-encoding(纯 ASCII,可还原),用户自定义头值则在最后统一 sanitize。
   const headers: Record<string, string> = {
     ...corsHeaders,
     'X-Mock-Server': 'ApiMock',
     'X-Mock-Project': projectSlug,
-    'X-Mock-Endpoint': mock.endpoint.path,
+    'X-Mock-Endpoint': encodeHeaderValueAsAscii(mock.endpoint.path),
   };
 
-  // 合并自定义响应头（过滤 CORS 头，防止覆盖安全策略）
+  // 合并自定义响应头(过滤 CORS 头,防止覆盖安全策略)
   if (mock.response.headers) {
     for (const [key, value] of Object.entries(mock.response.headers)) {
       if (!key.toLowerCase().startsWith('access-control-')) {
@@ -335,6 +419,10 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
   // 处理 content-type
   const responseContentType = mock.response.contentType || 'application/json';
   headers['Content-Type'] = responseContentType;
+
+  // P2-38:对所有头值做 Latin-1 安全化(用户自定义头可能含中文等非法字符)。
+  // X-Mock-Endpoint 已 percent-encode,sanitizeHeaderValue 对纯 ASCII 是 no-op。
+  const safeHeaders = buildSafeHeaders(headers);
 
   // 返回 Mock 数据
   const body = mock.response.body;
@@ -370,12 +458,12 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
   if (serialized.kind === 'text') {
     return new NextResponse(serialized.text, {
       status: responseStatus,
-      headers,
+      headers: safeHeaders,
     });
   }
   return NextResponse.json(serialized.value, {
     status: responseStatus,
-    headers,
+    headers: safeHeaders,
   });
 }
 

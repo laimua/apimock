@@ -41,34 +41,59 @@ export interface KVStore {
 }
 
 let _store: KVStore | null = null;
+// in-flight 初始化 Promise。并发首调竞态修复（P2-5）：两个调用者同时进入
+// getKv() 且 _store 尚未赋值时，会各自创建 Redis client → 连接泄漏。
+// 复用同一 Promise 让并发调用等同一个初始化结果。
+let _storePromise: Promise<KVStore> | null = null;
 
 /**
  * 取当前 KV 实例。首次调用按 REDIS_URL 决定后端，后续复用。
+ *
+ * 并发首调安全：通过模块级 in-flight Promise 缓存，并发的首个调用共享
+ * 同一次初始化，不会重复创建 Redis client（P2-5）。
  *
  * Redis 初始化失败时 fallback Memory，log warn，不阻断启动。
  */
 export async function getKv(): Promise<KVStore> {
   if (_store) return _store;
+  if (_storePromise) return _storePromise;
 
-  const redisUrl = process.env.REDIS_URL;
-  if (redisUrl) {
-    try {
-      const { createRedisKv } = await import('./kv-redis');
-      _store = await createRedisKv(redisUrl);
-    } catch (err) {
-      console.warn('[kv] Redis init failed, falling back to memory:', err);
+  _storePromise = (async () => {
+    const redisUrl = process.env.REDIS_URL;
+    let store: KVStore;
+    if (redisUrl) {
+      try {
+        const { createRedisKv } = await import('./kv-redis');
+        store = await createRedisKv(redisUrl);
+      } catch (err) {
+        console.warn('[kv] Redis init failed, falling back to memory:', err);
+        const { createMemoryKv } = await import('./kv-memory');
+        store = createMemoryKv();
+      }
+    } else {
       const { createMemoryKv } = await import('./kv-memory');
-      _store = createMemoryKv();
+      store = createMemoryKv();
     }
-  } else {
-    const { createMemoryKv } = await import('./kv-memory');
-    _store = createMemoryKv();
-  }
+    _store = store;
+    return store;
+  })();
 
-  return _store;
+  try {
+    return await _storePromise;
+  } finally {
+    // 初始化完成（成功或失败）后清掉 in-flight Promise：
+    // 失败时下次调用应重试，而不是永久返回同一被 reject 的 Promise。
+    _storePromise = null;
+  }
 }
 
-/** 测试用：强制注入 KV 实例 */
+/** 测试用：强制注入 KV 实例（同时清掉 in-flight Promise） */
 export function _setKvForTest(store: KVStore | null): void {
   _store = store;
+  _storePromise = null;
+}
+
+/** 测试用：观察 in-flight Promise 状态（P2-5 测试用） */
+export function _getKvInFlightPromiseForTest(): Promise<KVStore> | null {
+  return _storePromise;
 }

@@ -255,10 +255,28 @@ export type SerializedMockResponse =
   | { kind: 'json'; value: unknown };
 
 /**
+ * 从 Content-Type 头值中解析出 media type(去掉 `;` 之后的参数,如 charset)。
+ *
+ * P2-39 修复:`application/json; charset=utf-8` 经解析得 `application/json`,
+ * 不再被精确比较 `!== 'application/json'` 误判为非 JSON 分支(对象 body 经 `String()`
+ * 变成 `[object Object]`)。
+ *
+ * 与 RFC 7231 一致:取 `;` 前的 type/substring,去除前后 OWS(空白),整体小写。
+ * 输入为空或非法时返回空串(调用方按非 JSON 分支处理)。
+ */
+export function mediaType(contentType: string | null | undefined): string {
+  if (!contentType) return '';
+  // 取 `;` 前的 media type;trim OWS;整体小写做大小写不敏感比较
+  const semi = contentType.indexOf(';');
+  const raw = semi >= 0 ? contentType.slice(0, semi) : contentType;
+  return raw.trim().toLowerCase();
+}
+
+/**
  * 决定 mock 响应如何序列化,与 `src/app/[project]/[...path]/route.ts` 的响应构建逻辑对齐。
  *
- * 分流规则(与 route.ts 末尾的 if 链逐字等价):
- *   1. contentType 非 `application/json` → text(body 原样/降级 String())
+ * 分流规则:
+ *   1. media type 非 `application/json` → text(body 原样/降级 String())
  *   2. body 是字符串 → text(P1-10:避免 NextResponse.json 把字符串再序列化成合法 JSON)
  *   3. 否则 → json
  *
@@ -268,17 +286,18 @@ export type SerializedMockResponse =
  *   客户端永远收不到 malformed JSON,该错误场景完全失效。
  *   走 text 分支后 body 原样返回,客户端真正收到非法 JSON。
  *
- * 与 P2-39(contentType 精确比较 `!== 'application/json'` 把 `application/json; charset=utf-8`
- * 误判到非 JSON 分支)无冲突:本函数不修改 contentType 比较逻辑,仅基于 typeof body 增加
- * 一个独立分流条件。P2-39 的修复(改精确比较为 startsWith)可在后续批改 contentType 比较,
- * 不影响本函数的字符串分支。
+ * P2-39 修复:contentType 比较从精确 `!== 'application/json'` 改为解析 media type
+ *   (`mediaType(contentType) === 'application/json'`)。`application/json; charset=utf-8`
+ *   现在正确走 JSON 分支,对象 body 输出合法 JSON 而非 `[object Object]`。
+ *   与 P1-10 兼容:分支 2(字符串 body → text)在分支 1 之后,优先级保持不变——
+ *   `application/json; charset=utf-8` + 字符串 body 仍走 text,不破坏 malformed-json 场景。
  */
 export function serializeMockResponse(
   body: unknown,
   contentType: string,
 ): SerializedMockResponse {
-  // 1. 非 JSON content-type → 原始文本
-  if (contentType !== 'application/json') {
+  // 1. 非 JSON media type → 原始文本(P2-39:用 mediaType 解析,去掉 charset 等参数)
+  if (mediaType(contentType) !== 'application/json') {
     const text = body !== null && body !== undefined
       ? (typeof body === 'string' ? body : String(body))
       : '';

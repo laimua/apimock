@@ -38,6 +38,13 @@ export async function POST(request: Request) {
 
   const result = await backupSqlite();
   if (!result.ok) {
+    // P2-6: 并发备份第二个 → 409 Conflict；P2-33: BACKUP_KEEP=0 → 400 误配
+    if (result.reason === 'in_progress') {
+      return error('BACKUP_IN_PROGRESS', result.error || 'Backup in progress', 409);
+    }
+    if (result.reason === 'disabled') {
+      return error('BACKUP_DISABLED', result.error || 'Backup disabled', 400);
+    }
     return Errors.internal(result.error || 'Backup failed');
   }
   return success(result);

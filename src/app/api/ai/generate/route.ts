@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
         try {
           return await generateWithProvider(prompt, count, provider);
         } catch (err) {
-          console.error('Error with provider:', err);
+          logger.error({ err, providerId }, 'AI generate with provider failed');
           // 失败后继续尝试降级方案
         }
       }
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
       try {
         return await generateWithProvider(prompt, count, defaultProvider);
       } catch (err) {
-        console.error('Error with default provider:', err);
+        logger.error({ err, providerId: defaultProvider.id }, 'AI generate with default provider failed');
       }
     }
 

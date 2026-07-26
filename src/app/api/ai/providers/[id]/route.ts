@@ -12,6 +12,8 @@ import { aiProviders } from '@/lib/schema';
 import { eq, ne, and, asc } from 'drizzle-orm';
 import { encrypt } from '@/lib/encryption';
 import { validateUrlSafe } from '@/lib/ssrf';
+import { runInTransaction } from '@/lib/db-transaction';
+import { logger } from '@/lib/logger';
 
 // ============================================
 // Schema
@@ -68,8 +70,16 @@ export async function PATCH(
 
     // 单独传 defaultModel（不带 models）时校验是否在现有 models 列表内（A10）。
     // 同时传 models 和 defaultModel 的情形已由 schema refine 覆盖。
+    // P2-22: existing.models 可能为脏 JSON（历史数据/A18 修复遗漏点），裸 JSON.parse
+    // 会让 PATCH 整个 500。降级为空数组使校验自然失败（defaultModel 不在 [] 内），
+    // 返回明确的 BAD_REQUEST 而非 500。
     if (data.defaultModel && !data.models) {
-      const existingModels = JSON.parse(existing.models) as string[];
+      let existingModels: string[] = [];
+      try {
+        existingModels = JSON.parse(existing.models) as string[];
+      } catch {
+        existingModels = [];
+      }
       if (!existingModels.includes(data.defaultModel)) {
         return Errors.badRequest('defaultModel must be in the models list');
       }
@@ -119,12 +129,21 @@ export async function PATCH(
       return Errors.internal('Failed to update provider');
     }
 
+    // P2-22: updated.models 同样可能为脏 JSON,降级为空数组(与段 B 的 parseJsonSafe
+    // / parseTags 模式一致),避免成功更新后因序列化崩成 500。
+    let updatedModels: string[] = [];
+    try {
+      updatedModels = JSON.parse(updated.models) as string[];
+    } catch {
+      updatedModels = [];
+    }
+
     const safeProvider = {
       id: updated.id,
       name: updated.name,
       provider: updated.provider,
       baseUrl: updated.baseUrl,
-      models: JSON.parse(updated.models),
+      models: updatedModels,
       defaultModel: updated.defaultModel,
       systemPrompt: updated.systemPrompt,
       isActive: updated.isActive === 1,
@@ -139,7 +158,7 @@ export async function PATCH(
       return Errors.validation(err.issues);
     }
 
-    console.error('Error updating provider:', err);
+    logger.error({ err }, 'Failed to update provider');
     return Errors.internal('Failed to update provider');
   }
 }
@@ -178,6 +197,10 @@ export async function DELETE(
     }
 
     // 如果删除的是默认 provider，需要将其他 provider 设为默认
+    // P2-3:"提升其它 provider 为默认 + 删除"包事务(runInTransaction,双栈封装)。
+    // 防删除失败时"既已提升其它为默认又没删掉原默认"留下双默认:两步原子,
+    // 任一步失败整体回滚。其它候选(otherProviders)的只读查询在事务外执行。
+    let promoteId: string | null = null;
     if (existing.isDefault === 1) {
       // 找一个其它可用 provider 设为默认（不能是正在被删除的自己）
       // orderBy createdAt asc：使新默认确定（选最早创建的 active provider），
@@ -188,19 +211,36 @@ export async function DELETE(
       });
 
       if (otherProviders.length > 0) {
-        await db
-          .update(aiProviders)
-          .set({ isDefault: 1, updatedAt: Date.now() })
-          .where(eq(aiProviders.id, otherProviders[0].id));
+        promoteId = otherProviders[0].id;
       }
     }
 
-    // 删除 provider
-    await db.delete(aiProviders).where(eq(aiProviders.id, id));
+    const deleteNow = Date.now();
+    const promoteTargetId = promoteId;
+    await runInTransaction(
+      (tx) => {
+        if (promoteTargetId) {
+          tx.update(aiProviders)
+            .set({ isDefault: 1, updatedAt: deleteNow })
+            .where(eq(aiProviders.id, promoteTargetId))
+            .run();
+        }
+        tx.delete(aiProviders).where(eq(aiProviders.id, id)).run();
+      },
+      async (tx) => {
+        if (promoteTargetId) {
+          await tx
+            .update(aiProviders)
+            .set({ isDefault: 1, updatedAt: deleteNow })
+            .where(eq(aiProviders.id, promoteTargetId));
+        }
+        await tx.delete(aiProviders).where(eq(aiProviders.id, id));
+      },
+    );
 
     return success({ id, deleted: true });
   } catch (err: unknown) {
-    console.error('Error deleting provider:', err);
+    logger.error({ err }, 'Failed to delete provider');
     return Errors.internal('Failed to delete provider');
   }
 }

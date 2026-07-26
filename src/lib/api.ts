@@ -28,6 +28,18 @@ export function success<T>(data: T, status = 200): NextResponse<ApiResponse<T>> 
   );
 }
 
+/**
+ * 207 Multi-Status:批量操作部分成功时使用。
+ * body 仍是标准 `{success, data}` 形状,但 success=false 表示"并非全部成功"
+ * (data 内含每项结果/错误)。前端应优先看 HTTP 状态码 207 区分全成功 vs 部分成功。
+ */
+export function multiStatus<T>(data: T): NextResponse<ApiResponse<T>> {
+  return NextResponse.json(
+    { success: false, data },
+    { status: 207 }
+  );
+}
+
 // ============================================
 // 错误响应
 // ============================================
@@ -57,6 +69,10 @@ export const Errors = {
   conflict: (message: string, details?: unknown) => error('CONFLICT', message, 409, details),
   internal: (message = 'Internal server error') => error('INTERNAL_ERROR', message, 500),
   validation: (issues: z.ZodIssue[]) => error('VALIDATION_ERROR', 'Validation failed', 400, issues),
+  // P2-15:上传文件超大小上限 → 413
+  payloadTooLarge: (message: string, details?: unknown) => error('PAYLOAD_TOO_LARGE', message, 413, details),
+  // P2-16:OpenAPI 文档无法解析(含循环引用、结构非法等)→ 400
+  invalidOpenApi: (message: string, details?: unknown) => error('INVALID_OPENAPI', message, 400, details),
 };
 
 // ============================================

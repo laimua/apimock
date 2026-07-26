@@ -82,6 +82,13 @@ export async function POST(
     try { models = JSON.parse(provider.models); } catch { /* 坏数据返空 */ }
     const modelToTest = provider.defaultModel || models[0];
 
+    // P2-23: models 坏数据降级为空数组后,defaultModel 也可能为空/null → modelToTest
+    // 为 undefined 直接发给 OpenAI 会得到不友好的上游 400("you must provide a model
+    // parameter")。前置校验返明确 BAD_REQUEST,不发起上游调用。
+    if (!modelToTest) {
+      return Errors.badRequest('Provider has no model configured (defaultModel missing and models list is empty)');
+    }
+
     // SSRF 校验
     if (provider.baseUrl) {
       const check = await validateUrlSafe(provider.baseUrl);

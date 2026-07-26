@@ -12,6 +12,7 @@ import { db } from '@/lib/db';
 import { projects } from '@/lib/schema';
 import { sql, desc, eq } from 'drizzle-orm';
 import { SLUG_REGEX, MAX_SLUG_LENGTH, generateSlug, isReservedSlug } from '@/lib/slug';
+import { logger } from '@/lib/logger';
 
 // ============================================
 // Schema
@@ -108,7 +109,21 @@ export async function POST(request: NextRequest) {
       updatedAt: now,
     };
 
-    await db.insert(projects).values(newProject);
+    // P2-4: 上面的 slug 预检存在 TOCTOU 窗口(并发请求都通过预检后第二个撞唯一索引)。
+    // 捕获 insert 抛出的唯一约束冲突,转 409 而非裸 500 + SQL 错误透客户端。
+    // 双栈兼容:SQLite 抛 "UNIQUE constraint failed: projects.slug",MySQL 抛代码
+    // ER_DUP_ENTRY / 1062,PostgreSQL 抛 "duplicate key value violates unique constraint"。
+    // 用大小写不敏感的 multiple 检测避免漏判或误判普通列约束。
+    try {
+      await db.insert(projects).values(newProject);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/unique constraint|duplicate key|duplicate entry|projects\.slug/i.test(msg)) {
+        logger.error({ slug, err: msg }, 'Project slug unique violation');
+        return Errors.conflict(`Slug "${slug}" already exists`);
+      }
+      throw err;
+    }
 
     return success({
       ...newProject,

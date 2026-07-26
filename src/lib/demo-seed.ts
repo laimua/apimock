@@ -16,6 +16,7 @@ import { nanoid } from 'nanoid';
 import { eq } from 'drizzle-orm';
 import { projects, endpoints } from './schema';
 import type { db as dbType } from './db';
+import { logger } from './logger';
 
 export const DEMO_PROJECT_SLUG = 'demo-project';
 
@@ -152,6 +153,6 @@ export async function autoSeedIfNeeded(db: DbClient): Promise<void> {
     }
   } catch (err) {
     // seed 失败不影响 app 启动
-    console.error('[demo-seed] Auto-seed failed:', err);
+    logger.error({ err }, 'demo-seed auto-seed failed');
   }
 }

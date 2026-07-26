@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
 import { type NextRequest } from 'next/server';
 import { POST, GET } from '@/app/api/projects/route';
+import { PUT } from '@/app/api/projects/[id]/route';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects } from '@/lib/schema';
 
@@ -330,6 +331,141 @@ describe('Projects API', () => {
 
       expect(response.status).toBe(500);
       expect(data.success).toBe(false);
+    });
+
+    // P2-4: slug 预检通过但 insert 撞唯一索引(TOCTOU 窗口)→ 409 非 500,错误形状
+    // {code:'CONFLICT'},不透 SQL 错误细节。模拟方式:mock insert 抛 SQLite 唯一约束
+    // 错误(模拟并发竞态的另一个请求已抢先写入同 slug),验证 catch 分支转 409。
+    it('P2-4 POST: 预检通过但 insert 撞唯一索引(TOCTOU)→ 409 非 500', async () => {
+      let insertCalled = 0;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.spyOn(mockDb, 'insert').mockImplementation(((): any => {
+        insertCalled++;
+        // 模拟 TOCTOU:并发请求已抢先写入同 slug,本请求 insert 抛唯一约束冲突
+        throw new Error('UNIQUE constraint failed: projects.slug');
+      }));
+
+      const request = new Request('http://localhost/api/projects', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'Concurrent', slug: 'concurrent-slug' }),
+      });
+
+      const response = await POST(asReq(request));
+      const data = await response.json();
+
+      expect(response.status).toBe(409);
+      expect(data.success).toBe(false);
+      expect(data.error.code).toBe('CONFLICT');
+      expect(data.error.message).toContain('concurrent-slug');
+      // 不透 SQL 错误细节给客户端
+      expect(data.error.message).not.toContain('UNIQUE constraint failed');
+
+      vi.mocked(mockDb.insert).mockRestore();
+      expect(insertCalled).toBe(1);
+    });
+
+    // 回归:正常预检拦截(非 TOCTOU)仍走预检分支返 400 VALIDATION_ERROR。
+    it('P2-4 回归: 同 slug 已存在 → 预检拦截 400(非 TOCTOU)', async () => {
+      const now = Date.now();
+      await mockDb.insert(projects).values({
+        id: 'existing',
+        name: 'Existing',
+        slug: 'taken-slug',
+        description: null,
+        basePath: null,
+        isActive: 1,
+        settings: '{}',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const request = new Request('http://localhost/api/projects', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'New', slug: 'taken-slug' }),
+      });
+
+      const response = await POST(asReq(request));
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  describe('P2-4 PUT /api/projects/[id] slug 唯一约束', () => {
+    it('P2-4 PUT: update 撞唯一索引(TOCTOU)→ 409 非 500', async () => {
+      const now = Date.now();
+      await mockDb.insert(projects).values({
+        id: 'p1',
+        name: 'P1',
+        slug: 'p1-slug',
+        description: null,
+        basePath: null,
+        isActive: 1,
+        settings: '{}',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // 模拟 update 抛 SQLite 唯一约束错误(并发请求已抢先写入同 slug)
+      let updateCalled = 0;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.spyOn(mockDb, 'update').mockImplementation(((): any => {
+        updateCalled++;
+        return {
+          set: () => ({
+            where: () =>
+              Promise.reject(new Error('UNIQUE constraint failed: projects.slug')),
+          }),
+        };
+      }));
+
+      const request = new Request('http://localhost/api/projects/p1', {
+        method: 'PUT',
+        body: JSON.stringify({ slug: 'new-slug' }),
+      });
+
+      const response = await PUT(asReq(request), {
+        params: Promise.resolve({ id: 'p1' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(409);
+      expect(data.success).toBe(false);
+      expect(data.error.code).toBe('CONFLICT');
+      expect(data.error.message).not.toContain('UNIQUE constraint failed');
+
+      vi.mocked(mockDb.update).mockRestore();
+      expect(updateCalled).toBe(1);
+    });
+
+    it('P2-4 回归 PUT: 正常改名成功(200)', async () => {
+      const now = Date.now();
+      await mockDb.insert(projects).values({
+        id: 'p2',
+        name: 'P2',
+        slug: 'old-slug',
+        description: null,
+        basePath: null,
+        isActive: 1,
+        settings: '{}',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const request = new Request('http://localhost/api/projects/p2', {
+        method: 'PUT',
+        body: JSON.stringify({ slug: 'new-good-slug' }),
+      });
+
+      const response = await PUT(asReq(request), {
+        params: Promise.resolve({ id: 'p2' }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.data.slug).toBe('new-good-slug');
     });
   });
 });

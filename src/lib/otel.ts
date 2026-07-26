@@ -34,31 +34,37 @@ export function startOtelIfConfigured(): void {
     return;
   }
 
-  const exporter = new OTLPTraceExporter({
-    url: endpoint,
-    headers: parseHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS),
-  });
+  // P2-35: 任何构造/启动错误（坏 OTLP URL、缺鉴权头、NodeSDK 内部抛错）
+  // 不向上冒泡，降级为 "OTel 禁用 + error log"，不阻断进程启动。
+  try {
+    const exporter = new OTLPTraceExporter({
+      url: endpoint,
+      headers: parseHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS),
+    });
 
-  const sdk = new NodeSDK({
-    serviceName: process.env.OTEL_SERVICE_NAME || 'apimock',
-    traceExporter: exporter,
-    instrumentations: [
-      // 自动 instrument。disable fs（ noisy）+ dns（ per-request 太碎）
-      getNodeAutoInstrumentations({
-        '@opentelemetry/instrumentation-fs': { enabled: false },
-        '@opentelemetry/instrumentation-dns': { enabled: false },
-      }),
-    ],
-  });
+    const sdk = new NodeSDK({
+      serviceName: process.env.OTEL_SERVICE_NAME || 'apimock',
+      traceExporter: exporter,
+      instrumentations: [
+        // 自动 instrument。disable fs（ noisy）+ dns（ per-request 太碎）
+        getNodeAutoInstrumentations({
+          '@opentelemetry/instrumentation-fs': { enabled: false },
+          '@opentelemetry/instrumentation-dns': { enabled: false },
+        }),
+      ],
+    });
 
-  sdk.start();
-  started = sdk;
-  logger.info({ endpoint, serviceName: process.env.OTEL_SERVICE_NAME || 'apimock' }, 'OTel SDK started');
+    sdk.start();
+    started = sdk;
+    logger.info({ endpoint, serviceName: process.env.OTEL_SERVICE_NAME || 'apimock' }, 'OTel SDK started');
 
-  // 优雅关闭
-  process.on('SIGTERM', () => {
-    sdk.shutdown().catch((err) => logger.error({ err }, 'OTel shutdown failed'));
-  });
+    // 优雅关闭
+    process.on('SIGTERM', () => {
+      sdk.shutdown().catch((err) => logger.error({ err }, 'OTel shutdown failed'));
+    });
+  } catch (err) {
+    logger.error({ err, endpoint }, 'OTel startup failed, continuing with OTel disabled');
+  }
 }
 
 function parseHeaders(raw?: string): Record<string, string> | undefined {

@@ -3,10 +3,11 @@
  * Tests for OpenAPI import endpoints
  */
 
-import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest';
 import { type NextRequest } from 'next/server';
 import { POST as IMPORT_POST } from '@/app/api/projects/[id]/import/route';
 import { POST as PARSE_POST } from '@/app/api/projects/[id]/import/parse/route';
+import { parseAndExtract } from '@/lib/openapi-parser';
 import { getTestDb, setupTestDb, clearTestDb } from '../setup';
 import { projects, endpoints, responses } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
@@ -341,6 +342,215 @@ describe('Import API', () => {
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
       expect(data.error.details).toBeDefined();
+    });
+  });
+
+  // ============================================
+  // P2-15:文件大小上限 + 分块 insert
+  // P2-17:批量结果状态码(201 / 207 / 500)
+  // ============================================
+  describe('P2-15/P2-17 — 文件大小上限 + 批量状态码', () => {
+    const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+
+    afterEach(() => {
+      // 恢复 parseAndExtract 默认 mock 实现(返 2 端点),避免影响后续测试
+      vi.mocked(parseAndExtract).mockRestore();
+    });
+
+    it('P2-15 import: 超大文件(>5MB)→ 413 PAYLOAD_TOO_LARGE', async () => {
+      const big = new Uint8Array(MAX_IMPORT_BYTES + 1);
+      const formData = new FormData();
+      formData.append('file', new File([big], 'huge.json', { type: 'application/json' }));
+
+      const request = new Request('http://localhost/api/projects/proj1/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const response = await IMPORT_POST(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(413);
+      expect(data.success).toBe(false);
+      expect(data.error.code).toBe('PAYLOAD_TOO_LARGE');
+      expect(typeof data.error.message).toBe('string');
+    });
+
+    it('P2-15 import: 正常大小文件不受影响(仍 201)', async () => {
+      const formData = new FormData();
+      formData.append('file', new File(['valid openapi content'], 'openapi.json', { type: 'application/json' }));
+
+      const request = new Request('http://localhost/api/projects/proj1/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const response = await IMPORT_POST(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      expect(response.status).toBe(201);
+    });
+
+    it('P2-15 parse: 超大文件(>5MB)→ 413(与 import 对称)', async () => {
+      const big = new Uint8Array(MAX_IMPORT_BYTES + 1);
+      const formData = new FormData();
+      formData.append('file', new File([big], 'huge.json', { type: 'application/json' }));
+
+      const request = new Request('http://localhost/api/projects/proj1/import/parse', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const response = await PARSE_POST(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(413);
+      expect(data.error.code).toBe('PAYLOAD_TOO_LARGE');
+    });
+
+    it('P2-17 import: 全部成功 → 201', async () => {
+      const formData = new FormData();
+      formData.append('file', new File(['valid openapi content'], 'openapi.json', { type: 'application/json' }));
+
+      const request = new Request('http://localhost/api/projects/proj1/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const response = await IMPORT_POST(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(201);
+      expect(data.data.errors).toHaveLength(0);
+      expect(data.data.created).toBe(2);
+    });
+
+    it('P2-17 import: 全部失败(created===0 且有 errors)→ 500', async () => {
+      // 让 parseAndExtract 返一个端点,但让 DB insert 抛错使整批失败
+      vi.mocked(parseAndExtract).mockReturnValueOnce({
+        endpoints: [
+          {
+            path: '/boom',
+            method: 'GET',
+            responses: [{ statusCode: 200, body: { ok: true } }],
+          },
+        ],
+        errors: [],
+      });
+
+      // spyOn mockDb.insert 让其抛错(模拟 SQL 失败)。restore 在 finally 里恢复。
+      const insertSpy = vi.spyOn(mockDb, 'insert').mockImplementation(() => {
+        throw new Error('simulated SQL failure');
+      });
+
+      const formData = new FormData();
+      formData.append('file', new File(['valid'], 'openapi.json', { type: 'application/json' }));
+      const request = new Request('http://localhost/api/projects/proj1/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      try {
+        const response = await IMPORT_POST(asReq(request), {
+          params: Promise.resolve({ id: testProject.id }),
+        });
+        const data = await response.json();
+
+        expect(response.status).toBe(500);
+        expect(data.success).toBe(false);
+        expect(data.error.code).toBe('INTERNAL_ERROR');
+        expect(data.error.details.created).toBe(0);
+        expect(data.error.details.errors.length).toBeGreaterThan(0);
+      } finally {
+        insertSpy.mockRestore();
+      }
+    });
+
+    it('P2-17 import: 边界 — 无端点产出(解析全失败)→ 400 INVALID_OPENAPI', async () => {
+      vi.mocked(parseAndExtract).mockReturnValueOnce({
+        endpoints: [],
+        errors: ['bad doc'],
+      });
+
+      const formData = new FormData();
+      formData.append('file', new File(['invalid'], 'openapi.json', { type: 'application/json' }));
+      const request = new Request('http://localhost/api/projects/proj1/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const response = await IMPORT_POST(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error.code).toBe('INVALID_OPENAPI');
+    });
+  });
+
+  // ============================================
+  // P2-16:YAML 锚点循环 → 400(非 500)
+  // 模拟 parseAndExtract 命中循环后返回的形态(空端点 + 循环错误),
+  // 验证路由据此返 400 INVALID_OPENAPI。detectCircularRef 本身见
+  // src/lib/__tests__/openapi-parser.test.ts 的真实 YAML 锚点用例。
+  // ============================================
+  describe('P2-16 — 循环引用 → 400 INVALID_OPENAPI', () => {
+    afterEach(() => {
+      vi.mocked(parseAndExtract).mockReset();
+    });
+
+    it('import: 命中循环引用(parseAndExtract 返空端点 + 循环错误)→ 400', async () => {
+      vi.mocked(parseAndExtract).mockReturnValueOnce({
+        endpoints: [],
+        errors: ['文档含循环引用(命中路径:root.back),请去除 YAML 锚点/别名形成的环'],
+      });
+
+      const formData = new FormData();
+      formData.append('file', new File(['x'], 'cyclic.yaml', { type: 'application/yaml' }));
+      const request = new Request('http://localhost/api/projects/proj1/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const response = await IMPORT_POST(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+      expect(data.error.code).toBe('INVALID_OPENAPI');
+      expect(data.error.details).toBeDefined();
+      expect(JSON.stringify(data.error.details)).toContain('循环引用');
+    });
+
+    it('parse: 命中循环引用 → 400(非 500)', async () => {
+      vi.mocked(parseAndExtract).mockReturnValueOnce({
+        endpoints: [],
+        errors: ['文档含循环引用(命中路径:root.back),请去除 YAML 锚点/别名形成的环'],
+      });
+
+      const formData = new FormData();
+      formData.append('file', new File(['x'], 'cyclic.yaml', { type: 'application/yaml' }));
+      const request = new Request('http://localhost/api/projects/proj1/import/parse', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const response = await PARSE_POST(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error.code).toBe('INVALID_OPENAPI');
     });
   });
 });
