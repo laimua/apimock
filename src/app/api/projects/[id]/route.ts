@@ -14,6 +14,8 @@ import { projects } from '@/lib/schema';
 import { eq, and, ne } from 'drizzle-orm';
 import { DEMO_PROJECT_SLUG } from '@/lib/demo-seed';
 import { SLUG_REGEX, MAX_SLUG_LENGTH, isReservedSlug } from '@/lib/slug';
+import { invalidateProjectCache } from '@/lib/project-cache';
+import { invalidateEndpointCache } from '@/lib/endpoint-cache';
 
 // ============================================
 // Schema
@@ -105,6 +107,18 @@ export async function PUT(
 
     await db.update(projects).set(updateData).where(eq(projects.id, id));
 
+    // P1-6: 项目改名/关停/恢复后失效 project 缓存，避免 mock 路由继续命中旧 slug
+    // 或旧的 isActive。改名场景同时失效旧 slug 和新 slug（旧 slug 缓存里还是
+    // 改名前的项目；新 slug 可能缓存了同名残留或尚未缓存，都需清掉）。
+    // 注意：project 缓存只存 {id, isActive}，endpoints 缓存键是 projectId 不含
+    // slug/isActive，因此 PUT 不需要失效 endpoints 缓存（mock 路由先查 project，
+    // isActive 正确后再查 endpoints，project 失效即保证关停立即生效）。
+    const oldSlug = existing[0].slug;
+    invalidateProjectCache(oldSlug);
+    if (data.slug !== undefined && data.slug !== oldSlug) {
+      invalidateProjectCache(data.slug);
+    }
+
     // 返回更新后的数据
     const updated = await db.select().from(projects).where(eq(projects.id, id));
     if (!updated[0]) {
@@ -151,6 +165,13 @@ export async function DELETE(
 
     // 删除项目（级联删除端点和响应）
     await db.delete(projects).where(eq(projects.id, id));
+
+    // P1-6: 删除后失效 project 缓存（slug 键）和 endpoints 缓存（projectId 键）。
+    // project 缓存失效后 mock 路由 getCachedProject 直接 miss → 404，不再命中
+    // 缓存里的旧项目继续公开服务。endpoints 缓存清掉释放内存 + 防止 project
+    // 失效窗口内（同进程下不存在窗口，跨副本 60s）仍可能命中残留 endpoints。
+    invalidateProjectCache(existing[0].slug);
+    invalidateEndpointCache(id);
 
     return success({ deleted: true });
   } catch (err: unknown) {
