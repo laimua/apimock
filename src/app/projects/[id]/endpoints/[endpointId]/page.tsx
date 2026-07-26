@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { splitTags as normalizeTags, parseTags, resolveBodyOnContentTypeChange } from '@/lib/utils';
+import { setDirty, clearDirty } from '@/lib/unsaved-changes';
 import { useRouter, useParams } from 'next/navigation';
 import { endpointsApi, projectsApi, ApiError, Endpoint, Project } from '@/lib/api-client';
 import { applyErrorScenario, type ErrorScenario } from '@/lib/error-scenarios';
@@ -139,18 +141,12 @@ type InitialFormState = {
   isShareable: boolean;
 };
 
-// tags 可能是字符串（DB JSON）、数组、或 undefined，统一转为 string[]
-function parseTags(tags: unknown): string[] {
-  if (!tags) return [];
-  if (Array.isArray(tags)) return tags as string[];
-  if (typeof tags === 'string') {
-    try {
-      const parsed = JSON.parse(tags);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
+// tags 可能是字符串（DB JSON）、数组、或 undefined,统一转为 string[]。
+// 复用 src/lib/utils.ts 的 parseTags(同时被公开分享页使用),保持防御性解析一致。
+// 本地包装保持 unknown 兼容(Endpoint.tags 来自 fetch 已是 unknown)。
+function safeTagsToForm(tags: unknown): string[] {
+  if (Array.isArray(tags)) return tags.filter((t): t is string => typeof t === 'string');
+  if (typeof tags === 'string') return parseTags(tags);
   return [];
 }
 
@@ -171,7 +167,7 @@ function endpointToForm(data: Endpoint): InitialFormState {
     statusCode: data.statusCode || 200,
     contentType: data.contentType || 'application/json',
     responseBody: responseBodyStr || DEFAULT_RESPONSES['application/json'],
-    tags: parseTags(data.tags),
+    tags: safeTagsToForm(data.tags),
     isShareable: data.isShareable !== false,
   };
 }
@@ -195,6 +191,8 @@ export default function EditEndpointPage() {
   const [copied, setCopied] = useState(false);
   // 复制成功提示的定时器 id，用于清理，避免卸载后触发 setState
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // 本组件实例在全局未保存修改注册表里的唯一 id,供 GlobalHeader 导航前询问
+  const dirtyIdRef = useRef(`endpoint-edit-${projectId}-${endpointId}-${Math.random().toString(36).slice(2)}`);
   const [showAiDialog, setShowAiDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
@@ -222,6 +220,15 @@ export default function EditEndpointPage() {
     tags: [],
     isShareable: true,
   });
+
+  // 标签输入框的临时字符串 state:输入期保留用户原始输入(含尾逗号/空格),
+  // blur 时才归一化为 form.tags 数组,否则受控 value=tags.join(',') 会吞掉逗号。
+  const [tagsInput, setTagsInput] = useState('');
+
+  // 当 form.tags 变化(初次加载/保存回写/AI 应用)时,同步刷新输入框字符串
+  useEffect(() => {
+    setTagsInput(form.tags.join(', '));
+  }, [form.tags]);
 
   // 检查表单是否有修改
   const isDirty = !deepEqual(form, initialForm);
@@ -254,6 +261,17 @@ export default function EditEndpointPage() {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  // isDirty 同步到全局注册表,供 GlobalHeader 客户端导航前询问(绕过 beforeunload)
+  useEffect(() => {
+    const dirtyId = dirtyIdRef.current;
+    if (isDirty) {
+      setDirty(dirtyId);
+    } else {
+      clearDirty(dirtyId);
+    }
+    return () => clearDirty(dirtyId);
   }, [isDirty]);
 
   useEffect(() => {
@@ -327,7 +345,13 @@ export default function EditEndpointPage() {
     setForm((prev) => ({
       ...prev,
       contentType,
-      responseBody: DEFAULT_RESPONSES[contentType as keyof typeof DEFAULT_RESPONSES] || '',
+      // P1-17:仅当当前 body 为空或等于当前类型默认模板时才替换,否则保留用户已写内容
+      responseBody: resolveBodyOnContentTypeChange(
+        prev.responseBody,
+        prev.contentType,
+        contentType,
+        DEFAULT_RESPONSES,
+      ),
     }));
   }
 
@@ -383,6 +407,13 @@ export default function EditEndpointPage() {
       setSaving(true);
       setErrors({});
 
+      // 提交前再归一化一次 tags,避免用户改完未 blur 直接点保存丢失最新输入
+      const submittedTags = normalizeTags(tagsInput);
+      if (submittedTags.join(', ') !== form.tags.join(', ')) {
+        setForm((prev) => ({ ...prev, tags: submittedTags }));
+        setTagsInput(submittedTags.join(', '));
+      }
+
       let parsedBody: unknown = form.responseBody;
       if (form.contentType === 'application/json') {
         parsedBody = JSON.parse(form.responseBody);
@@ -398,7 +429,7 @@ export default function EditEndpointPage() {
         statusCode: form.statusCode,
         contentType: form.contentType,
         responseBody: parsedBody,
-        tags: form.tags,
+        tags: submittedTags,
         isShareable: form.isShareable,
       });
 
@@ -725,10 +756,13 @@ export default function EditEndpointPage() {
                     <input
                       id="endpoint-tags"
                       type="text"
-                      value={form.tags.join(', ')}
-                      onChange={(e) => {
-                        const tags = e.target.value.split(',').map((t) => t.trim()).filter(Boolean);
+                      value={tagsInput}
+                      onChange={(e) => setTagsInput(e.target.value)}
+                      onBlur={() => {
+                        // 失焦时把输入串归一化(trim/去空/去重)落回 form.tags
+                        const tags = normalizeTags(tagsInput);
                         setForm((prev) => ({ ...prev, tags }));
+                        setTagsInput(tags.join(', '));
                       }}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                       placeholder="用逗号分隔，如: 用户, 列表, 分页"

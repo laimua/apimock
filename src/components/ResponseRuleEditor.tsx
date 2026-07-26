@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { JsonEditor } from '@/components/JsonEditor';
 import { STATUS_CODES } from '@/lib/constants';
+import { resolveBodyOnContentTypeChange } from '@/lib/utils';
 
 // 常用 Content-Type
 const CONTENT_TYPES = [
@@ -223,11 +224,21 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
   }
 
   function handleContentTypeChange(contentType: string) {
-    setForm((prev) => ({
-      ...prev,
-      contentType,
-      body: DEFAULT_RESPONSES[contentType as keyof typeof DEFAULT_RESPONSES] || '',
-    }));
+    setForm((prev) => {
+      // body 在 Dto 里是 unknown(JsonEditor 实际写 string),归一化为 string 再判断
+      const currentBody = typeof prev.body === 'string' ? prev.body : '';
+      return {
+        ...prev,
+        contentType,
+        // P1-17:仅当当前 body 为空或等于当前类型默认模板时才替换,否则保留用户已写内容
+        body: resolveBodyOnContentTypeChange(
+          currentBody,
+          prev.contentType ?? 'application/json',
+          contentType,
+          DEFAULT_RESPONSES,
+        ),
+      };
+    });
   }
 
   // 添加/删除 query 匹配规则（按 index 操作，数组天然支持空键与重复键）

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X, Plus, Github, LogOut } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
 import { trackEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
+import { confirmLeaveIfDirty } from '@/lib/unsaved-changes';
 
 const navLinks = [
   { href: '/projects', label: 'Projects' },
@@ -23,11 +24,21 @@ export default function GlobalHeader() {
   // 登录页不显示退出按钮
   const showLogout = pathname !== '/login';
 
+  // 内部导航点击拦截:有未保存修改时弹原生确认,用户取消则阻止 Link 跳转。
+  // (P1-16:此前 GlobalHeader 的 Link 走客户端路由,绕过各页 beforeunload/guard)
+  const handleInternalNavClick = (e: React.MouseEvent) => {
+    if (confirmLeaveIfDirty()) {
+      e.preventDefault();
+    }
+  };
+
   const handleGithubClick = () => {
     trackEvent(ANALYTICS_EVENTS.GITHUB_STAR_CLICK, { source: 'header' });
   };
 
   const handleLogout = async () => {
+    // 有未保存修改时同样询问,避免退出丢数据
+    if (confirmLeaveIfDirty()) return;
     try {
       const res = await fetch('/api/auth/logout', { method: 'POST' });
       if (res.ok) {
@@ -43,7 +54,7 @@ export default function GlobalHeader() {
     <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
-          <Link href="/" className="flex items-center gap-2 font-bold text-lg text-gray-900 dark:text-white">
+          <Link href="/" onClick={handleInternalNavClick} className="flex items-center gap-2 font-bold text-lg text-gray-900 dark:text-white">
             <div className="w-7 h-7 bg-blue-600 rounded flex items-center justify-center">
               <span className="text-white font-bold text-sm">M</span>
             </div>
@@ -55,6 +66,7 @@ export default function GlobalHeader() {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={handleInternalNavClick}
                 className={`text-sm font-medium transition-colors ${
                   isActive(link.href)
                     ? 'text-blue-600 border-b-2 border-blue-600 pb-0.5'
@@ -77,6 +89,7 @@ export default function GlobalHeader() {
             <ThemeToggle />
             <Link
               href="/projects/new"
+              onClick={handleInternalNavClick}
               className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Plus className="w-4 h-4" />
@@ -124,7 +137,13 @@ export default function GlobalHeader() {
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setMobileOpen(false)}
+                onClick={(e) => {
+                  if (confirmLeaveIfDirty()) {
+                    e.preventDefault();
+                    return;
+                  }
+                  setMobileOpen(false);
+                }}
                 className={`text-sm font-medium ${
                   isActive(link.href) ? 'text-blue-600' : 'text-gray-600 dark:text-gray-400'
                 }`}
@@ -134,7 +153,13 @@ export default function GlobalHeader() {
             ))}
             <Link
               href="/projects/new"
-              onClick={() => setMobileOpen(false)}
+              onClick={(e) => {
+                if (confirmLeaveIfDirty()) {
+                  e.preventDefault();
+                  return;
+                }
+                setMobileOpen(false);
+              }}
               className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-sm font-medium px-3 py-2 rounded-lg justify-center"
             >
               <Plus className="w-4 h-4" />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { endpointsApi, projectsApi, ApiError, Endpoint, Project } from '@/lib/api-client';
@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { JsonEditor } from '@/components/JsonEditor';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { copyToClipboard } from '@/lib/utils';
+import { copyToClipboard, splitTags as normalizeTags, resolveBodyOnContentTypeChange } from '@/lib/utils';
+import { setDirty, clearDirty } from '@/lib/unsaved-changes';
 import { AiGenerateDialog } from '@/components/AiGenerateDialog';
 import { TemplateLibraryDialog } from '@/components/TemplateLibraryDialog';
 import { ErrorScenariosSelector } from '@/components/ErrorScenariosSelector';
@@ -75,6 +76,47 @@ export default function NewEndpointPage() {
     tags: [] as string[],
     isShareable: true,
   });
+  // 标签输入框临时字符串 state:输入期保留尾逗号,blur/submit 才归一化到 form.tags
+  const [tagsInput, setTagsInput] = useState('');
+  // 本组件实例在全局未保存修改注册表里的唯一 id,供 GlobalHeader 导航前询问
+  const dirtyIdRef = useRef(`endpoint-new-${projectId}-${Math.random().toString(36).slice(2)}`);
+
+  // 是否有未保存修改:任意字段偏离初始空表单即视为 dirty(tagsInput 也算)
+  const isDirty =
+    form.path.trim() !== '' ||
+    form.name.trim() !== '' ||
+    form.description.trim() !== '' ||
+    form.method !== 'GET' ||
+    form.statusCode !== 200 ||
+    form.contentType !== 'application/json' ||
+    form.delayMs !== 0 ||
+    !form.isShareable ||
+    form.responseBody !== DEFAULT_RESPONSES['application/json'] ||
+    tagsInput.trim() !== '';
+
+  // 浏览器关闭/刷新警告(P1-16:新建端点页此前完全无防护)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  // isDirty 同步到全局注册表,供 GlobalHeader 客户端导航前询问
+  useEffect(() => {
+    const dirtyId = dirtyIdRef.current;
+    if (isDirty) {
+      setDirty(dirtyId);
+    } else {
+      clearDirty(dirtyId);
+    }
+    return () => clearDirty(dirtyId);
+  }, [isDirty]);
 
   useEffect(() => {
     loadProject();
@@ -164,7 +206,13 @@ export default function NewEndpointPage() {
     setForm((prev) => ({
       ...prev,
       contentType,
-      responseBody: DEFAULT_RESPONSES[contentType as keyof typeof DEFAULT_RESPONSES] || '',
+      // P1-17:仅当当前 body 为空或等于当前类型默认模板时才替换,否则保留用户已写内容
+      responseBody: resolveBodyOnContentTypeChange(
+        prev.responseBody,
+        prev.contentType,
+        contentType,
+        DEFAULT_RESPONSES,
+      ),
     }));
   }
 
@@ -237,6 +285,9 @@ export default function NewEndpointPage() {
         parsedBody = JSON.parse(form.responseBody);
       }
 
+      // 提交前再归一化一次 tags,避免用户改完未 blur 直接提交丢失最新输入
+      const submittedTags = normalizeTags(tagsInput);
+
       await endpointsApi.create(projectId, {
         path: form.path,
         method: form.method,
@@ -246,7 +297,7 @@ export default function NewEndpointPage() {
         statusCode: form.statusCode,
         contentType: form.contentType,
         responseBody: parsedBody,
-        tags: form.tags,
+        tags: submittedTags,
         isShareable: form.isShareable,
       });
 
@@ -293,6 +344,9 @@ export default function NewEndpointPage() {
         parsedBody = JSON.parse(form.responseBody);
       }
 
+      // 提交前再归一化一次 tags,避免用户改完未 blur 直接提交丢失最新输入
+      const submittedTags = normalizeTags(tagsInput);
+
       await endpointsApi.create(projectId, {
         path: form.path,
         method: form.method,
@@ -302,7 +356,7 @@ export default function NewEndpointPage() {
         statusCode: form.statusCode,
         contentType: form.contentType,
         responseBody: parsedBody,
-        tags: form.tags,
+        tags: submittedTags,
         isShareable: form.isShareable,
       });
 
@@ -321,6 +375,7 @@ export default function NewEndpointPage() {
         tags: [],
         isShareable: true,
       });
+      setTagsInput('');
       setErrors({});
       setTouched({});
     } catch (err) {
@@ -523,10 +578,13 @@ export default function NewEndpointPage() {
                 <input
                   id="endpoint-tags"
                   type="text"
-                  value={form.tags.join(', ')}
-                  onChange={(e) => {
-                    const tags = e.target.value.split(',').map((t) => t.trim()).filter(Boolean);
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  onBlur={() => {
+                    // 失焦时归一化(trim/去空/去重)落回 form.tags
+                    const tags = normalizeTags(tagsInput);
                     setForm((prev) => ({ ...prev, tags }));
+                    setTagsInput(tags.join(', '));
                   }}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                   placeholder="用逗号分隔，如: 用户, 列表, 分页"

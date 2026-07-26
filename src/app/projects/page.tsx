@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { projectsApi, Project } from '@/lib/api-client';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -26,6 +26,9 @@ export default function ProjectsPage() {
   const [page, setPage] = useState(1);
   const pageSize = 12;
   const { success } = useToast();
+  // 列表加载竞态防护:visibility 切回/mount 多次触发 loadProjects 时,
+  // 旧响应不得覆盖新数据(样板参考 projects/new/page.tsx 的 slug 校验中止思路)
+  const reqIdRef = useRef(0);
 
   useEffect(() => {
     loadProjects();
@@ -44,14 +47,20 @@ export default function ProjectsPage() {
   }, []);
 
   async function loadProjects() {
+    const reqId = ++reqIdRef.current;
     try {
       setLoading(true);
       const data = await projectsApi.list();
+      // 旧请求返回时丢弃,避免慢响应覆盖新数据
+      if (reqId !== reqIdRef.current) return;
       setProjects(data);
     } catch (err: unknown) {
+      if (reqId !== reqIdRef.current) return;
       setError(err instanceof Error ? err.message : '加载失败');
     } finally {
-      setLoading(false);
+      if (reqId === reqIdRef.current) {
+        setLoading(false);
+      }
     }
   }
 

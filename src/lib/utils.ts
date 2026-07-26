@@ -25,3 +25,79 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * 安全解析端点 tags 字段。
+ *
+ * DB 中 tags 约定为 JSON 字符串数组(如 `["foo","bar"]`),但历史数据/外部导入
+ * 可能写入任意字符串。本函数防御性解析:解析失败或非数组一律返回 []。
+ *
+ * 用于公开分享页、端点编辑页等渲染入口,避免脏数据导致 JSON.parse 抛错白屏。
+ */
+export function parseTags(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((t): t is string => typeof t === 'string');
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 将逗号分隔的输入字符串归一化为 tag 数组:trim、去空、去重。
+ * 用于标签输入框 blur/submit 时把临时字符串落盘为标准数组。
+ */
+export function splitTags(input: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of input.split(',')) {
+    const trimmed = part.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  return out;
+}
+
+/**
+ * 从统一错误响应对象里读取 message。形状契约见 docs/API-ERROR-SHAPE.md:
+ * `{ success: false, error: { code, message, details? } }`。
+ * 无需兼容字符串 error 形态(后端已清理)。兜底返回 fallback。
+ */
+export function readErrorMessage(
+  json: { error?: { message?: string } } | undefined | null,
+  fallback = '操作失败',
+): string {
+  return json?.error?.message ?? fallback;
+}
+
+/**
+ * 切换 Content-Type 时决定新的响应体。
+ *
+ * 旧实现无条件替换为 DEFAULT_RESPONSES[newType],会清空用户已编写的响应体。
+ * 新规则:仅当当前 body 为空,或等于"当前 content-type 的默认模板"时才替换;
+ * 否则保留原文(用户已经写了内容,不要静默清空)。
+ *
+ * @param currentBody 当前响应体
+ * @param currentContentType 当前 content-type(用于判断当前 body 是否为模板)
+ * @param newContentType 即将切到的 content-type
+ * @param defaultResponses 各 content-type 的默认模板字典
+ */
+export function resolveBodyOnContentTypeChange(
+  currentBody: string,
+  currentContentType: string,
+  newContentType: string,
+  defaultResponses: Record<string, string>,
+): string {
+  const currentDefault = defaultResponses[currentContentType] ?? '';
+  // body 为空 或 等于当前类型的默认模板 → 视为"用户未自定义",可安全替换
+  if (currentBody.trim() === '' || currentBody === currentDefault) {
+    return defaultResponses[newContentType] ?? '';
+  }
+  // 用户已写内容,保留
+  return currentBody;
+}
+
+

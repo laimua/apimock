@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Plus } from 'lucide-react';
@@ -47,7 +47,7 @@ export default function AiSettingsPage() {
   const [budget, setBudget] = useState<BudgetStatus | null>(null);
 
   // 加载 providers
-  const loadProviders = async () => {
+  const loadProviders = useCallback(async () => {
     try {
       setLoadError(null);
       setLoading(true);
@@ -73,10 +73,10 @@ export default function AiSettingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toastError]);
 
   // 加载今日 AI 预算用量
-  const loadBudget = async () => {
+  const loadBudget = useCallback(async () => {
     try {
       const res = await fetch('/api/ai/budget');
       if (res.status === 401) {
@@ -90,12 +90,12 @@ export default function AiSettingsPage() {
     } catch {
       // 预算加载失败不影响主流程
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadProviders();
     loadBudget();
-  }, []);
+  }, [loadProviders, loadBudget]);
 
   // 添加 provider
   const handleAddProvider = async (providerData: ProviderFormData) => {

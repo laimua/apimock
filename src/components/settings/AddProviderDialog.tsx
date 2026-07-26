@@ -34,6 +34,27 @@ interface AddProviderDialogProps {
   onSave: (data: ProviderFormData) => Promise<void>;
 }
 
+// 解析模型列表 textarea 输入为 string[]。校验:必须是 JSON 数组且元素全为字符串。
+// 返回 { ok, models, error }:ok=false 时 error 给行内提示。
+// 导出供单测使用(P1-14)。
+export function parseModelsInput(input: string): { ok: true; models: string[] } | { ok: false; error: string } {
+  const trimmed = input.trim();
+  if (!trimmed) return { ok: false, error: '模型列表不能为空' };
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (!Array.isArray(parsed)) {
+      return { ok: false, error: '必须是 JSON 数组,如 ["gpt-4", "gpt-3.5"]' };
+    }
+    if (parsed.length === 0) return { ok: false, error: '模型列表不能为空' };
+    if (!parsed.every((m) => typeof m === 'string')) {
+      return { ok: false, error: '数组元素必须都是字符串' };
+    }
+    return { ok: true, models: parsed as string[] };
+  } catch {
+    return { ok: false, error: '无效的 JSON,如 ["gpt-4", "gpt-3.5"]' };
+  }
+}
+
 export default function AddProviderDialog({
   isOpen,
   onClose,
@@ -54,6 +75,17 @@ export default function AddProviderDialog({
 
   const [loading, setLoading] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<PresetProvider | null>(null);
+  // 模型列表 textarea 的临时字符串 state。
+  // 受控值若直接用 JSON.stringify(formData.models),编辑中间态恒非法 JSON,onChange
+  // 内 try/catch 会吞掉输入。改为:输入期保留原串,blur/submit 才 parse 校验。
+  const [modelsInput, setModelsInput] = useState('');
+  const [modelsError, setModelsError] = useState<string | null>(null);
+
+  // formData.models 变化时(初始/预设/编辑回填)同步刷新 textarea 字符串
+  useEffect(() => {
+    setModelsInput(JSON.stringify(formData.models, null, 2));
+    setModelsError(null);
+  }, [formData.models]);
 
   // 选中状态优先用内部 state，回退到外部 preset prop（避免 useEffect 延迟导致首帧不高亮）
   const effectiveSelectedPreset = selectedPreset || preset;
@@ -120,10 +152,19 @@ export default function AddProviderDialog({
   // 提交
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 提交前再 parse/校验一次模型列表,避免用户改完未 blur 直接提交把脏数据/旧数组落库
+    const modelsResult = parseModelsInput(modelsInput);
+    if (!modelsResult.ok) {
+      setModelsError(modelsResult.error);
+      return;
+    }
+    const submittedFormData = { ...formData, models: modelsResult.models };
+
     setLoading(true);
 
     try {
-      await onSave({ ...formData, isActive: true });
+      await onSave({ ...submittedFormData, isActive: true });
     } finally {
       setLoading(false);
     }
@@ -252,19 +293,31 @@ export default function AddProviderDialog({
             </label>
             <textarea
               id="provider-models"
-              value={JSON.stringify(formData.models, null, 2)}
+              value={modelsInput}
               onChange={(e) => {
-                try {
-                  const models = JSON.parse(e.target.value);
-                  setFormData({ ...formData, models });
-                } catch {
-                  // 忽略解析错误
+                setModelsInput(e.target.value);
+                if (modelsError) setModelsError(null);
+              }}
+              onBlur={() => {
+                const result = parseModelsInput(modelsInput);
+                if (result.ok) {
+                  setFormData((prev) => ({ ...prev, models: result.models }));
+                  setModelsError(null);
+                } else {
+                  setModelsError(result.error);
                 }
               }}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+              className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:border-transparent font-mono text-sm ${
+                modelsError
+                  ? 'border-red-500 focus:ring-red-500'
+                  : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'
+              }`}
               required
             />
+            {modelsError && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{modelsError}</p>
+            )}
           </div>
 
           {/* Default Model */}
