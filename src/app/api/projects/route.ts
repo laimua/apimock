@@ -28,29 +28,38 @@ const CreateProjectSchema = z.object({
 // 支持 page/pageSize 分页（可选，不传则全返以兼容旧调用方）
 // ============================================
 export async function GET(request?: NextRequest) {
-  const searchParams = request ? new URL(request.url).searchParams : new URLSearchParams();
-  const usePagination = searchParams.has('page') || searchParams.has('pageSize');
+  try {
+    const searchParams = request ? new URL(request.url).searchParams : new URLSearchParams();
+    const usePagination = searchParams.has('page') || searchParams.has('pageSize');
 
-  // 转换 isActive 为布尔值
-  const format = (list: typeof projects.$inferSelect[]) =>
-    list.map(project => ({ ...project, isActive: Boolean(project.isActive) }));
+    // 转换 isActive 为布尔值
+    const format = (list: typeof projects.$inferSelect[]) =>
+      list.map(project => ({ ...project, isActive: Boolean(project.isActive) }));
 
-  if (!usePagination) {
-    const projectList = await db.select().from(projects).orderBy(desc(projects.createdAt));
-    return success(format(projectList));
+    if (!usePagination) {
+      const projectList = await db.select().from(projects).orderBy(desc(projects.createdAt));
+      return success(format(projectList));
+    }
+
+    // 分页参数兜底(P1-8):Math.max 遇 NaN 返 NaN → limit(NaN).offset(NaN) 未定义行为
+    // - ?page=abc → page 兜底 1
+    // - ?pageSize=abc → pageSize 兜底 20,上限 200(与 endpoints/requests 路由一致)
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const rawPageSize = parseInt(searchParams.get('pageSize') || '20', 10) || 20;
+    const pageSize = Math.min(Math.max(1, rawPageSize), 200);
+    const offset = (page - 1) * pageSize;
+
+    const [projectList, countRows] = await Promise.all([
+      db.select().from(projects).orderBy(projects.createdAt).limit(pageSize).offset(offset),
+      db.select({ count: sql<number>`count(*)` }).from(projects),
+    ]);
+    const total = countRows[0]?.count ?? 0;
+
+    return success({ items: format(projectList), total, page, pageSize });
+  } catch (err) {
+    // handler 异常时返回统一错误形状,避免冒泡成 Next 默认 500 HTML
+    return Errors.internal(err instanceof Error ? err.message : 'Unknown error');
   }
-
-  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
-  const pageSize = Math.max(1, Math.min(100, parseInt(searchParams.get('pageSize') || '20', 10)));
-  const offset = (page - 1) * pageSize;
-
-  const [projectList, countRows] = await Promise.all([
-    db.select().from(projects).orderBy(projects.createdAt).limit(pageSize).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(projects),
-  ]);
-  const total = countRows[0]?.count ?? 0;
-
-  return success({ items: format(projectList), total, page, pageSize });
 }
 
 // ============================================

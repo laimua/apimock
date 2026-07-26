@@ -214,6 +214,105 @@ describe('Requests API', () => {
       expect(data.data.items).toEqual([]);
       expect(data.data.total).toBe(0);
     });
+
+    // ============================================
+    // P1-7: 项目级 requests 分页参数零校验
+    // 原 route 直接 parseInt 无兜底无上限:
+    //   - pageSize=10000000 拉全表(DoS)
+    //   - pageSize=-1 → SQLite LIMIT -1 无上限 / MySQL 语法错误 500
+    //   - page=abc → NaN → offset(NaN) 未定义行为
+    // 修复后:page 兜底 1,pageSize 兜底 20 且夹紧 [1,200]
+    // 双栈声明:兜底后 page/pageSize 永为正整数,limit/offset 不再传非法值,
+    // SQLite 与 MySQL 行为一致(SQLite 不再无上限,MySQL 不再语法错误)。
+    // 本测试在 SQLite 栈下验证兜底;MySQL 栈因不传非法 LIMIT 同样安全。
+    // ============================================
+    describe('P1-7: page/pageSize 零校验', () => {
+      it('pageSize=10000000 被夹紧到 200(防 DoS 拉全表)', async () => {
+        const request = new Request(
+          'http://localhost/api/projects/proj1/requests?pageSize=10000000'
+        );
+        const response = await GET_PROJECT_REQUESTS(asReq(request), {
+          params: Promise.resolve({ id: testProject.id }),
+        });
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.data.pageSize).toBe(200);
+        // 只有 2 条种子数据,items 不超 200 也证明未拉异常量
+        expect(data.data.items).toHaveLength(2);
+      });
+
+      it('pageSize=-1 被夹紧(SQLite 不再无上限, MySQL 不再语法错误 500)', async () => {
+        const request = new Request(
+          'http://localhost/api/projects/proj1/requests?pageSize=-1'
+        );
+        const response = await GET_PROJECT_REQUESTS(asReq(request), {
+          params: Promise.resolve({ id: testProject.id }),
+        });
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.data.pageSize).toBe(1); // Math.max(1, -1) = 1
+        expect(data.data.items).toHaveLength(1);
+      });
+
+      it('page=abc 兜底为 1(NaN 防护)', async () => {
+        const request = new Request(
+          'http://localhost/api/projects/proj1/requests?page=abc'
+        );
+        const response = await GET_PROJECT_REQUESTS(asReq(request), {
+          params: Promise.resolve({ id: testProject.id }),
+        });
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.data.page).toBe(1);
+        expect(data.data.items).toHaveLength(2);
+      });
+
+      it('pageSize=abc 兜底为 20(NaN 防护)', async () => {
+        const request = new Request(
+          'http://localhost/api/projects/proj1/requests?pageSize=abc'
+        );
+        const response = await GET_PROJECT_REQUESTS(asReq(request), {
+          params: Promise.resolve({ id: testProject.id }),
+        });
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.data.pageSize).toBe(20);
+      });
+
+      it('pageSize=0 兜底为 20', async () => {
+        const request = new Request(
+          'http://localhost/api/projects/proj1/requests?pageSize=0'
+        );
+        const response = await GET_PROJECT_REQUESTS(asReq(request), {
+          params: Promise.resolve({ id: testProject.id }),
+        });
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        // parseInt('0')||20 → 0 是 falsy → 兜底 20
+        expect(data.data.pageSize).toBe(20);
+      });
+
+      it('正常分页 page=2&pageSize=1 仍工作', async () => {
+        const request = new Request(
+          'http://localhost/api/projects/proj1/requests?page=2&pageSize=1'
+        );
+        const response = await GET_PROJECT_REQUESTS(asReq(request), {
+          params: Promise.resolve({ id: testProject.id }),
+        });
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.data.page).toBe(2);
+        expect(data.data.pageSize).toBe(1);
+        expect(data.data.items).toHaveLength(1);
+        expect(data.data.total).toBe(2);
+      });
+    });
   });
 
   describe('DELETE /api/projects/[id]/requests', () => {
