@@ -102,7 +102,7 @@ export function AiGenerateDialog({
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || '生成失败，请重试');
+        throw new Error(errorData.error?.message ?? '生成失败，请重试');
       }
 
       const { data } = await res.json();

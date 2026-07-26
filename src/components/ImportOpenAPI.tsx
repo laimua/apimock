@@ -101,7 +101,7 @@ export function ImportOpenAPI({
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || '解析失败，请检查文件格式');
+        throw new Error(errorData.error?.message ?? '解析失败，请检查文件格式');
       }
 
       const { data } = await res.json();
@@ -130,7 +130,7 @@ export function ImportOpenAPI({
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || '导入失败，请重试');
+        throw new Error(errorData.error?.message ?? '导入失败，请重试');
       }
 
       await res.json();

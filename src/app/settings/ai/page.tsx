@@ -52,12 +52,19 @@ export default function AiSettingsPage() {
       setLoadError(null);
       setLoading(true);
       const res = await fetch('/api/ai/providers');
+      // 401 未登录:跳登录页并带上 from 回跳参数(与全局 request 一致行为)
+      if (res.status === 401) {
+        window.location.href = `/login?from=${encodeURIComponent('/settings/ai')}`;
+        return;
+      }
       const json = await res.json();
       if (json.success) {
         setProviders(json.data);
       } else {
-        setLoadError(json.error || '加载失败');
-        toastError(json.error || '加载失败');
+        // 错误对象形状:{ error: { code, message } };统一读 .message
+        const message = json.error?.message ?? '加载失败';
+        setLoadError(message);
+        toastError(message);
       }
     } catch (err) {
       console.error('Failed to load providers:', err);
@@ -72,6 +79,10 @@ export default function AiSettingsPage() {
   const loadBudget = async () => {
     try {
       const res = await fetch('/api/ai/budget');
+      if (res.status === 401) {
+        // 预算加载 401 静默忽略,主流程由 loadProviders 负责跳登录
+        return;
+      }
       const json = await res.json();
       if (json.success) {
         setBudget(json.data);
@@ -100,7 +111,7 @@ export default function AiSettingsPage() {
         setShowAddDialog(false);
         toastSuccess('模型已添加');
       } else {
-        toastError(json.error || '添加失败');
+        toastError(json.error?.message ?? '添加失败');
       }
     } catch (err) {
       console.error('Failed to add provider:', err);
@@ -122,7 +133,7 @@ export default function AiSettingsPage() {
         setEditingProvider(null);
         toastSuccess('模型已更新');
       } else {
-        toastError(json.error || '更新失败');
+        toastError(json.error?.message ?? '更新失败');
       }
     } catch (err) {
       console.error('Failed to update provider:', err);
@@ -141,7 +152,7 @@ export default function AiSettingsPage() {
         await loadProviders();
         toastSuccess('模型已删除');
       } else {
-        toastError(json.error || '删除失败');
+        toastError(json.error?.message ?? '删除失败');
       }
     } catch (err) {
       console.error('Failed to delete provider:', err);
@@ -160,7 +171,7 @@ export default function AiSettingsPage() {
         await loadProviders();
         toastSuccess('已设为默认模型');
       } else {
-        toastError(json.error || '设置失败');
+        toastError(json.error?.message ?? '设置失败');
       }
     } catch (err) {
       console.error('Failed to set default provider:', err);
