@@ -92,11 +92,10 @@ describe('ResponseRuleEditor', () => {
   it('should show create dialog when add button is clicked', async () => {
     render(<ResponseRuleEditor projectId="project-1" endpointId="endpoint-1" />);
 
-    await waitFor(() => {
-      expect(apiClient.responsesApi.list).toHaveBeenCalled();
-    });
-
-    const addButton = screen.getByText('+ 添加响应');
+    // findByText = waitFor + getByText,等"+ 添加响应"按钮真正渲染出来(数据加载完成、
+    // skeleton 切换为真实 UI)再操作。原写法 waitFor(list 被调用) 只等 useEffect 触发请求,
+    // 不等 Promise resolve + re-render,CI 调度密集时同步 getByText 会撞上 skeleton。
+    const addButton = await screen.findByText('+ 添加响应');
     fireEvent.click(addButton);
 
     expect(screen.getByText('添加响应规则')).toBeInTheDocument();
@@ -182,11 +181,8 @@ describe('ResponseRuleEditor', () => {
   it('should close dialog when cancel button is clicked', async () => {
     render(<ResponseRuleEditor projectId="project-1" endpointId="endpoint-1" />);
 
-    await waitFor(() => {
-      expect(apiClient.responsesApi.list).toHaveBeenCalled();
-    });
-
-    const addButton = screen.getByText('+ 添加响应');
+    // 同上:findByText 等按钮渲染出来再点击,消除"list 已调用但 re-render 未完成"的时序窗口
+    const addButton = await screen.findByText('+ 添加响应');
     fireEvent.click(addButton);
 
     const cancelButton = screen.getByText('取消');
@@ -198,11 +194,8 @@ describe('ResponseRuleEditor', () => {
   it('should close dialog when close icon is clicked', async () => {
     render(<ResponseRuleEditor projectId="project-1" endpointId="endpoint-1" />);
 
-    await waitFor(() => {
-      expect(apiClient.responsesApi.list).toHaveBeenCalled();
-    });
-
-    const addButton = screen.getByText('+ 添加响应');
+    // 同上:findByText 消除时序窗口
+    const addButton = await screen.findByText('+ 添加响应');
     fireEvent.click(addButton);
 
     // Close dialog by clicking the X icon (which is a button without text label)
