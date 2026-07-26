@@ -98,10 +98,11 @@ export async function POST(request: NextRequest) {
     const now = Date.now();
     let isDefault = false;
 
-    // 检查是否是第一个 provider
+    // 检查是否是第一个 provider(P2-24: 只需判存,limit(1) 不拉全量 id)
     const existingCount = await db
       .select({ count: aiProviders.id })
-      .from(aiProviders);
+      .from(aiProviders)
+      .limit(1);
 
     if (existingCount.length === 0) {
       isDefault = true;
