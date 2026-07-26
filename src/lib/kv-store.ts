@@ -10,6 +10,8 @@
  * 边界效应可接受。Memory 后端也用同样语义，切换无行为差异。
  */
 
+import { logger } from './logger';
+
 export interface KVStore {
   /** 取值。不存在返 null */
   get(key: string): Promise<string | null>;
@@ -66,7 +68,7 @@ export async function getKv(): Promise<KVStore> {
         const { createRedisKv } = await import('./kv-redis');
         store = await createRedisKv(redisUrl);
       } catch (err) {
-        console.warn('[kv] Redis init failed, falling back to memory:', err);
+        logger.warn({ err }, '[kv] Redis init failed, falling back to memory');
         const { createMemoryKv } = await import('./kv-memory');
         store = createMemoryKv();
       }

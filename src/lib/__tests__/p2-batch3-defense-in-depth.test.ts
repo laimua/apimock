@@ -158,16 +158,18 @@ describe('P2-29: encryption deriveKeyCache LRU + key 强度校验', () => {
     expect(decrypt(cipher1)).toBe('first-msg');
   });
 
-  it('ENCRYPTION_KEY 短(<16 字符)→ console.warn 提示(不抛错,保生产可用)', () => {
+  it('ENCRYPTION_KEY 短(<16 字符)→ logger.warn 提示(不抛错,保生产可用)', async () => {
     _clearEncryptionKeyCache();
     process.env.ENCRYPTION_KEY = 'short'; // 5 字符,< 16
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { logger } = await import('../logger');
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => logger);
     // 首次访问触发 warn
     encrypt('trigger-key-check');
     expect(warnSpy).toHaveBeenCalledTimes(1);
-    const [msg] = warnSpy.mock.calls[0];
-    expect(String(msg)).toMatch(/ENCRYPTION_KEY/i);
-    expect(String(msg)).toMatch(/16|weak|strength|rotate/i);
+    const callArg = warnSpy.mock.calls[0]?.[0];
+    const msg = typeof callArg === 'string' ? callArg : JSON.stringify(callArg ?? '');
+    expect(msg).toMatch(/ENCRYPTION_KEY/i);
+    expect(msg).toMatch(/16|weak|strength|rotate/i);
 
     // 二次访问不再 warn(只 warn 一次,避免 decrypt 热路径反复打日志)
     encrypt('trigger-key-check-2');

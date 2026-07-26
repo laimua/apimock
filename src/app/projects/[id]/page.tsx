@@ -517,6 +517,8 @@ function ProjectPageInner() {
       // 旧请求返回时丢弃,避免慢响应覆盖新数据
       if (reqId !== loadDataReqIdRef.current) return;
 
+      // P2-44: 成功路径清掉旧的错误横幅,避免瞬时失败后红色横幅常驻
+      setError(null);
       setProject(projectData);
 
       // 统一分页形状(G4:endpointsApi.list 始终返回 ListEndpointsResponse)

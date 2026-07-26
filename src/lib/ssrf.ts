@@ -4,6 +4,7 @@
 
 import { URL } from 'url';
 import { promises as dns } from 'node:dns';
+import { logger } from './logger';
 
 const PRIVATE_RANGES: Array<{ start: number; end: number }> = [
   // 10.0.0.0/8
@@ -100,7 +101,7 @@ export async function validateUrlSafe(
   try {
     addresses = await dns.lookup(hostname, { all: true });
   } catch {
-    console.warn(`[SSRF] DNS lookup failed for "${hostname}", skipping resolution check (fail-open)`);
+    logger.warn({ hostname }, '[SSRF] DNS lookup failed, skipping resolution check (fail-open)');
     return { safe: true };
   }
 

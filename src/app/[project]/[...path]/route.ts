@@ -291,6 +291,8 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
 
   // 获取请求信息
   const url = new URL(request.url);
+  // query 重复 key last-wins:URLSearchParams 按 appearance 顺序遍历,后值覆盖前值。
+  // 即 ?a=1&a=2 时 matchRule 只见 a=2(P2-55:此语义文档化,与 Web 标准 searchParams 一致)。
   const query: Record<string, string> = {};
   url.searchParams.forEach((value, key) => {
     query[key] = value;

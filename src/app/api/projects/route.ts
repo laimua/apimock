@@ -51,7 +51,8 @@ export async function GET(request?: NextRequest) {
     const offset = (page - 1) * pageSize;
 
     const [projectList, countRows] = await Promise.all([
-      db.select().from(projects).orderBy(projects.createdAt).limit(pageSize).offset(offset),
+      // P2-25: 与无分页分支(L41 desc)排序方向一致,最新项目优先
+      db.select().from(projects).orderBy(desc(projects.createdAt)).limit(pageSize).offset(offset),
       db.select({ count: sql<number>`count(*)` }).from(projects),
     ]);
     const total = countRows[0]?.count ?? 0;
