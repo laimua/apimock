@@ -39,6 +39,8 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
   const [showDialog, setShowDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // P2-46:删除请求 in-flight 标记,防止双击确认按钮发出两个 DELETE
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editingResponse, setEditingResponse] = useState<ResponseRule | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -207,8 +209,11 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
 
   async function confirmDelete() {
     if (!deletingId) return;
+    // P2-46:正在删除时拒绝再次触发(双击确认按钮 / 重复回车)
+    if (isDeleting) return;
 
     try {
+      setIsDeleting(true);
       await responsesApi.delete(projectId, endpointId, deletingId);
       success('响应规则已删除');
       setShowDeleteDialog(false);
@@ -220,6 +225,8 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
       } else {
         toastError('删除失败');
       }
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -719,11 +726,13 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
         isOpen={showDeleteDialog}
         title="删除响应规则"
         message="确定要删除此响应规则吗？此操作无法撤销。"
-        confirmText="删除"
+        confirmText={isDeleting ? '删除中...' : '删除'}
         cancelText="取消"
         variant="danger"
+        confirmDisabled={isDeleting}
         onConfirm={confirmDelete}
         onCancel={() => {
+          if (isDeleting) return; // 删除进行中不允许取消,避免状态错乱
           setShowDeleteDialog(false);
           setDeletingId(null);
         }}

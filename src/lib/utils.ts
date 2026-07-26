@@ -100,4 +100,25 @@ export function resolveBodyOnContentTypeChange(
   return currentBody;
 }
 
+/**
+ * 构造带 query 参数的完整 URL。
+ *
+ * P2-49:原实现 `queryParams ? \`${url}?${qs}\` : url` 中 queryParams 初始为
+ * `{}`(truthy),导致无参数时 fullUrl 恒带尾部 `?`。本函数以"是否有非空键"为
+ * 判定标准,空对象 / null / undefined 一律不带 `?`。
+ *
+ * @param baseUrl 不含 query 的基础 URL(可含 path)
+ * @param queryParams query 参数对象;值为空串的键仍保留(空串也是合法值)
+ */
+export function buildFullUrl(
+  baseUrl: string,
+  queryParams?: Record<string, string> | null,
+): string {
+  if (!queryParams) return baseUrl;
+  const keys = Object.keys(queryParams);
+  if (keys.length === 0) return baseUrl;
+  const qs = new URLSearchParams(queryParams).toString();
+  return qs.length > 0 ? `${baseUrl}?${qs}` : baseUrl;
+}
+
 
