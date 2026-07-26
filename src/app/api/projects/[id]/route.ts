@@ -140,7 +140,10 @@ export async function DELETE(
       return NextResponse.json(
         {
           success: false,
-          error: `Demo project (${DEMO_PROJECT_SLUG}) is protected and cannot be deleted`,
+          error: {
+            code: 'DEMO_PROTECTED',
+            message: `Demo project (${DEMO_PROJECT_SLUG}) is protected and cannot be deleted`,
+          },
         },
         { status: 403 }
       );

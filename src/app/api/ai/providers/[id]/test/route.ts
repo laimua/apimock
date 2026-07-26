@@ -34,7 +34,13 @@ export async function POST(
     if (!rl.allowed) {
       rateLimitRejectedTotal.inc({ kind: 'ai-test' });
       return NextResponse.json(
-        { success: false, error: 'Too Many Requests. AI test limit: 5/min/IP.' },
+        {
+          success: false,
+          error: {
+            code: 'RATE_LIMITED',
+            message: 'Too Many Requests. AI test limit: 5/min/IP.',
+          },
+        },
         {
           status: 429,
           headers: {
