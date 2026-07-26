@@ -9,7 +9,6 @@ import { describe, it, expect } from 'vitest';
 import {
   parseTags,
   splitTags,
-  readErrorMessage,
   resolveBodyOnContentTypeChange,
 } from '../utils';
 
@@ -58,33 +57,6 @@ describe('splitTags', () => {
 
   it('保留内部空格(只 trim 首尾)', () => {
     expect(splitTags('foo bar, baz')).toEqual(['foo bar', 'baz']);
-  });
-});
-
-describe('readErrorMessage', () => {
-  it('读取标准形状的 error.message', () => {
-    // P1-11:契约形状 { error: { code, message } }
-    expect(readErrorMessage({ error: { code: 'X', message: '失败原因' } })).toBe('失败原因');
-  });
-
-  it('error.message 缺失时返回 fallback', () => {
-    expect(readErrorMessage({ error: {} })).toBe('操作失败');
-    expect(readErrorMessage({ error: {} }, '自定义')).toBe('自定义');
-  });
-
-  it('error 对象整体缺失时返回 fallback', () => {
-    expect(readErrorMessage({})).toBe('操作失败');
-    expect(readErrorMessage(null)).toBe('操作失败');
-    expect(readErrorMessage(undefined)).toBe('操作失败');
-  });
-
-  it('不写 typeof string 兼容分支 —— error 永远是对象,字符串形态走不到', () => {
-    // 契约规定后端已清理字符串 error,前端只读 .message;传字符串进来无意义
-    // (这里仅断言即使形如字符串,也只看 .message 不会误用)
-    const weird = { error: { message: 'ok' } } as unknown as {
-      error: { message?: string } | string;
-    };
-    expect(readErrorMessage(weird as never)).toBe('ok');
   });
 });
 

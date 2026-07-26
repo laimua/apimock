@@ -32,9 +32,13 @@ export default function ProjectsPage() {
   // 列表加载竞态防护:visibility 切回/mount 多次触发 loadProjects 时,
   // 旧响应不得覆盖新数据(样板参考 projects/new/page.tsx 的 slug 校验中止思路)
   const reqIdRef = useRef(0);
+  // codex 复审 PR#18:卸载清理 —— 组件 unmount 后在途 fetch 回来不再 setState
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     loadProjects();
+    return () => { mountedRef.current = false; };
   }, []);
 
   // 页面从隐藏切回可见(如从其它页面返回/切回标签)时刷新列表，避免读到旧数据
@@ -59,16 +63,16 @@ export default function ProjectsPage() {
         setLoading(true);
       }
       const data = await projectsApi.list();
-      // 旧请求返回时丢弃,避免慢响应覆盖新数据
-      if (reqId !== reqIdRef.current) return;
+      // 旧请求返回时丢弃,避免慢响应覆盖新数据;卸载后也不再 setState
+      if (reqId !== reqIdRef.current || !mountedRef.current) return;
       setProjects(data);
       setError(null);
       loadedOnce.current = true;
     } catch (err: unknown) {
-      if (reqId !== reqIdRef.current) return;
+      if (reqId !== reqIdRef.current || !mountedRef.current) return;
       setError(err instanceof Error ? err.message : '加载失败');
     } finally {
-      if (reqId === reqIdRef.current) {
+      if (reqId === reqIdRef.current && mountedRef.current) {
         setLoading(false);
         setReloading(false);
       }

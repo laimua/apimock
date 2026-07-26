@@ -61,17 +61,9 @@ export function splitTags(input: string): string[] {
   return out;
 }
 
-/**
- * 从统一错误响应对象里读取 message。形状契约见 docs/API-ERROR-SHAPE.md:
- * `{ success: false, error: { code, message, details? } }`。
- * 无需兼容字符串 error 形态(后端已清理)。兜底返回 fallback。
- */
-export function readErrorMessage(
-  json: { error?: { code?: string; message?: string } } | undefined | null,
-  fallback = '操作失败',
-): string {
-  return json?.error?.message ?? fallback;
-}
+// 注:readErrorMessage 已删除(codex 复审 PR#18 抓出死代码 —— 抽出后生产代码
+// 零 import,4 处各自手写 json.error?.message ?? fallback,fallback 文案不同)。
+// 一行抽象复用价值有限,删掉减维护负担。
 
 /**
  * 切换 Content-Type 时决定新的响应体。

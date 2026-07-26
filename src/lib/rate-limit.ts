@@ -41,9 +41,11 @@ export async function rateLimit(
   windowSec: number = DEFAULT_WINDOW_SEC,
   kind: RateLimitKind
 ): Promise<RateLimitResult> {
-  const kv = await getKv();
   const kvKey = `rl:${key}`;
   try {
+    // codex/claude 复审:getKv() 移进 try,让 fail-open 覆盖 KV 抽象层全链路
+    // (含初始化竞态 P2-5 残留抛错路径),非仅 kv.incr
+    const kv = await getKv();
     const count = await kv.incr(kvKey, 1, windowSec);
     const allowed = count <= limit;
     const remaining = Math.max(0, limit - count);
