@@ -30,7 +30,7 @@ export async function POST(
   try {
     // 限流：5 req/min/IP（防滥用 + 控成本）
     const ip = getClientIp(request.headers) ?? 'unknown';
-    const rl = await rateLimit(`ai-test:${ip}`, AI_TEST_RATE_LIMIT);
+    const rl = await rateLimit(`ai-test:${ip}`, AI_TEST_RATE_LIMIT, 60, 'ai-test');
     if (!rl.allowed) {
       rateLimitRejectedTotal.inc({ kind: 'ai-test' });
       return NextResponse.json(

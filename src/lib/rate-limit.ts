@@ -12,12 +12,22 @@
  *   - 改为严格窗口限流：每分钟硬上限，更适合防滥用场景
  *   - 窗口边界效应：临界点双倍流量可能漏过，可接受
  *
+ * 故障语义（P1-19）：限流是防滥用、不是可用性关键路径。KV 后端运行时
+ * 故障（Redis 网络分区 / Memory 罕见抛错）时 fail-open：放行 + logger.error
+ * + rateLimitErrorTotal 指标。绝不静默吞错，也绝不因限流挂掉让 mock 业务
+ * 500。一层 try/catch 覆盖抽象层所有 backend（rateLimit 只调 getKv().incr，
+ * 不直接接触 kv-redis / kv-memory，故 Redis / Memory 两路径都被覆盖）。
+ *
  * 调用方需 await。
  */
 
 import { getKv } from './kv-store';
+import { logger } from './logger';
+import { rateLimitErrorTotal } from './metrics';
 
 const DEFAULT_WINDOW_SEC = 60;
+
+export type RateLimitKind = 'mock' | 'ai' | 'login' | 'ai-test' | (string & {});
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -28,15 +38,28 @@ export interface RateLimitResult {
 export async function rateLimit(
   key: string,
   limit: number,
-  windowSec: number = DEFAULT_WINDOW_SEC
+  windowSec: number = DEFAULT_WINDOW_SEC,
+  kind: RateLimitKind = 'mock'
 ): Promise<RateLimitResult> {
   const kv = await getKv();
   const kvKey = `rl:${key}`;
-  const count = await kv.incr(kvKey, 1, windowSec);
-  const allowed = count <= limit;
-  const remaining = Math.max(0, limit - count);
-  const resetAt = Date.now() + windowSec * 1000;
-  return { allowed, remaining, resetAt };
+  try {
+    const count = await kv.incr(kvKey, 1, windowSec);
+    const allowed = count <= limit;
+    const remaining = Math.max(0, limit - count);
+    const resetAt = Date.now() + windowSec * 1000;
+    return { allowed, remaining, resetAt };
+  } catch (err) {
+    // fail-open：放行，不阻塞业务。响应头填"假装正常"值（首次命中），
+    // 不暴露内部故障；同时必须有可观测信号（logger + 指标），禁止静默。
+    logger.error({ err, key: kvKey, kind, limit }, 'rate limit KV error, failing open');
+    rateLimitErrorTotal.inc({ kind });
+    return {
+      allowed: true,
+      remaining: Math.max(0, limit - 1),
+      resetAt: Date.now() + windowSec * 1000,
+    };
+  }
 }
 
 /**

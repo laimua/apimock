@@ -49,6 +49,33 @@ ApiMock 支持多种部署方式。本文档覆盖常见场景。
   - AI generate：10 req/min/IP
   - AI 日预算：1M tokens / 1000 calls（默认，按 UTC 日）
 
+#### 限流不是 DoS 主防线（重要）
+
+限流设计目标是**防应用层业务滥用**（刷 AI 配额、撞登录 token、单 IP 高频打 mock），**不是防 L3/L4 DoS**。对"百万 IP 并发"型 DoS，按 IP 计数的限流本就无效。
+
+**DoS 防护的实际层次（从外到内）：**
+
+1. **反代 / CDN 层**（Cloudflare、Nginx rate limit、AWS Shield 等）—— DoS 真正主防线
+2. **实例水平扩缩** —— 吸收流量峰值
+3. **应用层 body 守卫**（`src/lib/body-size-limit.ts`，单请求 >1MB 拒绝）—— 防单请求内存放大（P0-1）
+4. **限流**（本节）—— 防应用层业务滥用，**次级缓解**而非主防线
+
+#### Redis 故障时的行为（fail-open）
+
+限流是**防滥用辅助**，不是可用性关键路径。Redis 网络分区 / KV 后端运行时故障时，`rateLimit()` **fail-open（放行）**：
+
+- 不阻塞核心 mock 业务（避免 Redis 一次故障变成全站 500）
+- 同时 `logger.error` 记录 + 递增 `apimock_rate_limit_error_total{kind}` 指标
+- 建议对该指标配告警（Prometheus alert：`rate(apimock_rate_limit_error_total[5m]) > 0`），触发时运维介入
+
+**fail-open 期间防滥用能力临时降级**（AI 配额可被刷、登录可被撞），但 mock 核心业务不受影响。这是有意权衡，不要改为 fail-closed（会让 Redis 故障拖垮全站）。
+
+#### 直连部署的 IP 伪造风险（P2-28）
+
+`getClientIp()` 默认信任 `X-Real-IP` / `X-Forwarded-For`。**直连部署（无反代覆写这些头）时，客户端可自造 IP 轮换绕过限流**。务必在反代（Nginx/Caddy/CF）层覆写这两个头，或部署在天然覆写的平台（Railway/Fly/Render 等）后方。后续会加 `TRUST_PROXY` 显式开关。
+
+
+
 ### 可观测性（可选）
 
 - 结构化日志：`LOG_LEVEL=info`（默认），pino JSON 输出

@@ -10,6 +10,7 @@
  *   apimock_ai_cost_tokens_total{provider}               counter
  *   apimock_prune_deleted_total                          counter
  *   apimock_rate_limit_rejected_total{kind}              counter (mock / ai)
+ *   apimock_rate_limit_error_total{kind}                 counter (KV error fail-open: mock / ai / login)
  *   apimock_ai_budget_remaining{axis}                    gauge (tokens / requests)
  *
  * 不暴露用户输入内容、provider 名称、project slug 之外的标识符。METRICS_TOKEN
@@ -57,6 +58,17 @@ export const pruneDeletedTotal = new Counter({
 export const rateLimitRejectedTotal = new Counter({
   name: 'apimock_rate_limit_rejected_total',
   help: 'Requests rejected by rate limiter',
+  labelNames: ['kind'],
+});
+
+/**
+ * KV 后端故障导致 fail-open 放行的次数。
+ * 触发条件:rateLimit() 内 kv.incr 抛错(Redis 网络分区 / Memory 罕见抛错)。
+ * fail-open = 放行 + 记录此指标 + logger.error,避免静默失效。
+ */
+export const rateLimitErrorTotal = new Counter({
+  name: 'apimock_rate_limit_error_total',
+  help: 'Rate limit checks that failed open due to KV backend error',
   labelNames: ['kind'],
 });
 

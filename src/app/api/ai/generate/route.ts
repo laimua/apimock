@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
   try {
     // 限流：10 req/min/IP
     const ip = getClientIp(request.headers) ?? 'unknown';
-    const rl = await rateLimit(`ai:${ip}`, AI_RATE_LIMIT);
+    const rl = await rateLimit(`ai:${ip}`, AI_RATE_LIMIT, 60, 'ai');
     if (!rl.allowed) {
       rateLimitRejectedTotal.inc({ kind: 'ai' });
       return NextResponse.json(
