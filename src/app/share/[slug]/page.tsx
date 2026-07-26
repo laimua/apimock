@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { parseTags } from '@/lib/utils';
+import { parseTags, buildFullUrl } from '@/lib/utils';
 
 interface ShareEndpoint {
   id: string;
@@ -206,9 +206,8 @@ function EndpointTestPanel({
   const needsBody = ['POST', 'PUT', 'PATCH'].includes(endpoint.method);
 
   const url = `${baseUrl}${endpoint.path}`;
-  const fullUrl = queryParams
-    ? `${url}?${new URLSearchParams(queryParams).toString()}`
-    : url;
+  // P2-49:用纯函数构造,空 queryParams 不带尾部 `?`
+  const fullUrl = buildFullUrl(url, queryParams);
 
   async function sendRequest() {
     setLoading(true);
@@ -545,12 +544,24 @@ export default function SharePage() {
   const [toast, setToast] = useState<{ message: string; visible: boolean; type: 'success' | 'error' } | null>(null);
   const [expandedDetailId, setExpandedDetailId] = useState<string | null>(null);
   const [expandedTestId, setExpandedTestId] = useState<string | null>(null);
+  // P2-49:toast 自动消失计时器,新 toast 触发时先清旧 timer,避免提前清掉新 toast
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadShareData();
     // 仅按 slug 变化重载；loadShareData 闭包读取最新 prop，无需加入依赖
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
+
+  // P2-49:组件卸载时清掉挂着的 toast timer,防止 setState on unmounted
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current !== null) {
+        clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
+    };
+  }, []);
 
   async function loadShareData() {
     try {
@@ -577,8 +588,13 @@ export default function SharePage() {
 
   function showToast(message: string, type: 'success' | 'error' = 'success') {
     setToast({ message, visible: true, type });
-    setTimeout(() => {
+    // P2-49:连续复制时先清掉上一个 toast 的计时器,否则旧 timer 会提前清掉新 toast
+    if (toastTimerRef.current !== null) {
+      clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = setTimeout(() => {
       setToast(null);
+      toastTimerRef.current = null;
     }, 2000);
   }
 
