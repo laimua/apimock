@@ -54,7 +54,7 @@ export default function LoginForm({ error, from }: LoginFormProps) {
       } else if (res.status === 429) {
         setFormError('尝试过多,请稍后');
       } else {
-        setFormError(json.error?.message || json.error || '登录失败,请重试');
+        setFormError(json.error?.message ?? '登录失败,请重试');
       }
     } catch {
       setFormError('网络错误,请重试');

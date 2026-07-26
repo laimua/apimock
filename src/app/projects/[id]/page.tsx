@@ -390,6 +390,10 @@ function ProjectPageInner() {
   const [reloading, setReloading] = useState(false);
   // loadedOnce：标记是否已完成首次加载，用于区分整页骨架 vs 局部 spinner
   const loadedOnce = useRef(false);
+  // 列表加载竞态防护:快速翻页/改筛选时旧响应不得覆盖新数据
+  // (样板参考 projects/new/page.tsx 的 slug 校验中止思路,这里用 reqId 更轻量)
+  const loadDataReqIdRef = useRef(0);
+  const loadRequestsReqIdRef = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -490,6 +494,7 @@ function ProjectPageInner() {
   }, [searchParams, loading, project, router, pathname]);
 
   async function loadData() {
+    const reqId = ++loadDataReqIdRef.current;
     try {
       // 首次加载显示整页骨架；后续筛选/翻页重载只用局部 spinner，避免每次按键整页闪白
       if (loadedOnce.current) {
@@ -509,22 +514,29 @@ function ProjectPageInner() {
         }),
       ]);
 
+      // 旧请求返回时丢弃,避免慢响应覆盖新数据
+      if (reqId !== loadDataReqIdRef.current) return;
+
       setProject(projectData);
 
       // 统一分页形状(G4:endpointsApi.list 始终返回 ListEndpointsResponse)
       setEndpoints(endpointsData.items);
       setTotal(endpointsData.total);
     } catch (err: unknown) {
+      if (reqId !== loadDataReqIdRef.current) return;
       setError(err instanceof Error ? err.message : '加载失败');
     } finally {
-      setLoading(false);
-      setReloading(false);
-      loadedOnce.current = true;
+      if (reqId === loadDataReqIdRef.current) {
+        setLoading(false);
+        setReloading(false);
+        loadedOnce.current = true;
+      }
     }
   }
 
   // 加载请求记录
   async function loadRequests() {
+    const reqId = ++loadRequestsReqIdRef.current;
     try {
       setRequestsLoading(true);
       // 单独拉一份全量端点列表用于下拉（不受端点列表分页影响）
@@ -536,14 +548,19 @@ function ProjectPageInner() {
         }),
         endpointsApi.list(projectId),
       ]);
+      // 旧请求返回时丢弃,避免慢响应覆盖新数据
+      if (reqId !== loadRequestsReqIdRef.current) return;
       setRequests(data.items);
       setRequestsTotal(data.total);
       const allEndpoints = allEndpointsResp.items;
       setRequestFilterEndpoints(allEndpoints);
     } catch (err: unknown) {
+      if (reqId !== loadRequestsReqIdRef.current) return;
       toastError(err instanceof Error ? err.message : '加载请求记录失败');
     } finally {
-      setRequestsLoading(false);
+      if (reqId === loadRequestsReqIdRef.current) {
+        setRequestsLoading(false);
+      }
     }
   }
 

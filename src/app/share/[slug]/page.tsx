@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { parseTags } from '@/lib/utils';
 
 interface ShareEndpoint {
   id: string;
@@ -41,8 +42,8 @@ function EndpointDetailPanel({
   isExpanded: boolean;
   onToggle: () => void;
 }) {
-  // 解析标签
-  const tags = endpoint.tags ? JSON.parse(endpoint.tags) : [];
+  // 解析标签(防御性:DB tags 可能非 JSON 字符串,公开页不能因脏数据白屏)
+  const tags = parseTags(endpoint.tags);
 
   // 格式化响应体
   function formatResponseBody(body: string | null): string {
