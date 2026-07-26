@@ -37,7 +37,7 @@
 - 语言: TypeScript 5.x (strict mode)
 - 框架: Next.js 16 (App Router)
 - UI: Tailwind CSS 4 + Lucide React
-- API: Hono (route handlers)
+- API: Next.js Route Handlers (App Router;package.json 里 Hono 依赖未被 src 引用)
 - 数据库: Drizzle ORM + better-sqlite3 / mysql2
 - 校验: Zod
 - 测试: Vitest (单元) + Playwright (E2E)
