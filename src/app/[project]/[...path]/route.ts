@@ -89,12 +89,24 @@ export function sanitizeHeaderValue(value: unknown): string {
 }
 
 /**
- * 用 percent-encoding 把任意字符串编码为纯 ASCII,适合需要可还原语义的头值
- * (如 `X-Mock-Endpoint: <path>`)。`encodeURIComponent` 已把所有非 ASCII 与
- * 部分 ASCII 保留字符编码,输出保证只含 ASCII(Latin-1 子集)。
+ * 把任意字符串编码为 Latin-1 安全(0x00–0xFF),适合需要可还原语义的头值
+ * (如 `X-Mock-Endpoint: <path>`)。仅对超出 Latin-1 的码点(如中文、emoji)
+ * 做 percent-encoding,ASCII 与 Latin-1 补充字符(如 `café` 的 `é`)原样保留
+ * —— 这样 `/users`、`/items/:id` 等纯 ASCII 路径可读性不变,只有 `/用户/list`
+ * 这类含非 Latin-1 的路径才被编码。可还原:`decodeURIComponent`。
  */
 export function encodeHeaderValueAsAscii(value: string): string {
-  return encodeURIComponent(value);
+  let out = '';
+  for (const ch of value) {
+    const code = ch.codePointAt(0)!;
+    if (code > 0xFF) {
+      // 非 Latin-1:percent-encode(encodeURIComponent 对单字符安全)
+      out += encodeURIComponent(ch);
+    } else {
+      out += ch;
+    }
+  }
+  return out;
 }
 
 /**

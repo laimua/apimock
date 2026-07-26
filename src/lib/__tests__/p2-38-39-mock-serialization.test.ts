@@ -82,11 +82,13 @@ describe('P2-38: encodeHeaderValueAsAscii — path percent-encoding', () => {
     expect(decodeURIComponent(encoded)).toBe('/用户/list');
   });
 
-  it('2b. 纯 ASCII path 编码后仍只含 ASCII(encodeURIComponent 会编码 `/`)', () => {
-    // encodeURIComponent 也会编码保留字符 `/`,这是预期行为;
-    // 关键不变式:输出只含 ASCII,且 decodeURIComponent 可还原。
+  it('2b. 纯 ASCII path 原样保留(仅非 Latin-1 才编码,保持可读性)', () => {
+    // 仅对超出 Latin-1 的码点做 percent-encoding,ASCII 与 Latin-1 原样保留。
+    // 这样 /users/123 等常见路径可读性不变,只有含中文等的路径才编码。
+    // 关键不变式:输出只含 Latin-1,且 decodeURIComponent 可还原。
     const encoded = encodeHeaderValueAsAscii('/users/123');
     expect(encoded).toMatch(/^[\x00-\x7f]+$/);
+    expect(encoded).toBe('/users/123'); // ASCII 原样保留(不编码 /)
     expect(decodeURIComponent(encoded)).toBe('/users/123');
   });
 });
