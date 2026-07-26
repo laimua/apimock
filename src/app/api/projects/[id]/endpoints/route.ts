@@ -16,8 +16,18 @@ import { invalidateEndpointCache } from '@/lib/endpoint-cache';
 // ============================================
 // Schema
 // ============================================
+// P1-9: 端点路径规范化校验。
+// 必须以 `/` 开头且不能以 `/` 结尾，拒绝：
+//   - `users`(无前导斜杠):routeParts 比 requestParts 少一段 → 永不匹配
+//   - `/users/`(尾斜杠):Next 默认 trailingSlash:false 会 308 到无斜杠,requestPath 不等 → 永不匹配
+//   - `/`(根路径)、`//`(空段):无意义,无端点应服务根路径
+// 允许 `/users`、`/users/:id`、`/a/b/c` 等参数与多层路径。
+const ENDPOINT_PATH_REGEX = /^\/.*[^/]$/;
+const ENDPOINT_PATH_MESSAGE =
+  'path must start with "/" and must not end with "/" (e.g. "/users", "/users/:id")';
+
 const CreateEndpointSchema = z.object({
-  path: z.string().min(1).max(500),
+  path: z.string().min(1).max(500).regex(ENDPOINT_PATH_REGEX, ENDPOINT_PATH_MESSAGE),
   method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']).default('GET'),
   name: z.string().optional(),
   description: z.string().optional(),

@@ -17,8 +17,14 @@ import { invalidateEndpointCache } from '@/lib/endpoint-cache';
 // ============================================
 // Schema
 // ============================================
+// P1-9: 端点路径规范化校验（与 POST 一致，见 endpoints/route.ts 注释）。
+// 必须以 `/` 开头且不能以 `/` 结尾。
+const ENDPOINT_PATH_REGEX = /^\/.*[^/]$/;
+const ENDPOINT_PATH_MESSAGE =
+  'path must start with "/" and must not end with "/" (e.g. "/users", "/users/:id")';
+
 const UpdateEndpointSchema = z.object({
-  path: z.string().min(1).max(500).optional(),
+  path: z.string().min(1).max(500).regex(ENDPOINT_PATH_REGEX, ENDPOINT_PATH_MESSAGE).optional(),
   method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']).optional(),
   name: z.string().optional(),
   description: z.string().optional(),
@@ -162,11 +168,43 @@ export async function PUT(
         : JSON.stringify(data.responseBody);
     }
 
+    // P2-9: PUT 改 path/method 时重复预检（与 POST 一致），避免撞唯一索引抛裸 500。
+    // 仅在本次更新涉及 path 或 method 时才查；否则跳过省一次 DB roundtrip。
+    if (updateData.path !== undefined || updateData.method !== undefined) {
+      const newPath = (updateData.path as string | undefined) ?? endpointList[0].path;
+      const newMethod = (updateData.method as string | undefined) ?? endpointList[0].method;
+      const duplicate = await db
+        .select({ id: endpoints.id })
+        .from(endpoints)
+        .where(
+          and(
+            eq(endpoints.projectId, projectId),
+            eq(endpoints.method, newMethod as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS'),
+            eq(endpoints.path, newPath),
+          )
+        );
+      // 排除自身（同 path+method 但不同 id 视为冲突）
+      if (duplicate.some((d) => d.id !== endpointId)) {
+        return Errors.conflict(
+          `Endpoint ${newMethod} ${newPath} already exists in this project`
+        );
+      }
+    }
+
     // 更新端点
-    await db
-      .update(endpoints)
-      .set(updateData)
-      .where(eq(endpoints.id, endpointId));
+    try {
+      await db
+        .update(endpoints)
+        .set(updateData)
+        .where(eq(endpoints.id, endpointId));
+    } catch (err: unknown) {
+      // 兜底:预检存在 TOCTOU 窗口,并发撞唯一索引时转 409 而非裸 500
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/unique|constraint/i.test(msg)) {
+        return Errors.conflict('Endpoint with this path and method already exists');
+      }
+      throw err;
+    }
     invalidateEndpointCache(projectId);
 
     // 返回更新后的数据

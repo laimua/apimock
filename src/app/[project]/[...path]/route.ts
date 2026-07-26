@@ -17,7 +17,7 @@ import { getClientIp } from '@/lib/client-ip';
 import { getCachedProject } from '@/lib/project-cache';
 import { getCachedEndpointsByMethod } from '@/lib/endpoint-cache';
 import { mockRequestsTotal, mockRequestDuration, rateLimitRejectedTotal } from '@/lib/metrics';
-import { selectResponse } from '@/lib/mock-response-selector';
+import { selectResponse, serializeMockResponse } from '@/lib/mock-response-selector';
 
 // Mock 服务限流：100 req/min/IP
 const MOCK_RATE_LIMIT = 100;
@@ -359,19 +359,21 @@ async function handleMock(request: NextRequest, projectSlug: string, path: strin
     userAgent
   ));
 
-  // 对于非 JSON 内容类型，返回原始文本
-  if (responseContentType !== 'application/json') {
-    const bodyText = body !== null && body !== undefined
-      ? (typeof body === 'string' ? body : String(body))
-      : '';
-    return new NextResponse(bodyText, {
+  // 序列化决策(P1-10):纯函数,与响应构建逻辑对齐,便于单测覆盖。
+  //   - 非 JSON content-type 或 body 为字符串 → text(原始文本,不经 JSON 序列化)
+  //   - 否则 → json(NextResponse.json)
+  // P1-10 关键:body 为字符串(如 error-scenarios 的 malformed-json 预设
+  // `'{invalid json response}'`)时走 text,避免 NextResponse.json 把字符串再序列化成
+  // 合法 JSON 字符串导致客户端永远收不到 malformed JSON。
+  // 与 P2-39(contentType 精确比较)无冲突:本函数不改 contentType 比较逻辑。
+  const serialized = serializeMockResponse(body, responseContentType);
+  if (serialized.kind === 'text') {
+    return new NextResponse(serialized.text, {
       status: responseStatus,
       headers,
     });
   }
-
-  // 对于 JSON 类型，使用 NextResponse.json
-  return NextResponse.json(body ?? {}, {
+  return NextResponse.json(serialized.value, {
     status: responseStatus,
     headers,
   });
