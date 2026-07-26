@@ -52,4 +52,24 @@ describe('getClientIp', () => {
     // 无 header 时调用方应传 'unknown' 作为 key
     expect(getClientIp(makeHeaders({}))).toBeNull();
   });
+
+  // P2-28: TRUST_PROXY=false(直连部署)忽略所有代理头,防伪造
+  describe('TRUST_PROXY=false (direct deployment)', () => {
+    const orig = process.env.TRUST_PROXY;
+    beforeEach(() => { process.env.TRUST_PROXY = 'false'; });
+    afterEach(() => {
+      if (orig === undefined) delete process.env.TRUST_PROXY;
+      else process.env.TRUST_PROXY = orig;
+    });
+
+    it('ignores X-Real-IP when TRUST_PROXY=false', () => {
+      const h = makeHeaders({ 'x-real-ip': '203.0.113.5' });
+      expect(getClientIp(h)).toBeNull();
+    });
+
+    it('ignores X-Forwarded-For when TRUST_PROXY=false', () => {
+      const h = makeHeaders({ 'x-forwarded-for': '203.0.113.5, 10.0.0.1' });
+      expect(getClientIp(h)).toBeNull();
+    });
+  });
 });
