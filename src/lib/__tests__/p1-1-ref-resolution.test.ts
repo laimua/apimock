@@ -180,8 +180,12 @@ describe('P1-1: $ref 解析修复', () => {
     // 外层结构完整保留
     expect(selfRef.type).toBe('object');
     expect((selfRef.properties as Obj).self).toBeDefined();
-    // 环断点：self 属性被解析后，其内部 self 不再无限展开（保持 {$ref} 或被截断为不含无限递归的对象）
-    // 关键：调用正常返回，没有 RangeError / 不 hang
+    // codex/claude 复审:钉死环断点形态 —— self.self 展开一层后,内层 self 留 {$ref} 防无限递归
+    // (实现是"展开一次再断",非"直接返 {$ref}";客户端拿到结构,内部 self 是 $ref 不再展开)
+    const resolvedSelf = (selfRef.properties as Obj).self as Obj;
+    expect(resolvedSelf.type).toBe('object');
+    expect((resolvedSelf.properties as Obj).self).toEqual({ $ref: '#/components/schemas/SelfRef' });
+    // 关键:调用正常返回,没有 RangeError / 不 hang
     expect(result).toBeDefined();
   });
 

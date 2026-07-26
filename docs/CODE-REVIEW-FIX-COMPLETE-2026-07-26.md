@@ -50,7 +50,7 @@
 | 项 | PR | 说明 |
 |----|----|------|
 | P1-1 | #16 | OpenAPI `$ref` 解析:root 参数透传 + 解析栈循环 guard(不误杀 DAG) |
-| P1-2 | #16 | 导入端点 responseBody 置 null(原 `'{}'` 恒抢占 fallback) |
+| P1-2 | #16 | 导入端点 responseBody 置 null(原 `'{}'` 恒抢占 fallback)。**注**:修复仅对**新导入**生效;老库里 P1-2 修复前 import 写入的 `response_body='{}'` 存量数据**无法自动迁移**(DB 无来源标记,无法区分 import 产生 vs UI 用户主动设 `'{}'`,强迁移会误伤用户数据)。老库用户需重新导入或手动改端点。 |
 | P1-3 | #16 | isDefault 选择拆 defaultResp/firstNoRule 优先 |
 | P1-4 | #16 | SQLite `PRAGMA foreign_keys=ON` + 孤儿清理迁移(注:better-sqlite3 驱动层默认 ON,生产未实际触发,防御性修复) |
 | P1-5 | #17 | prune 归桶 NULL endpointId 行,404 记录不再无限增长 |

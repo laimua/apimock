@@ -394,6 +394,8 @@ function ProjectPageInner() {
   // (样板参考 projects/new/page.tsx 的 slug 校验中止思路,这里用 reqId 更轻量)
   const loadDataReqIdRef = useRef(0);
   const loadRequestsReqIdRef = useRef(0);
+  // codex 复审 PR#18:卸载清理 —— 组件 unmount 后在途 fetch 回来不再 setState
+  const mountedRef = useRef(true);
   const [error, setError] = useState<string | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -454,7 +456,9 @@ function ProjectPageInner() {
   }, [projectId]);
 
   useEffect(() => {
+    mountedRef.current = true;
     loadData();
+    return () => { mountedRef.current = false; };
     // 仅按显式列出的筛选项变化重载；loadData 闭包读取最新 state，无需加入依赖
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, page, debouncedSearch, methodFilter, tagFilter]);
@@ -514,8 +518,8 @@ function ProjectPageInner() {
         }),
       ]);
 
-      // 旧请求返回时丢弃,避免慢响应覆盖新数据
-      if (reqId !== loadDataReqIdRef.current) return;
+      // 旧请求返回时丢弃,避免慢响应覆盖新数据;卸载后也不再 setState
+      if (reqId !== loadDataReqIdRef.current || !mountedRef.current) return;
 
       // P2-44: 成功路径清掉旧的错误横幅,避免瞬时失败后红色横幅常驻
       setError(null);
@@ -525,10 +529,10 @@ function ProjectPageInner() {
       setEndpoints(endpointsData.items);
       setTotal(endpointsData.total);
     } catch (err: unknown) {
-      if (reqId !== loadDataReqIdRef.current) return;
+      if (reqId !== loadDataReqIdRef.current || !mountedRef.current) return;
       setError(err instanceof Error ? err.message : '加载失败');
     } finally {
-      if (reqId === loadDataReqIdRef.current) {
+      if (reqId === loadDataReqIdRef.current && mountedRef.current) {
         setLoading(false);
         setReloading(false);
         loadedOnce.current = true;
@@ -551,18 +555,18 @@ function ProjectPageInner() {
         }),
         needFetchEndpoints ? endpointsApi.list(projectId) : Promise.resolve(null),
       ]);
-      // 旧请求返回时丢弃,避免慢响应覆盖新数据
-      if (reqId !== loadRequestsReqIdRef.current) return;
+      // 旧请求返回时丢弃,避免慢响应覆盖新数据;卸载后也不再 setState
+      if (reqId !== loadRequestsReqIdRef.current || !mountedRef.current) return;
       setRequests(data.items);
       setRequestsTotal(data.total);
       if (allEndpointsResp) {
         setRequestFilterEndpoints(allEndpointsResp.items);
       }
     } catch (err: unknown) {
-      if (reqId !== loadRequestsReqIdRef.current) return;
+      if (reqId !== loadRequestsReqIdRef.current || !mountedRef.current) return;
       toastError(err instanceof Error ? err.message : '加载请求记录失败');
     } finally {
-      if (reqId === loadRequestsReqIdRef.current) {
+      if (reqId === loadRequestsReqIdRef.current && mountedRef.current) {
         setRequestsLoading(false);
       }
     }

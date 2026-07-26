@@ -253,6 +253,21 @@ describe('P1-9: 端点路径规范化校验', () => {
     expect(putRes.status).toBe(400);
   });
 
+  it('5c. PUT 改 path 为中段双斜杠 `/a//b` → 400(空段永不匹配)', async () => {
+    // codex 复审 PR#21:PUT 同样收紧 regex,补 PUT 专项断言(POST 已覆盖)
+    const createRes = await POST(
+      makePostReq(projectId, { path: '/gadgets', method: 'GET' }),
+      { params: Promise.resolve({ id: projectId }) }
+    );
+    const created = (await json(createRes)).data as { id: string };
+
+    const putRes = await PUT(
+      makePutReq(projectId, created.id, { path: '/a//b' }),
+      { params: Promise.resolve({ id: projectId, endpointId: created.id }) }
+    );
+    expect(putRes.status).toBe(400);
+  });
+
   it('6. (P2-9) PUT 改 path 撞唯一索引 → 409 而非 500', async () => {
     // 建两个端点
     const a = (await json(await POST(
