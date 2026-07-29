@@ -20,6 +20,7 @@ vi.mock('@/lib/db', () => ({
   get db() {
     return mockDb;
   },
+  isMysqlEnv: () => false,
 }));
 
 // Mock the openapi-parser module

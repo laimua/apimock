@@ -4,7 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { success, error, Errors, validate, ValidationError } from '@/lib/api';
+import { success, Errors, validate, ValidationError } from '@/lib/api';
+import { handleProviderError } from '@/lib/ai-errors';
 import { z } from 'zod';
 import OpenAI from 'openai';
 import { db } from '@/lib/db';
@@ -286,18 +287,8 @@ export async function POST(request: NextRequest) {
       return Errors.validation(err.issues);
     }
 
-    const msg = err instanceof Error ? err.message : String(err);
-
-    // OpenAI API 错误：透传上游状态码（如 4xx），避免坍缩为 500
-    if (err && typeof err === 'object' && 'status' in err) {
-      const status = (err as { status?: number }).status;
-      const body = `AI API error: ${msg}`;
-      if (typeof status === 'number') {
-        return error('INTERNAL_ERROR', body, status);
-      }
-      return Errors.internal(body);
-    }
-
-    return Errors.internal(msg);
+    // P1:上游错误细节(err.message 等)绝不透传客户端——会泄露 API key 等敏感信息。
+    // 对外只给固定文案,原始 err 进日志;上游 status(401/429/超时)仍透传。
+    return handleProviderError(err, { publicMessage: 'AI 内容生成失败' });
   }
 }

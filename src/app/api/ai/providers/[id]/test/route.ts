@@ -4,7 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { success, Errors, error } from '@/lib/api';
+import { success, Errors } from '@/lib/api';
+import { handleProviderError } from '@/lib/ai-errors';
 import { db } from '@/lib/db';
 import { aiProviders } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
@@ -134,19 +135,10 @@ export async function POST(
       response: response.substring(0, 200), // 截断过长响应
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-
-    // OpenAI API 错误：透传上游状态码（如 401/429/超时），并带上 status，避免坍缩为同一句
-    if (err && typeof err === 'object' && 'status' in err) {
-      const status = (err as { status?: number }).status;
-      const body = `Provider API request failed: ${msg}`;
-      if (typeof status === 'number') {
-        return error('PROVIDER_ERROR', body, status);
-      }
-      return Errors.internal(body);
-    }
-
-    // 无响应 / 超时 / 其他：统一 500，附原始信息便于排查
-    return Errors.internal(`Failed to test provider connection: ${msg}`);
+    // P1:上游错误细节(err.message 等)绝不透传客户端——会泄露 API key 等敏感信息。
+    // 对外只给固定文案,原始 err 进日志;上游 status(401/429/超时)仍透传。
+    return handleProviderError(err, {
+      publicMessage: '上游 AI 服务请求失败',
+    });
   }
 }

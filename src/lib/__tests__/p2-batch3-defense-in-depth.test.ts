@@ -52,7 +52,7 @@ const throwingDb = {
     throw new Error('SQLITE_CANTOPEN: /secret/internal/path/apimock.db');
   },
 };
-vi.mock('@/lib/db', () => ({ db: throwingDb }));
+vi.mock('@/lib/db', () => ({ db: throwingDb, isMysqlEnv: () => false }));
 
 describe('P2-21: health/ready 不泄露 DB/FS 异常 message', () => {
   let originalDbType: string | undefined;

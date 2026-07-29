@@ -13,6 +13,7 @@ import { db } from '@/lib/db';
 import { endpoints, responses } from '@/lib/schema';
 import { eq, and } from 'drizzle-orm';
 import { invalidateEndpointCache } from '@/lib/endpoint-cache';
+import { isUniqueViolation } from '@/lib/db-error';
 
 // ============================================
 // Schema
@@ -199,8 +200,7 @@ export async function PUT(
         .where(eq(endpoints.id, endpointId));
     } catch (err: unknown) {
       // 兜底:预检存在 TOCTOU 窗口,并发撞唯一索引时转 409 而非裸 500
-      const msg = err instanceof Error ? err.message : String(err);
-      if (/unique|constraint/i.test(msg)) {
+      if (isUniqueViolation(err)) {
         return Errors.conflict('Endpoint with this path and method already exists');
       }
       throw err;

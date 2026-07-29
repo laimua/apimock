@@ -17,6 +17,7 @@ import { SLUG_REGEX, MAX_SLUG_LENGTH, isReservedSlug } from '@/lib/slug';
 import { invalidateProjectCache } from '@/lib/project-cache';
 import { invalidateEndpointCache } from '@/lib/endpoint-cache';
 import { logger } from '@/lib/logger';
+import { isUniqueViolation } from '@/lib/db-error';
 
 // ============================================
 // Schema
@@ -107,13 +108,13 @@ export async function PUT(
     }
 
     // P2-4: slug 预检存在 TOCTOU 窗口,并发 update 撞唯一索引时兜底转 409。
-    // 与 POST 路由和段 H 的 P2-9(endpoints PUT)模式一致,双栈兼容 SQL 错误格式。
+    // 与 POST 路由和 P2-9(endpoints PUT)模式一致,判定走 isUniqueViolation
+    // (MySQL 稳定错误码 / SQLite "UNIQUE constraint" 消息),避免宽正则误判。
     try {
       await db.update(projects).set(updateData).where(eq(projects.id, id));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (/unique constraint|duplicate key|duplicate entry|projects\.slug/i.test(msg)) {
-        logger.error({ err: msg }, 'Project slug unique violation (PUT)');
+      if (isUniqueViolation(err)) {
+        logger.error({ err }, 'Project slug unique violation (PUT)');
         return Errors.conflict(
           `Slug "${(updateData.slug as string | undefined) ?? existing[0].slug}" already exists`
         );

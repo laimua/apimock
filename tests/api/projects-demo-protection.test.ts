@@ -15,6 +15,7 @@ vi.mock('@/lib/db', () => ({
   get db() {
     return mockDb;
   },
+  isMysqlEnv: () => false,
 }));
 
 async function insertProject(overrides: Partial<typeof projects.$inferInsert> = {}) {
