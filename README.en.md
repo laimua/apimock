@@ -64,7 +64,7 @@ curl http://localhost:3000/demo-project/orders
 | [Drizzle ORM](https://orm.drizzle.team/) | Type-safe ORM |
 | [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) / [mysql2](https://github.com/sidorares/node-mysql2) | Dual database support |
 | [Zod](https://zod.dev/) | API input validation |
-| [Vitest](https://vitest.dev/) / [Playwright](https://playwright.dev/) | 296 unit + 119 E2E tests |
+| [Vitest](https://vitest.dev/) / [Playwright](https://playwright.dev/) | 696 unit + 119 E2E tests |
 | [CodeMirror 6](https://codemirror.net/) | JSON editor |
 | [Tailwind CSS v4](https://tailwindcss.com/) | UI styling |
 
@@ -108,15 +108,19 @@ src/
 │   └── [project]/[...path]/ # Mock service dynamic route
 ├── components/              # React components
 └── lib/
-    ├── db.ts                # DB driver selection (sqlite/mysql)
+    ├── db.ts                # DB driver selection (sqlite/mysql) + isMysqlEnv()
     ├── db-sqlite.ts         # SQLite driver
     ├── db-mysql.ts          # MySQL driver
+    ├── db-transaction.ts    # Dual-stack transaction util (sqlite sync / mysql async)
+    ├── db-error.ts          # Unique-constraint detection (cross-driver)
+    ├── ai-errors.ts         # AI provider error handling (leak-safe)
     ├── schema-sqlite.ts     # SQLite Drizzle schema
     ├── schema-mysql.ts      # MySQL Drizzle schema
-    ├── rate-limit.ts        # In-memory rate limiter (token bucket + setInterval)
+    ├── kv-store.ts          # KV abstraction (in-memory / Redis backends)
+    ├── rate-limit.ts        # Fixed-window rate limiter (via kv-store)
     ├── body-size-limit.ts   # 1MB body guard
+    ├── mock-response-selector.ts # Runtime response selection (query/header rule matching)
     ├── demo-seed.ts         # Auto-seed demo-project
-    ├── mock-data-templates.ts # Default mock data templates
     ├── encryption.ts        # AES-256-GCM encryption
     ├── ssrf.ts              # SSRF protection
     └── analytics.ts         # Plausible custom events
@@ -125,11 +129,13 @@ src/
 ## Tests
 
 ```bash
-pnpm test                      # Unit + integration (296 cases)
+pnpm test                      # Unit + integration (696 cases)
 pnpm exec playwright test      # E2E (119 cases)
 pnpm test:coverage             # Coverage report
 pnpm ci:local                  # Reproduce CI locally (install → build → playwright)
 ```
+
+> **Gating discipline**: run tests against a clean DB (`SQLITE_PATH=/tmp/clean-test.db`) to avoid stale-table false greens from the production db; run both the main `tsc` and the test `tsc` (`tsconfig.test.json`). See [AGENTS.md](./AGENTS.md) "Tests & gates".
 
 ## Environment variables
 
@@ -143,6 +149,16 @@ Full list in [.env.example](./.env.example). Key variables:
 | `MYSQL_*` | no | MySQL connection params (when `DB_TYPE=mysql`) |
 | `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | no | Plausible analytics domain, empty disables |
 | `SKIP_SEED` | no | `true` to disable auto-seed (for tests) |
+
+## Code quality
+
+The project has gone through multiple independent code-review rounds with continuous remediation:
+
+- **Security/robustness review** (`docs/CODE-REVIEW-2026-07-25.md`): P0×1 + P1×19 + P2×55; all P0+P1 and most P2 fixed.
+- **Architecture review** (`docs/ARCHITECTURE-REVIEW-CONSENSUS-2026-07-29.md`): consensus and landing of a multi-model (kimi / codex / claude / ZCode) cross-review, covering AI error leak prevention, TOCTOU detection unification, dead-dependency cleanup, etc.
+- **Fully-green CI gates**: Lint + Unit (696) + Build + E2E (119); PRs must be all-green to merge.
+
+Server error responses follow a unified shape contract (`docs/API-ERROR-SHAPE.md`); frontend/backend read/write `json.error?.message` accordingly.
 
 ## Contributing
 

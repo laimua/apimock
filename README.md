@@ -64,7 +64,7 @@ curl http://localhost:3000/demo-project/orders
 | [Drizzle ORM](https://orm.drizzle.team/) | 类型安全的 ORM |
 | [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) / [mysql2](https://github.com/sidorares/node-mysql2) | 双数据库支持 |
 | [Zod](https://zod.dev/) | API 参数校验 |
-| [Vitest](https://vitest.dev/) / [Playwright](https://playwright.dev/) | 296 单元 + 119 E2E 测试 |
+| [Vitest](https://vitest.dev/) / [Playwright](https://playwright.dev/) | 696 单元 + 119 E2E 测试 |
 | [CodeMirror 6](https://codemirror.net/) | JSON 编辑器 |
 | [Tailwind CSS v4](https://tailwindcss.com/) | UI 样式 |
 
@@ -108,15 +108,19 @@ src/
 │   └── [project]/[...path]/ # Mock 服务动态路由
 ├── components/              # React 组件
 └── lib/
-    ├── db.ts                # DB 驱动选择（sqlite/mysql）
+    ├── db.ts                # DB 驱动选择（sqlite/mysql）+ isMysqlEnv()
     ├── db-sqlite.ts         # SQLite 驱动
     ├── db-mysql.ts          # MySQL 驱动
+    ├── db-transaction.ts    # 双栈事务工具（sqlite sync / mysql async）
+    ├── db-error.ts          # 唯一约束冲突判定（跨驱动）
+    ├── ai-errors.ts         # AI provider 错误统一处理（防泄露）
     ├── schema-sqlite.ts     # SQLite Drizzle schema
     ├── schema-mysql.ts      # MySQL Drizzle schema
-    ├── rate-limit.ts        # 内存限流（token bucket + setInterval）
+    ├── kv-store.ts          # KV 抽象层（内存 / Redis 双后端）
+    ├── rate-limit.ts        # 固定窗口限流（走 kv-store）
     ├── body-size-limit.ts   # 1MB body 守卫
+    ├── mock-response-selector.ts # 运行时响应选择（query/header 规则匹配）
     ├── demo-seed.ts         # auto-seed demo-project
-    ├── mock-data-templates.ts # 默认 mock 数据模板
     ├── encryption.ts        # AES-256-GCM 加密
     ├── ssrf.ts              # SSRF 防护
     └── analytics.ts         # Plausible 自定义事件
@@ -125,11 +129,13 @@ src/
 ## 测试
 
 ```bash
-pnpm test                      # 单元 + 集成（296 用例）
+pnpm test                      # 单元 + 集成（696 用例）
 pnpm exec playwright test      # E2E（119 用例）
 pnpm test:coverage             # 覆盖率报告
 pnpm ci:local                  # 本地复现 CI（install → build → playwright）
 ```
+
+> **门禁纪律**：跑测试用空库（`SQLITE_PATH=/tmp/clean-test.db`）避免生产 db 残留表蒙混；主 `tsc` 与测试 `tsc`（`tsconfig.test.json`）都要跑。详见 [AGENTS.md](./AGENTS.md)「测试与门禁」。
 
 ## 运维
 
@@ -152,6 +158,16 @@ pnpm ci:local                  # 本地复现 CI（install → build → playwri
 | `MYSQL_*` | 否 | MySQL 连接参数（`DB_TYPE=mysql` 时使用） |
 | `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | 否 | Plausible analytics 域名，留空禁用 |
 | `SKIP_SEED` | 否 | `true` 禁用 auto-seed（测试用） |
+
+## 代码质量
+
+项目经过多轮独立代码审查并持续整改：
+
+- **安全/健壮性审查**（`docs/CODE-REVIEW-2026-07-25.md`）：P0×1 + P1×19 + P2×55，已修 P0+P1 全 + P2 绝大部分。
+- **架构审查**（`docs/ARCHITECTURE-REVIEW-CONSENSUS-2026-07-29.md`）：多模型（kimi / codex / claude / ZCode）交叉评审的共识与落地，覆盖 ai 错误防泄露、TOCTOU 判定统一、死依赖清理等。
+- **CI 全绿门禁**：Lint + Unit（696）+ Build + E2E（119），PR 必须全绿才合入。
+
+服务端错误响应形状有统一契约（`docs/API-ERROR-SHAPE.md`），前后端按约定读写 `json.error?.message`。
 
 ## 贡献
 
