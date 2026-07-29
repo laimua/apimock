@@ -1,8 +1,12 @@
 /**
  * KV 抽象层（统一 Memory / Redis 双后端）
  *
- * 上层（rate-limit / project-cache / endpoint-cache / ai-budget）调 kv.* 接口，
- * 按 REDIS_URL 自动切后端。无 Redis 走 Memory（单实例精确），有 Redis 走
+ * 实际接入情况(注意:并非所有缓存都走 kv):
+ *   - rate-limit / ai-budget:走 kv.* 接口,按 REDIS_URL 自动切后端。
+ *   - project-cache / endpoint-cache:**不调 kv**,各自用进程内 Map(单实例精确,
+ *     多副本靠 TTL 兜底)。
+ *
+ * 按 REDIS_URL 自动切后端:无 Redis 走 Memory（单实例精确），有 Redis 走
  * ioredis（多副本一致）。
  *
  * 设计取舍：限流用固定窗口计数器（INCR + EXPIRE）而非 token bucket。

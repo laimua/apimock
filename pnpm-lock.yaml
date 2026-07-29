@@ -29,9 +29,6 @@ importers:
       '@codemirror/view':
         specifier: ^6.39.16
         version: 6.39.16
-      '@hono/zod-validator':
-        specifier: ^0.7.6
-        version: 0.7.6(hono@4.12.5)(zod@4.3.6)
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
@@ -65,9 +62,6 @@ importers:
       geist:
         specifier: ^1.7.2
         version: 1.7.2(next@16.1.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
-      hono:
-        specifier: ^4.12.5
-        version: 4.12.5
       ioredis:
         specifier: ^5.11.1
         version: 5.11.1
@@ -826,12 +820,6 @@ packages:
     resolution: {integrity: sha512-wtF6h+DY6M3YaDBPAmvuuA6jV8Sif9MjtOI5euKFWRgCDl5PeDpPsHR9u2l6St5ceY8AZgoNDww5+HvEsXFsGg==}
     engines: {node: '>=6'}
     hasBin: true
-
-  '@hono/zod-validator@0.7.6':
-    resolution: {integrity: sha512-Io1B6d011Gj1KknV4rXYz4le5+5EubcWEU/speUjuw9XMMIaP3n78yXLhjd2A3PXaXaUwEAluOiAyLqhBEJgsw==}
-    peerDependencies:
-      hono: '>=3.9.0'
-      zod: ^3.25.0 || ^4.0.0
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -3132,10 +3120,6 @@ packages:
   hermes-parser@0.25.1:
     resolution: {integrity: sha512-6pEjquH3rqaI6cYAXYPcz9MS4rY6R4ngRgrgfDshRptUZIc3lw0MCIJIGDj9++mfySOuPTHB4nrSW99BCvOPIA==}
 
-  hono@4.12.5:
-    resolution: {integrity: sha512-3qq+FUBtlTHhtYxbxheZgY8NIFnkkC/MR8u5TTsr7YZ3wixryQ3cCwn3iZbg8p8B88iDBBAYSfZDS75t8MN7Vg==}
-    engines: {node: '>=16.9.0'}
-
   html-escaper@2.0.2:
     resolution: {integrity: sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg==}
 
@@ -4989,11 +4973,6 @@ snapshots:
       long: 5.3.2
       protobufjs: 7.6.4
       yargs: 17.7.3
-
-  '@hono/zod-validator@0.7.6(hono@4.12.5)(zod@4.3.6)':
-    dependencies:
-      hono: 4.12.5
-      zod: 4.3.6
 
   '@humanfs/core@0.19.1': {}
 
@@ -7531,8 +7510,6 @@ snapshots:
   hermes-parser@0.25.1:
     dependencies:
       hermes-estree: 0.25.1
-
-  hono@4.12.5: {}
 
   html-escaper@2.0.2: {}
 

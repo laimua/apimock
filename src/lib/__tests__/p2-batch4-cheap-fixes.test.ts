@@ -116,7 +116,7 @@ rawDb.exec(`
 `);
 const memoryDb = drizzle(rawDb, { schema });
 
-vi.mock('@/lib/db', () => ({ db: memoryDb }));
+vi.mock('@/lib/db', () => ({ db: memoryDb, isMysqlEnv: () => false }));
 
 // ============================================
 // P2-27 / P2-43:纯函数测(无需 DB,放 mock 之前避免污染)

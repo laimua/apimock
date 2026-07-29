@@ -71,7 +71,7 @@ const memoryDb = drizzle(rawDb, { schema });
 
 // vi.mock 被 vitest hoist 到 import 之前,factory 引用的 memoryDb 在 factory 真正被
 // 调用(首次 import '@/lib/db')时已初始化。
-vi.mock('@/lib/db', () => ({ db: memoryDb }));
+vi.mock('@/lib/db', () => ({ db: memoryDb, isMysqlEnv: () => false }));
 
 // ---- 层 1:缓存函数本身 ----
 // 用 top-level await 动态 import 缓存模块,确保 memoryDb 已初始化后再触发它们的

@@ -36,6 +36,7 @@ vi.mock('@/lib/db', () => ({
   get db() {
     return mockDb;
   },
+  isMysqlEnv: () => false,
 }));
 
 // 在 mock 建立后再 import route / NextRequest，确保上面两个 vi.mock 生效

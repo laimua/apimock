@@ -17,7 +17,7 @@ vi.mock('@/lib/db', () => ({
   get db() {
     return mockDb;
   },
-  getDb: () => mockDb,
+  isMysqlEnv: () => false,
 }));
 
 beforeAll(async () => {

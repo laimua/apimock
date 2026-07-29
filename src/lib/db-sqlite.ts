@@ -32,7 +32,3 @@ sqliteDb.pragma('foreign_keys = ON');
 sqliteDb.pragma('busy_timeout = 5000');
 
 export const db = drizzle(sqliteDb, { schema, logger: process.env.DB_LOG_SQL === 'true' });
-
-export function getDb() {
-  return db;
-}

@@ -98,7 +98,7 @@ const memoryDb = drizzle(rawDb, { schema });
 // vi.mock 被 vitest hoist 到所有 import 之前(含 route handler 内部的 '@/lib/db')。
 // factory 引用 memoryDb —— 它是模块顶层 const,在 factory 真正被调用时(模块求值完)
 // 已初始化。route handler 拿到的就是这个 :memory: db,模块加载无副作用。
-vi.mock('@/lib/db', () => ({ db: memoryDb }));
+vi.mock('@/lib/db', () => ({ db: memoryDb, isMysqlEnv: () => false }));
 
 // 在 mock 生效后动态 import route handler,拿到注入的 :memory: db。
 const { POST } = await import('../route');
