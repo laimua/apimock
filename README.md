@@ -8,9 +8,9 @@
 
 <!-- TODO: 部署到 Railway 后，将上方 Live Demo URL 替换为你的实际 Railway app URL（默认 `<random-words>-<num>.up.railway.app`）或绑定自定义域名 -->
 
-![ApiMock Desktop](./screenshot-desktop.png)
+![ApiMock 项目详情页](./screenshot-desktop.png)
 
-![Mobile + Endpoint Detail](./screenshot-mobile.png)　![New Endpoint Form](./screenshot-new-endpoint.png)
+![移动端项目详情](./screenshot-mobile.png)　![端点编辑页](./screenshot-new-endpoint.png)
 
 ---
 

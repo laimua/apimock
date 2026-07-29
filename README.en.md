@@ -8,9 +8,9 @@ English | [简体中文](./README.md)
 
 <!-- TODO: After deploying to Railway, replace the Live Demo URL above with your actual Railway app URL (default `<random-words>-<num>.up.railway.app`) or bind a custom domain -->
 
-![ApiMock Desktop](./screenshot-desktop.png)
+![ApiMock Project Detail](./screenshot-desktop.png)
 
-![Mobile + Endpoint Detail](./screenshot-mobile.png)　![New Endpoint Form](./screenshot-new-endpoint.png)
+![Mobile Project Detail](./screenshot-mobile.png)　![Endpoint Editor](./screenshot-new-endpoint.png)
 
 ---
 
