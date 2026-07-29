@@ -34,7 +34,8 @@ test.describe('Project Management', () => {
     await page.getByText('稍后再说').click({ timeout: 5000 }).catch(() => {});
 
     // Should be redirected to project page
-    await expect(page).toHaveURL(/\/projects\/[a-z0-9]+$/);
+    // 项目 id 是 nanoid 生成,字母表含 A-Za-z0-9_- ,正则需覆盖完整字符集
+    await expect(page).toHaveURL(/\/projects\/[A-Za-z0-9_-]+$/);
 
     // Should see project name（project detail 用 breadcrumb 显示，无 h1）
     await expect(page.locator('body')).toContainText(uniqueName);
