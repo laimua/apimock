@@ -31,6 +31,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // 生产构建输出 standalone 产物(.next/standalone),自带最小 node_modules,
+  // 部署镜像更小、native 依赖(better-sqlite3)更可控。
+  // 注:standalone 仍需手动拷贝 public/ 与 .next/static(见 DEPLOY.md)。
+  output: 'standalone',
   async headers() {
     return [
       {
