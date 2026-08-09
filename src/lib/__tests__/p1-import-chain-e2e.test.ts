@@ -97,7 +97,8 @@ describe('导入链端到端:OpenAPI → 解析 → 导入 → 选择 → 真实
     expect(parseResult.endpoints).toHaveLength(1);
 
     const ep = parseResult.endpoints[0];
-    expect(ep.path).toBe('/pets/{id}');
+    // OpenAPI {id} 在解析期转换为 mock 路由认的 :id 风格
+    expect(ep.path).toBe('/pets/:id');
     expect(ep.method).toBe('GET');
 
     // ★ P1-1 修复后：body 是完整 Pet schema（含 example），不是 {$ref} ★

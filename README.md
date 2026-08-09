@@ -112,6 +112,13 @@ node server.js
 
 完整部署文档（含 MySQL 路径、Fly.io、本地 Docker）见 [docs/DEPLOY.md](./docs/DEPLOY.md)。
 
+## Agent 集成（Skill）
+
+提供 Agent Skill,让 AI coding agent(Kimi Code / Claude Code)在 vibecoding 产出接口文档后,**直接驱动 ApiMock 完成 mock 搭建**:转换 OpenAPI → 建项目 → 导入接口 → 设计场景(正常/错误/超时)→ AI 生成数据 → 返回可用 mock URL,全程无需打开 Web UI。
+
+- Skill 位置:[`skills/apimock/`](./skills/apimock/SKILL.md)(含安装方法:复制到 `.agents/skills/` 或 `.claude/skills/`)
+- 前提:管理 API 支持 `Authorization: Bearer <MANAGE_TOKEN>` 机器客户端直通(浏览器 cookie 登录不受影响)
+
 ## AI 模型配置
 
 两种方式（任选其一）：

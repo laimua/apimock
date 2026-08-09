@@ -236,6 +236,15 @@ curl /api/metrics                         → 401（现状不变，header token�
 - **v3（仅当确有多人）**：users 表 + 密码哈希 + session；proxy 改查 DB
 - **v4**：SSO（GitHub OAuth）
 
+## 九、补充：机器客户端 Bearer 直通（2026-08)
+
+proxy 在 cookie 校验之前增加 `Authorization: Bearer <MANAGE_TOKEN>` 通道(`safeEqual` timing-safe 比对),供 agent / 脚本 / CI 直接调管理 API,无需登录拿 cookie(配套 `skills/apimock/`)。
+
+- **与 cookie 并行**:Bearer 错不破坏合法 cookie 会话(继续走 cookie 校验);fail-closed 语义不变(未配 MANAGE_TOKEN 一律 503)
+- **为何不加限流**:Bearer 通道未单独限流,与 login(10/min/IP)不对等是**已知取舍**;
+  安全性依赖 token 高熵(≥20 字符随机)+ timing-safe 比对,爆破在实践上不可行
+- **风险对齐**:Bearer token 出现在 header 里,可能被反向代理访问日志记录——与现有 `X-Admin-Token`(backup)/ `Authorization: Bearer <METRICS_TOKEN>`(metrics)先例一致,部署侧按既有 token 保护实践处理
+
 ---
 
 *本方案经 codex（后端架构）+ kimi（前端/产品）+ 主控 agent（裁决）+ CC（独立审查）四方共识。*

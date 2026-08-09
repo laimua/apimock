@@ -31,6 +31,12 @@ const eslintConfig = defineConfig([
     ".claude/**",
     "data/**",
     "drizzle/**",
+    // standalone 打包产物(node_modules 内为第三方 bundle,非项目代码)
+    "release/**",
+    // 测试/报告产物(vitest coverage、playwright report 与 trace、单测试结果)
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

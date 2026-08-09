@@ -11,6 +11,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { error } from '@/lib/api';
 import { COOKIE_NAME, verifySession } from '@/lib/auth';
+import { safeEqual } from '@/lib/crypto-utils';
+
+const BEARER_PREFIX = 'Bearer ';
 
 export function proxy(req: NextRequest) {
   const manageToken = process.env.MANAGE_TOKEN;
@@ -21,6 +24,18 @@ export function proxy(req: NextRequest) {
       return error('MANAGE_TOKEN_NOT_CONFIGURED', 'MANAGE_TOKEN not configured', 503);
     }
     return NextResponse.redirect(new URL('/login?error=no_token', req.url));
+  }
+
+  // 机器客户端（agent / 脚本 / CI）：Authorization: Bearer <MANAGE_TOKEN> 直通，
+  // timing-safe 比对。浏览器走 cookie，不受影响。
+  // RFC 7235：auth scheme 大小写不敏感——只比 scheme 前缀；
+  // token 本体大小写有意义，原样传给 safeEqual，不做大小写折叠。
+  const authz = req.headers.get('authorization');
+  if (
+    authz?.toLowerCase().startsWith(BEARER_PREFIX.toLowerCase()) &&
+    safeEqual(authz.slice(BEARER_PREFIX.length), manageToken)
+  ) {
+    return NextResponse.next();
   }
 
   const cookieValue = req.cookies.get(COOKIE_NAME)?.value;

@@ -1,0 +1,69 @@
+# 最小可导入示例:用户服务
+# 用法:curl -F "file=@openapi-minimal.yaml" $BASE/api/projects/$ID/import
+# 要点:每个 200 响应在 media type 里写 `example` 真实数据 —— 导入后 mock 直接返回
+#       这些数据,无需二次补数据。example 缺省时 body 退回为 schema 对象(见 SKILL.md)。
+openapi: 3.0.0
+info:
+  title: User Service
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: 用户列表
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  data:
+                    type: object
+              example:
+                code: 0
+                message: success
+                data:
+                  list:
+                    - id: 1
+                      name: 张伟
+                      email: zhangwei@example.com
+                      status: active
+                    - id: 2
+                      name: 李娜
+                      email: lina@example.com
+                      status: active
+                  total: 2
+  /users/{id}:
+    get:
+      summary: 单个用户
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                code: 0
+                data:
+                  id: 1
+                  name: 张伟
+                  email: zhangwei@example.com
+        '404':
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                code: 404
+                message: 用户不存在

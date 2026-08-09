@@ -112,6 +112,13 @@ Process supervision (systemd), backup cron, and upgrade steps are in the "Standa
 
 Full deployment docs (MySQL path, Fly.io, local Docker) in [docs/DEPLOY.md](./docs/DEPLOY.md).
 
+## Agent integration (Skill)
+
+Ships an Agent Skill so AI coding agents (Kimi Code / Claude Code) can **drive ApiMock directly** after vibecoding produces an API doc: convert to OpenAPI → create project → import endpoints → design scenarios (happy-path / error / timeout) → generate data with AI → hand back working mock URLs — all without opening the Web UI.
+
+- Skill location: [`skills/apimock/`](./skills/apimock/SKILL.md) (install: copy into `.agents/skills/` or `.claude/skills/`)
+- Prerequisite: admin APIs accept `Authorization: Bearer <MANAGE_TOKEN>` for machine clients (browser cookie login unaffected)
+
 ## AI provider config
 
 Pick one:

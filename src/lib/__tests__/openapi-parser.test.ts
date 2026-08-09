@@ -653,3 +653,82 @@ paths: &paths
     expect(result.endpoints).toHaveLength(1);
   });
 });
+
+// ============================================
+// 真实数据导入:example / examples 优先于 schema
+// ============================================
+describe('extractPaths: example 真实数据优先', () => {
+  function docWith(mediaType: Record<string, unknown>): JsonValue {
+    return {
+      paths: {
+        '/users': {
+          get: {
+            responses: {
+              '200': { content: { 'application/json': mediaType } },
+            },
+          },
+        },
+      },
+    } as unknown as JsonValue;
+  }
+  const SCHEMA = { type: 'object', properties: { id: { type: 'integer' } } };
+
+  it('有 example → body 为真实数据而非 schema', () => {
+    const example = { code: 0, data: { list: [{ id: 1, name: '张三' }] } };
+    const endpoints = extractPaths(docWith({ schema: SCHEMA, example }));
+    expect(endpoints[0].responses[0].body).toEqual(example);
+  });
+
+  it('example 为 falsy 值(0 / false / {})也生效(判 undefined 而非真值)', () => {
+    expect(extractPaths(docWith({ schema: SCHEMA, example: 0 }))[0].responses[0].body).toBe(0);
+    expect(extractPaths(docWith({ schema: SCHEMA, example: false }))[0].responses[0].body).toBe(false);
+    expect(extractPaths(docWith({ schema: SCHEMA, example: {} }))[0].responses[0].body).toEqual({});
+  });
+
+  it('无 example 有 examples map → 取第一个条目的 value', () => {
+    const endpoints = extractPaths(docWith({
+      schema: SCHEMA,
+      examples: {
+        vip: { summary: 'VIP 用户', value: { id: 1, level: 'gold' } },
+        normal: { value: { id: 2 } },
+      },
+    }));
+    expect(endpoints[0].responses[0].body).toEqual({ id: 1, level: 'gold' });
+  });
+
+  it('examples 条目无 value(externalValue 风格)→ 退回 schema', () => {
+    const endpoints = extractPaths(docWith({
+      schema: SCHEMA,
+      examples: { ext: { externalValue: 'https://example.com/x.json' } },
+    }));
+    expect(endpoints[0].responses[0].body).toEqual(SCHEMA);
+  });
+
+  it('无 example/examples → 退回 schema(历史行为不变)', () => {
+    const endpoints = extractPaths(docWith({ schema: SCHEMA }));
+    expect(endpoints[0].responses[0].body).toEqual(SCHEMA);
+  });
+
+  it('example 显式为 null → body 为 null(判 undefined,null 是显式值)', () => {
+    expect(extractPaths(docWith({ schema: SCHEMA, example: null }))[0].responses[0].body).toBeNull();
+  });
+});
+
+describe('extractPaths: OpenAPI 路径参数 {id} → :id', () => {
+  it('{id} 转换为 :id(mock 路由只认冒号风格)', () => {
+    const doc = {
+      paths: {
+        '/users/{id}': { get: { responses: { '200': {} } } },
+        '/orders/{orderId}/items/{itemId}': { get: { responses: { '200': {} } } },
+      },
+    };
+    const endpoints = extractPaths(doc);
+    expect(endpoints[0].path).toBe('/users/:id');
+    expect(endpoints[1].path).toBe('/orders/:orderId/items/:itemId');
+  });
+
+  it('无路径参数的原样保留', () => {
+    const doc = { paths: { '/users': { get: { responses: { '200': {} } } } } };
+    expect(extractPaths(doc)[0].path).toBe('/users');
+  });
+});
