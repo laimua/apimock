@@ -231,9 +231,12 @@ export function extractPaths(doc: JsonValue): ParsedEndpoint[] {
     return endpoints;
   }
 
-  for (const [path, pathItem] of Object.entries(paths)) {
+  for (const [rawPath, pathItem] of Object.entries(paths)) {
     if (!pathItem || typeof pathItem !== 'object' || Array.isArray(pathItem)) continue;
     const pathObj = pathItem as JsonObject;
+    // OpenAPI 路径参数 {id} → ApiMock 路由匹配用的 :id(mock 路由只认冒号风格,
+    // 不转换则带参端点导入后永远 404)
+    const path = rawPath.replace(/\{([^}/]+)\}/g, ':$1');
 
     for (const method of HTTP_METHODS) {
       if (method in pathObj) {
@@ -290,17 +293,42 @@ function extractResponseBody(response: JsonValue): JsonValue | undefined {
     const contentObj = content as JsonObject;
     // Try to get application/json first
     const jsonContent = contentObj['application/json'] as JsonObject | undefined;
-    if (jsonContent?.schema !== undefined) {
-      return jsonContent.schema;
+    if (jsonContent) {
+      const body = extractBodyFromMediaType(jsonContent);
+      if (body !== undefined) {
+        return body;
+      }
     }
     // Fallback to first content type
     const firstContent = Object.values(contentObj)[0] as JsonObject | undefined;
-    if (firstContent?.schema !== undefined) {
-      return firstContent.schema;
+    if (firstContent) {
+      const body = extractBodyFromMediaType(firstContent);
+      if (body !== undefined) {
+        return body;
+      }
     }
   }
 
   return responseObj.schema;
+}
+
+/**
+ * 从 media type 对象提取响应体:优先真实示例数据(`example`,或 `examples` map
+ * 第一个条目的 `value`),都没有时退回 schema 对象本身(历史行为)。
+ * 这样调用方(agent / 用户)在文档里写好 example,导入后 mock 直接返回真实数据。
+ */
+function extractBodyFromMediaType(mediaType: JsonObject): JsonValue | undefined {
+  if (mediaType.example !== undefined) {
+    return mediaType.example;
+  }
+  const examples = mediaType.examples;
+  if (examples && typeof examples === 'object' && !Array.isArray(examples)) {
+    const first = Object.values(examples as JsonObject)[0];
+    if (first && typeof first === 'object' && !Array.isArray(first) && 'value' in first) {
+      return (first as JsonObject).value;
+    }
+  }
+  return mediaType.schema;
 }
 
 /**
