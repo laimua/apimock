@@ -1,0 +1,83 @@
+name: Release
+
+# 打 tag 发版:git tag v0.3.0 && git push origin v0.3.0
+# 自动构建 linux-x64 + win32-x64 两个 standalone 发布包并挂到 GitHub Release,
+# 用户下载对应平台的包即可部署(无需 pnpm/docker)。
+# 注:better-sqlite3 原生绑定无法跨平台,故按平台分别构建,不存在通用包。
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write # 创建 Release + 上传产物
+
+jobs:
+  # 先建 Release(--generate-notes 生成变更说明),避免两个打包 job 并发抢建
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # tag 必须与 package.json version 一致(v0.3.0 ↔ 0.3.0),
+      # 否则发布包文件名里的版本号会对不上,直接失败
+      - name: Verify tag matches package.json version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::tag $GITHUB_REF_NAME 与 package.json version $PKG 不一致"
+            exit 1
+          fi
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --generate-notes
+
+  standalone-package:
+    name: Package ${{ matrix.platform }} + upload
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false # 一个平台失败不影响另一个
+      matrix:
+        include:
+          - { os: ubuntu-latest, platform: linux-x64 }
+          - { os: windows-latest, platform: win32-x64 }
+
+    env:
+      # 仅构建期占位,运行时由部署方配置真实密钥
+      ENCRYPTION_KEY: ci-build-placeholder-key-not-for-production
+      DB_TYPE: sqlite
+      SQLITE_PATH: ./data/apimock-release.db
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 构建 + 组装 + 打 tar 包(产出 release/apimock-<ver>-<platform>-<arch>.tar.gz)
+      # 注:tag 应从已通过 CI(Lint+Unit+E2E)的 master 切出,本工作流不重复跑测试
+      - name: Package standalone
+        run: pnpm package:standalone
+
+      - name: Upload package to Release
+        shell: bash # windows runner 默认 pwsh 不解 glob,统一用 bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" release/apimock-*.tar.gz --clobber

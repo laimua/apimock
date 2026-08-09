@@ -70,6 +70,35 @@ curl http://localhost:3000/demo-project/orders
 
 ## 部署
 
+### 发布包（单机零依赖）
+
+每个版本在 [GitHub Releases](https://github.com/laimua/apimock/releases) 附带预构建的 standalone 发布包（`linux-x64` 和 `win32-x64` 两种），服务器**只需 Node.js 22.x**(必须 22 大版本,better-sqlite3 原生绑定 ABI 锁定)，无需 pnpm / npm install / Docker：
+
+```bash
+# 1. 下载并解压(Linux 服务器用 linux-x64 包,Windows 服务器用 win32-x64 包)
+tar xzf apimock-*-linux-x64.tar.gz && cd apimock-*
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env 填好:
+#   ENCRYPTION_KEY=$(openssl rand -hex 32)   # 生成后固定保存,更换会导致已加密的 AI key 失效
+#   MANAGE_TOKEN=<管理面登录密码,≥20 位随机串>
+#   ADMIN_TOKEN=<备份接口 token,≥20 位随机串,与 MANAGE_TOKEN 不同>
+export $(grep -v '^#' .env | xargs)
+
+# 3. 初始化数据库(幂等,升级版本时也跑一次)
+node migrate.mjs
+
+# 4. 启动(默认 0.0.0.0:3000,PORT 可改)
+node server.js
+```
+
+验证：`curl http://localhost:3000/api/health` 返回 `{"status":"ok",...}`，浏览器访问 `/projects` 输入 `MANAGE_TOKEN` 登录。
+
+> 注意：发布包按平台构建（含 better-sqlite3 原生绑定），请下载与服务器一致的包（`linux-x64` / `win32-x64`)。其它平台可自行打包：`pnpm package:standalone`（需与目标服务器同 OS/架构）。Windows 服务器还需在"服务"管理器或 NSSM 里配置进程守护,systemd 仅适用于 Linux。
+
+进程守护（systemd）、备份 cron、升级流程见 [docs/DEPLOY.md](./docs/DEPLOY.md) 的"单机 Standalone 打包"章节。
+
 ### Railway (推荐)
 
 ```bash

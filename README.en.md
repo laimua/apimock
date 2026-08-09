@@ -70,6 +70,35 @@ curl http://localhost:3000/demo-project/orders
 
 ## Deploy
 
+### Release package (zero-dependency single machine)
+
+Every release ships prebuilt standalone packages (`linux-x64` and `win32-x64`) on [GitHub Releases](https://github.com/laimua/apimock/releases). The server only needs **Node.js 22.x** (exactly major 22 — the better-sqlite3 native binding is ABI-locked) — no pnpm, no npm install, no Docker:
+
+```bash
+# 1. Download and extract (use the win32-x64 package on Windows servers)
+tar xzf apimock-*-linux-x64.tar.gz && cd apimock-*
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env:
+#   ENCRYPTION_KEY=$(openssl rand -hex 32)   # keep it fixed; rotating breaks encrypted AI keys
+#   MANAGE_TOKEN=<admin login password, 20+ random chars>
+#   ADMIN_TOKEN=<backup API token, 20+ random chars, different from MANAGE_TOKEN>
+export $(grep -v '^#' .env | xargs)
+
+# 3. Initialize the database (idempotent; run again on upgrades)
+node migrate.mjs
+
+# 4. Start (listens on 0.0.0.0:3000, override with PORT)
+node server.js
+```
+
+Verify: `curl http://localhost:3000/api/health` returns `{"status":"ok",...}`; open `/projects` in a browser and log in with `MANAGE_TOKEN`.
+
+> Note: packages are platform-specific (better-sqlite3 native binding) — download the one matching your server (`linux-x64` / `win32-x64`). For other platforms, build your own with `pnpm package:standalone` on a machine matching the target OS/arch. On Windows servers, configure process supervision via Services / NSSM (systemd is Linux-only).
+
+Process supervision (systemd), backup cron, and upgrade steps are in the "Standalone package" section of [docs/DEPLOY.md](./docs/DEPLOY.md).
+
 ### Railway (recommended)
 
 ```bash

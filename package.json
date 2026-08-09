@@ -22,7 +22,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "seed": "tsx scripts/seed-demo.ts",
-    "ci:local": "node scripts/ci-local.mjs"
+    "ci:local": "node scripts/ci-local.mjs",
+    "package:standalone": "node scripts/package-standalone.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.2",

@@ -9,6 +9,7 @@ ApiMock 支持多种部署方式。本文档覆盖常见场景。
 - [Railway（推荐）](#railway推荐)
 - [Fly.io](#flyio)
 - [本地 Docker](#本地-docker)
+- [单机 Standalone 打包(零依赖)](#单机-standalone-打包零依赖)
 - [SQLite 路径](#sqlite-路径默认)
 - [MySQL 路径](#mysql-路径可选)
 - [环境变量速查](#环境变量速查)
@@ -187,6 +188,75 @@ docker run -d \
   --name apimock \
   apimock
 ```
+
+---
+
+## 单机 Standalone 打包（零依赖）
+
+适用场景：服务器上**没有 pnpm / docker**，只有一个 Node 22.x 运行时(必须 22 大版本,better-sqlite3 原生绑定 ABI 锁定)。构建产物是自包含目录，拷贝到服务器即可运行，无需 install。
+
+**限制**：better-sqlite3 是原生模块，**包只能在与构建机同 OS/架构的机器上运行**。
+
+### 方式一：下载预构建发布包（推荐）
+
+每个版本的 [GitHub Releases](https://github.com/laimua/apimock/releases) 附带 CI 自动构建的 `apimock-<版本>-linux-x64.tar.gz` 和 `apimock-<版本>-win32-x64.tar.gz`（打 `v*` tag 触发 `release.yml` 矩阵构建）。按服务器平台下载对应包解压即可，跳到下方"部署"。
+
+### 方式二：自行打包（其它平台）
+
+在**与服务器同 OS/架构**的机器上：
+
+```bash
+pnpm package:standalone
+# 产物:
+#   release/apimock-<version>/                            可运行目录
+#   release/apimock-<version>-<platform>-<arch>.tar.gz    压缩包(有 tar 时)
+```
+
+`output: 'standalone'` 已在 `next.config.ts` 启用；打包脚本额外补拷 `.next/static` 与 `public/`（Next 官方要求手动拷贝），并内置 `migrate.mjs`（零依赖迁移器，用包内裁剪好的 better-sqlite3）。
+
+### 部署（在服务器上）
+
+```bash
+tar xzf apimock-*.tar.gz && cd apimock-*
+cp .env.example .env   # 填 ENCRYPTION_KEY / MANAGE_TOKEN / ADMIN_TOKEN
+export $(grep -v '^#' .env | xargs)
+
+node migrate.mjs       # 首次/升级时跑一次,幂等(缺列自动补,含孤儿清理)
+node server.js         # 启动,默认 0.0.0.0:3000(PORT/HOSTNAME 可改)
+```
+
+验证、备份 cron、升级流程与包内 `DEPLOY-README.md` 一致；升级 = 替换目录（保留 `data/`）→ `node migrate.mjs` → `node server.js`。
+
+### 进程守护（裸机必备）
+
+**Windows 服务器**：用 [NSSM](https://nssm.cc/) 注册为系统服务（开机自启 + 崩溃重启）：
+
+```powershell
+nssm install apimock "C:\node\node.exe" "C:\apimock\server.js"
+nssm set apimock AppDirectory C:\apimock
+nssm set apimock AppEnvironmentExtra ENCRYPTION_KEY=... MANAGE_TOKEN=... ADMIN_TOKEN=... NODE_ENV=production
+nssm start apimock
+```
+
+**Linux**：systemd 示例（`/etc/systemd/system/apimock.service`）：
+
+```ini
+[Unit]
+Description=ApiMock
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/apimock
+EnvironmentFile=/opt/apimock/.env
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`systemctl enable --now apimock`；`.env` 文件里按 `KEY=VALUE` 每行一个，systemd 会加载。
 
 ---
 

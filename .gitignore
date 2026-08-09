@@ -40,3 +40,6 @@ scripts/memory-*.db
 # Claude Code 本地配置
 .claude/
 e2e/.auth/
+
+# standalone 打包产物(pnpm package:standalone)
+release/

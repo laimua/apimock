@@ -77,3 +77,4 @@ npx eslint .                                                         # 0 error,�
 - 主分支 `master`,feature 分支 `fix/...` 或 `feat/...`
 - PR 走 squash merge,CI 全绿(含 E2E)才合
 - 提交信息中文,首行 `<type>(<scope>): <摘要>`,type 用 fix/feat/perf/refactor/test/docs
+- 发版:先把 `package.json` version 升好并合入 master,再打同名 tag(`git tag v0.3.0 && git push origin v0.3.0`);`release.yml` 工作流自动构建 standalone 发布包挂到 GitHub Release(tag 与 version 不一致会失败)。服务器侧部署见 `docs/DEPLOY.md` "单机 Standalone 打包"章节,打包脚本 `scripts/package-standalone.mjs`
