@@ -117,16 +117,23 @@ jobs:
           for pkg in apimock-*.tar.gz; do
             [ -e "$pkg" ] || { echo "::error::no apimock-*.tar.gz assets found"; exit 1; }
             echo "checking $pkg ..."
-            # tar -tzf 列全量条目;命中禁含模式即失败
-            # (.env.example 空模板是有意打进包的,先剔除再匹配)
-            if tar -tzf "$pkg" | grep -vE '(^|/)\.env\.example$' | grep -E '(^|/)\.env($|\.)|(^|/)\.git/|\.db$|(^|/)backups/'; then
+            # 先把 tar 列表完整落盘并显式校验 tar 自身退出码。
+            # 直接管道 `tar -tzf | grep` 时管道退出码取末位命令(grep),坏包
+            # (截断的 gzip)中途死掉但 grep 无匹配 → 退出码 0,坏包蒙混过关继续 publish。
+            if ! tar -tzf "$pkg" > "$pkg.list"; then
+              echo "::error::$pkg is corrupt: tar -tzf exited non-zero"
+              fail=1
+              continue
+            fi
+            # 命中禁含模式即失败(.env.example 空模板是有意打进包的,先剔除再匹配)
+            if grep -vE '(^|/)\.env\.example$' "$pkg.list" | grep -E '(^|/)\.env($|\.)|(^|/)\.git(/|$)|\.db([-.](wal|shm))?$|(^|/)backups/'; then
               echo "::error::$pkg contains forbidden files (see matches above)"
               fail=1
             fi
             # 关键运行时文件必须在(否则用户下载后起不来)
             for must in server.js migrate.mjs; do
-              if ! tar -tzf "$pkg" | grep -qx "\./$must" && \
-                 ! tar -tzf "$pkg" | grep -qx "$must"; then
+              if ! grep -qx "\./$must" "$pkg.list" && \
+                 ! grep -qx "$must" "$pkg.list"; then
                 echo "::error::$pkg missing $must"
                 fail=1
               fi

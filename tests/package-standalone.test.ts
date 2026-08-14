@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, afterAll } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, existsSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pruneToAllowlist, scanForbidden, ROOT_ALLOWLIST } from '../scripts/package-standalone.mjs';
@@ -103,5 +103,63 @@ describe('A4 scanForbidden — 产物禁含文件递归扫描', () => {
 
     writeFileSync(join(dir, '.env.production'), '');
     expect(scanForbidden(dir)).toEqual(['.env.production']);
+  });
+
+  it('.env.example 豁免只限根目录:嵌套位置必须命中', () => {
+    const dir = join(tmpRoot, 'env-nested');
+    mkdirSync(join(dir, 'node_modules', 'foo'), { recursive: true });
+    mkdirSync(join(dir, 'public'), { recursive: true });
+    writeFileSync(join(dir, '.env.example'), ''); // 根目录:豁免
+    writeFileSync(join(dir, 'node_modules', 'foo', '.env.example'), ''); // 嵌套:必须拦
+    writeFileSync(join(dir, 'public', '.env.example'), ''); // 嵌套:必须拦
+
+    const hits = scanForbidden(dir);
+    expect(hits).toContain('node_modules/foo/.env.example');
+    expect(hits).toContain('public/.env.example');
+    expect(hits).not.toContain('.env.example');
+  });
+
+  it('.git 为普通文件(worktree gitdir 指针)也拦截', () => {
+    const dir = join(tmpRoot, 'git-file');
+    mkdirSync(join(dir, 'node_modules', 'foo'), { recursive: true });
+    writeFileSync(join(dir, '.git'), 'gitdir: ../../.git/worktrees/x\n');
+    writeFileSync(join(dir, 'node_modules', 'foo', '.git'), 'gitdir: ../../../.git\n');
+
+    const hits = scanForbidden(dir);
+    expect(hits).toContain('.git');
+    expect(hits).toContain('node_modules/foo/.git');
+  });
+
+  it('.git 为 symlink 也拦截', () => {
+    const dir = join(tmpRoot, 'git-symlink');
+    mkdirSync(dir, { recursive: true });
+    try {
+      symlinkSync('/nonexistent/repo/.git', join(dir, '.git'), 'file');
+    } catch (err) {
+      // Windows 无管理员/开发者模式权限时无法建 symlink,跳过本用例
+      if ((err as NodeJS.ErrnoException).code === 'EPERM') return;
+      throw err;
+    }
+    expect(scanForbidden(dir)).toContain('.git');
+  });
+
+  it('SQLite sidecar(*.db-wal / *.db-shm / 大写 *.DB)也拦截', () => {
+    const dir = join(tmpRoot, 'db-sideway');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'apimock.db'), '');
+    writeFileSync(join(dir, 'apimock.db-wal'), '');
+    writeFileSync(join(dir, 'apimock.db-shm'), '');
+    writeFileSync(join(dir, 'data.db.wal'), '');
+    writeFileSync(join(dir, 'data.db.shm'), '');
+    writeFileSync(join(dir, 'LEGACY.DB'), '');
+
+    const hits = scanForbidden(dir);
+    expect(hits).toContain('apimock.db');
+    // SQLite sidecar:非 .db 后缀,但同名库的 -wal/-shm 文件同样含真实数据
+    expect(hits).toContain('apimock.db-wal');
+    expect(hits).toContain('apimock.db-shm');
+    expect(hits).toContain('data.db.wal');
+    expect(hits).toContain('data.db.shm');
+    expect(hits).toContain('LEGACY.DB');
   });
 });

@@ -48,8 +48,9 @@ export function pruneToAllowlist(dir) {
 }
 
 /**
- * A4: 发布包禁含文件模式——.env*(密钥,.env.example 模板除外)、.git(仓库元数据)、
- * *.db(开发库)、backups/(运维备份)、*.bak/*.tmp(编辑器/脚本残留)。
+ * A4: 发布包禁含文件模式——.env*(密钥,根目录 .env.example 模板除外)、.git(仓库元数据,
+ * 目录/普通文件/symlink 全拦——git worktree 下 .git 是指向主仓库的文件)、*.db 及
+ * .db-wal/.db-shm sidecar(开发库)、backups/(运维备份)、*.bak/*.tmp(编辑器/脚本残留)。
  * 递归扫描目录,返回命中的相对路径 POSIX 风格列表(空 = 干净)。
  * release.yml 的 verify job 与 vitest 产物测试共同使用这份判定。
  */
@@ -58,8 +59,14 @@ export function scanForbidden(dir, base = dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     const rel = relative(base, full).split(sep).join('/');
+    // .git 不论形态都拦:目录(常规仓库) / 普通文件(worktree 的 gitdir 指针) /
+    // symlink(手工链接的仓库元数据)。只判 isDirectory() 会漏后两种。
+    if (entry.name === '.git') {
+      hits.push(entry.isDirectory() ? `${rel}/` : rel);
+      continue;
+    }
     if (entry.isDirectory()) {
-      if (entry.name === '.git' || rel === 'backups' || rel.endsWith('/backups')) {
+      if (rel === 'backups' || rel.endsWith('/backups')) {
         hits.push(`${rel}/`);
         continue;
       }
@@ -72,11 +79,16 @@ export function scanForbidden(dir, base = dir) {
 }
 
 function isForbiddenFile(rel) {
+  // .env.example 豁免只限产物根目录那份(本脚本有意写入的空模板)。
+  // 嵌套位置的 .env.example(node_modules/foo/.env.example、public/.env.example)
+  // 不是我们写入的,同样可能是密钥文件,必须命中告警。
+  if (rel === '.env.example') return false;
   const base = rel.split('/').pop() ?? rel;
-  if (base === '.env.example') return false; // 有意打进包的空模板(无数值)
   return (
     /^\.env(\..+)?$/.test(base) ||
-    /\.db$/.test(base) ||
+    // SQLite sidecar 真实命名是短横线(apimock.db-wal/-shm);正则同时覆盖点号
+    // 变体(data.db.wal),大小写不敏感(LEGACY.DB)
+    /\.db([-.](?:wal|shm))?$/i.test(base) ||
     /\.(bak|tmp)$/.test(base)
   );
 }
