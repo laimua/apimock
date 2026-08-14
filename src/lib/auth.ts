@@ -48,6 +48,8 @@ export function verifySession(cookieValue: string, manageToken: string): boolean
 export function sanitizeFromPath(from: unknown): string | null {
   if (typeof from !== 'string') return null;
   if (!from.startsWith('/')) return null;
-  if (from.startsWith('//')) return null;
+  // A7:第二字符为 / 或 \ 的形态全部拒绝 —— //host（protocol-relative）、
+  // /\host、\/host 在浏览器里都会被解析为跨站跳转。
+  if (from[1] === '/' || from[1] === '\\') return null;
   return from;
 }

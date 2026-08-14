@@ -34,11 +34,17 @@ export async function POST(
       return Errors.notFound('Project');
     }
 
-    // 解析 multipart/form-data
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
+    // 解析 multipart/form-data；非 multipart 请求体会抛异常 → 400 而非 500
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch {
+      return Errors.badRequest('Expected multipart/form-data request body');
+    }
+    // A8:必须真实是 File（与 import 写库路由对称），非 File 字段 → 400 不 500
+    const file = formData.get('file');
 
-    if (!file) {
+    if (!(file instanceof File)) {
       return Errors.badRequest('No file uploaded');
     }
 

@@ -120,11 +120,43 @@ describe('isPrivateIP', () => {
     it('拦截 fd00::1 (ULA)', () => {
       expect(isPrivateIP('fd00::1')).toBe(true);
     });
-    it('拦截 ::ffff:127.0.0.1 (IPv4-mapped)', () => {
+    it('拦截 ::ffff:127.0.0.1 (IPv4-mapped 点分形式)', () => {
       expect(isPrivateIP('::ffff:127.0.0.1')).toBe(true);
     });
     it('放行 ::ffff:8.8.8.8 (IPv4-mapped 公网)', () => {
       expect(isPrivateIP('::ffff:8.8.8.8')).toBe(false);
+    });
+  });
+
+  describe('A1 回归:IPv4-mapped IPv6 hex 形态绕过(解析成规范化地址判定)', () => {
+    it('拦截 ::ffff:7f00:1(= 127.0.0.1 的 hex 形态)', () => {
+      expect(isPrivateIP('::ffff:7f00:1')).toBe(true);
+    });
+    it('拦截 ::ffff:7f00:0001(= 127.0.0.1 全长 hex 形态)', () => {
+      expect(isPrivateIP('::ffff:7f00:0001')).toBe(true);
+    });
+    it('拦截 ::ffff:10.0.0.1 / ::ffff:a00:1(= 10.0.0.1)', () => {
+      expect(isPrivateIP('::ffff:10.0.0.1')).toBe(true);
+      expect(isPrivateIP('::ffff:a00:1')).toBe(true);
+    });
+    it('拦截 ::ffff:169.254.169.254(IPv4-mapped AWS IMDS)', () => {
+      expect(isPrivateIP('::ffff:169.254.169.254')).toBe(true);
+    });
+    it('拦截 ::7f00:1(已弃用 IPv4-compatible 的 127.0.0.1)', () => {
+      expect(isPrivateIP('::7f00:1')).toBe(true);
+    });
+    it('拦截 ::1 / :: / fe80::1 / fd00::1(原有语义不回退)', () => {
+      expect(isPrivateIP('::1')).toBe(true);
+      expect(isPrivateIP('::')).toBe(true);
+      expect(isPrivateIP('fe80::1')).toBe(true);
+      expect(isPrivateIP('fd00::1')).toBe(true);
+    });
+    it('放行 ::ffff:8.8.8.8 的 hex 形态 ::ffff:808:808(= 8.8.8.8)', () => {
+      expect(isPrivateIP('::ffff:808:808')).toBe(false);
+    });
+    it('非法 IPv6 字符串解析失败 → 不误报为私有', () => {
+      expect(isPrivateIP('::gggg::1')).toBe(false);
+      expect(isPrivateIP('1:2:3:4:5:6:7:8:9')).toBe(false);
     });
   });
 
