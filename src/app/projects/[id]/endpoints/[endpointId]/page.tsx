@@ -354,9 +354,6 @@ export default function EditEndpointPage() {
     }
   }
 
-  // 验证路径格式(C1a: validatePath 抽到 endpoint-form-utils)
-
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 

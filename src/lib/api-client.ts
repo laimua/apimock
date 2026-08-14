@@ -446,6 +446,12 @@ export const aiApi = {
     }),
   deleteProvider: (id: string) =>
     request<void>(`/ai/providers/${id}?confirmed=true`, { method: 'DELETE' }),
+  // C8: 测试 provider 连通性。data:{success,model};失败时 request 抛 ApiError
+  // (error.message 为后端标准文案),401 统一跳登录
+  testProvider: (id: string) =>
+    request<{ success: boolean; model?: string; response?: string }>(`/ai/providers/${id}/test`, {
+      method: 'POST',
+    }),
   setDefaultProvider: (id: string) =>
     request<void>(`/ai/providers/${id}/default`, { method: 'POST' }),
   getBudget: () => request<AiBudget>('/ai/budget'),

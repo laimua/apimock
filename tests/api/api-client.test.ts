@@ -16,10 +16,20 @@ function jsonResponse(status: number, body: unknown): Response {
   });
 }
 
+// stubLocation 覆写前先快照 location 的属性描述符,afterEach 里恢复
+const originalLocationDesc = Object.getOwnPropertyDescriptor(window, 'location');
+
 afterEach(() => {
   vi.unstubAllGlobals();
-  // happy-dom 下 window.location.href 只读,通过删除 setter 注入的对象还原
-  // (stubLocation 里用 defineProperty 覆写)
+  // 恢复 stubLocation 覆写前的原始 location:
+  // - 原本是 window 自有属性 → 重define 回原描述符
+  // - 原本在原型链上(descriptor 为 undefined)→ 删掉覆写产生的自有属性,
+  //   原型链上的访问器自然重新生效
+  if (originalLocationDesc) {
+    Object.defineProperty(window, 'location', originalLocationDesc);
+  } else {
+    delete (window as Partial<Record<'location', unknown>>).location;
+  }
 });
 
 function stubLocation() {

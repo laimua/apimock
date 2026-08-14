@@ -263,12 +263,16 @@ function extractEndpoint(path: string, method: string, operation: JsonObject): P
       // C7: status key 严格校验。此前 parseInt(status) 对任意字符串产出 NaN
       // (如扩展字段 '2xx'、'x-vendor'、拼写错误 '20O')→ NaN 落库后在
       // 状态码下拉/响应选择里变成非法值。规则:
-      //   - 'default' / '2xx' → 200(OAS 合法的通配写法,映射到典型成功码)
-      //   - /^[1-5]\d{2}$/   → 透传
-      //   - 其余              → 跳过(非状态码的扩展字段)
+      //   - 'default'         → 200(OAS 合法通配写法,映射到典型成功码)
+      //   - /^[1-5]xx$/i      → N00(OAS range 通配;大小写不敏感,'2XX' 与 '2xx' 等价)
+      //   - /^[1-5]\d{2}$/    → 透传
+      //   - 其余               → 跳过(非状态码的扩展字段)
       let statusCode: number;
-      if (status === 'default' || status === '2xx') {
+      const range = /^([1-5])xx$/i.exec(status);
+      if (status === 'default') {
         statusCode = 200;
+      } else if (range) {
+        statusCode = parseInt(range[1], 10) * 100;
       } else if (/^[1-5]\d{2}$/.test(status)) {
         statusCode = parseInt(status, 10);
       } else {
