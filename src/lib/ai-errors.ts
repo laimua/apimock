@@ -34,9 +34,12 @@ export function handleProviderError(
 
   if (err !== null && typeof err === 'object' && 'status' in err) {
     const status = (err as { status?: unknown }).status;
-    if (typeof status === 'number') {
+    if (typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599) {
       return error('PROVIDER_ERROR', opts.publicMessage, status);
     }
+    // B3:status 存在但非法(0 / 浮点 / 越界,常见于超时类错误)→ 固定 502
+    // (上游不可达/网关错误语义),而非把非法状态码透传给 NextResponse.json
+    return error('PROVIDER_ERROR', opts.publicMessage, 502);
   }
 
   return Errors.internal(opts.publicMessage);

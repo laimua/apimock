@@ -50,6 +50,7 @@
 | `PAYLOAD_TOO_LARGE`        | 上传文件超大小上限(如 OpenAPI 导入) | 413        |
 | `INVALID_OPENAPI`          | OpenAPI 文档无法解析(含循环引用等)  | 400        |
 | `RATE_LIMITED`             | 触发限流                              | 429        |
+| `PARTIAL_FAILURE`          | 批量操作部分成功(207 Multi-Status)   | 207        |
 | `PROVIDER_ERROR`           | 上游 AI Provider 返回错误(透传状态码) | 上游状态码 |
 | `INTERNAL_ERROR`           | 服务端内部错误                        | 500        |
 | `MANAGE_TOKEN_NOT_CONFIGURED` | 管理面未配置 token,端点禁用       | 503        |

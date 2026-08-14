@@ -5,7 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { success, Errors } from '@/lib/api';
+import { success, Errors, internalError } from '@/lib/api';
 import { db } from '@/lib/db';
 import { projects, endpoints, requests } from '@/lib/schema';
 import { eq, and, desc, gte, lte, sql, inArray, type SQL } from 'drizzle-orm';
@@ -169,7 +169,7 @@ export async function GET(
       pageSize,
     });
   } catch (err) {
-    return Errors.internal(err instanceof Error ? err.message : 'Unknown error');
+    return internalError(err, 'GET /api/projects/[id]/requests');
   }
 }
 
@@ -231,6 +231,6 @@ export async function DELETE(
 
     return success({ deleted: deleteCount as number });
   } catch (err) {
-    return Errors.internal(err instanceof Error ? err.message : 'Unknown error');
+    return internalError(err, 'DELETE /api/projects/[id]/requests');
   }
 }

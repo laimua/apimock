@@ -35,9 +35,11 @@ export default function TestConnectionButton({ providerId }: TestConnectionButto
           message: `连接成功 (${json.data.model})`,
         });
       } else {
+        // B3:失败时读标准错误形状 json.error.message(此前读 json.data?.error,
+        // 后端错误形状是 {success:false, error:{code,message}},错误文案被丢成"连接失败")
         setResult({
           success: false,
-          message: json.data?.error || '连接失败',
+          message: json.error?.message ?? '连接失败',
         });
       }
     } catch {

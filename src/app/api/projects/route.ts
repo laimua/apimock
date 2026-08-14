@@ -5,7 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { success, Errors, validate } from '@/lib/api';
+import { success, Errors, validate, internalError } from '@/lib/api';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
@@ -61,7 +61,7 @@ export async function GET(request?: NextRequest) {
     return success({ items: format(projectList), total, page, pageSize });
   } catch (err) {
     // handler 异常时返回统一错误形状,避免冒泡成 Next 默认 500 HTML
-    return Errors.internal(err instanceof Error ? err.message : 'Unknown error');
+    return internalError(err, 'GET /api/projects');
   }
 }
 
@@ -133,6 +133,6 @@ export async function POST(request: NextRequest) {
     if (err instanceof Error && err.name === 'ValidationError') {
       return Errors.validation((err as unknown as { issues: z.ZodIssue[] }).issues);
     }
-    return Errors.internal(err instanceof Error ? err.message : String(err));
+    return internalError(err, 'POST /api/projects');
   }
 }

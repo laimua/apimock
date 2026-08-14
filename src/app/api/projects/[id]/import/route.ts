@@ -4,7 +4,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { success, multiStatus, error, Errors } from '@/lib/api';
+import { success, multiStatus, error, Errors, internalError } from '@/lib/api';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import { parseAndExtract, detectFormat, type ParsedEndpoint } from '@/lib/openapi-parser';
@@ -23,7 +23,8 @@ interface ImportResult {
   total: number;
   created: number;
   skipped: number;
-  errors: string[];
+  /** B3:失败子项统一带 error 字段(对象形状),调用方逐项读 .error 即可 */
+  errors: { error: string }[];
 }
 
 // ============================================
@@ -177,7 +178,9 @@ async function batchCreateEndpoints(
       result.created += chunk.length;
     } catch (e: unknown) {
       // 该块失败:记录错误(含块端点范围),继续下一块 → 部分成功
-      result.errors.push(`Batch insert failed (endpoints ${i}–${i + chunk.length - 1}): ${e instanceof Error ? e.message : String(e)}`);
+      result.errors.push({
+        error: `Batch insert failed (endpoints ${i}–${i + chunk.length - 1}): ${e instanceof Error ? e.message : String(e)}`,
+      });
     }
   }
 
@@ -279,6 +282,6 @@ export async function POST(
     if (err instanceof Error && err.name === 'ValidationError') {
       return Errors.validation((err as unknown as { issues: z.ZodIssue[] }).issues);
     }
-    return Errors.internal(err instanceof Error ? err.message : String(err));
+    return internalError(err, 'POST /api/projects/[id]/import');
   }
 }

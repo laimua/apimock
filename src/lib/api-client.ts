@@ -201,13 +201,36 @@ async function request<T>(
     ...options,
   });
 
-  const data = await response.json();
+  // B3:响应体非 JSON(网关 HTML 错误页/空 body)时 response.json() 会抛
+  // SyntaxError,调用方拿到的是解析异常而非业务错误。统一转 ApiError
+  // (body 已被 json() 消费,text() 兜底 catch 空串)。
+  let data: { success?: boolean; data?: T; error?: { code?: string; message?: string } };
+  try {
+    data = (await response.json()) as typeof data;
+  } catch {
+    const text = await response.text().catch(() => '');
+    throw new ApiError(
+      response.status,
+      response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR',
+      text
+        ? `Non-JSON response: ${text.slice(0, 200)}`
+        : `Request failed with status ${response.status}`
+    );
+  }
 
-  // 401:浏览器环境直接跳登录页(替代抛 ApiError,体验更好);SSR 环境仍走下方抛错
+  // 401:浏览器环境直接跳登录页(替代抛 ApiError,体验更好);SSR 环境仍走下方抛错。
+  // B3:带上 sanitized from(当前 path,同源且必以单 / 开头),登录后跳回原页
   if (response.status === 401 && typeof window !== 'undefined') {
-    window.location.href = '/login';
+    const from = window.location.pathname + window.location.search;
+    window.location.href = `/login?from=${encodeURIComponent(from)}`;
     // 挂起当前请求,避免跳转完成前调用方继续处理错误响应
     return new Promise<T>(() => {});
+  }
+
+  // B3:207 Multi-Status 特判放行 —— 部分成功,data 内含逐项结果/错误,
+  // 交给调用方自行处理(否则 !data.success 会抛 UNKNOWN_ERROR 丢逐项结果)
+  if (response.status === 207) {
+    return data.data as T;
   }
 
   if (!response.ok || !data.success) {
@@ -218,7 +241,7 @@ async function request<T>(
     );
   }
 
-  return data.data;
+  return data.data as T;
 }
 
 export interface CheckSlugResponse {

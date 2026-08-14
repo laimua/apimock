@@ -126,9 +126,11 @@ function buildSafeHeaders(input: Record<string, string>): Record<string, string>
 // Body 大小限制
 // ============================================
 function makePayloadTooLarge(): NextResponse {
+  // B3:413 也带 CORS 头 —— 浏览器跨域调用 mock 时,无 CORS 头的错误响应
+  // 前端拿不到 body,只能看到网络错误(与 429/404 行为对齐,形状不动)
   return NextResponse.json(
     { error: 'Payload Too Large', message: 'Request body exceeds 1MB limit' },
-    { status: 413 }
+    { status: 413, headers: getCorsHeaders() }
   );
 }
 
@@ -285,7 +287,26 @@ function getCorsHeaders(): Record<string, string> {
 // ============================================
 // 通用处理函数
 // ============================================
+/**
+ * B2:handleMock 原先无兜底 catch,DB/缓存等任一 await 抛错会冒泡成
+ * Next 默认裸 500 HTML。这里包一层兜底:
+ *   - 原始 err 只进 logger(受 redact 保护)
+ *   - 对外 500 维持 mock 面现有 `{error, message}` 形状(非 ApiResponse —
+ *     E2E 断言敏感,P2-38 前科),且必须带 CORS 头(浏览器跨域场景)
+ */
 async function handleMock(request: NextRequest, projectSlug: string, path: string) {
+  try {
+    return await handleMockCore(request, projectSlug, path);
+  } catch (err) {
+    logger.error({ err }, `[mock ${request.method} /${projectSlug}/${path}] unhandled error`);
+    return NextResponse.json(
+      { error: 'Internal Server Error', message: 'Internal server error' },
+      { status: 500, headers: getCorsHeaders() }
+    );
+  }
+}
+
+async function handleMockCore(request: NextRequest, projectSlug: string, path: string) {
   const method = request.method as HttpMethod;
   const requestPath = '/' + path;
   const startTime = Date.now();

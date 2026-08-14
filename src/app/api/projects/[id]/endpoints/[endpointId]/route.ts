@@ -7,7 +7,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { success, Errors, validate } from '@/lib/api';
+import { success, Errors, validate, internalError } from '@/lib/api';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { endpoints, responses } from '@/lib/schema';
@@ -49,6 +49,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; endpointId: string }> }
 ) {
+  // B2:GET 原先无 catch,DB 异常会冒泡成 Next 默认 500 HTML
+  try {
   const { id: projectId, endpointId } = await params;
 
   const endpointList = await db
@@ -123,6 +125,9 @@ export async function GET(
     responseBody: parsedResponseBody,
     responses: parsedResponses,
   });
+  } catch (err) {
+    return internalError(err, 'GET /api/projects/[id]/endpoints/[endpointId]');
+  }
 }
 
 // ============================================
@@ -235,7 +240,7 @@ export async function PUT(
     if (err instanceof Error && err.name === 'ValidationError') {
       return Errors.validation((err as unknown as { issues: z.ZodIssue[] }).issues);
     }
-    return Errors.internal(err instanceof Error ? err.message : String(err));
+    return internalError(err, 'PUT /api/projects/[id]/endpoints/[endpointId]');
   }
 }
 
@@ -246,23 +251,28 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; endpointId: string }> }
 ) {
-  const { id: projectId, endpointId } = await params;
+  // B2:DELETE 原先无 catch,DB 异常会冒泡成 Next 默认 500 HTML
+  try {
+    const { id: projectId, endpointId } = await params;
 
-  // 检查端点是否存在
-  const endpointList = await db
-    .select()
-    .from(endpoints)
-    .where(and(eq(endpoints.id, endpointId), eq(endpoints.projectId, projectId)));
+    // 检查端点是否存在
+    const endpointList = await db
+      .select()
+      .from(endpoints)
+      .where(and(eq(endpoints.id, endpointId), eq(endpoints.projectId, projectId)));
 
-  if (endpointList.length === 0) {
-    return Errors.notFound('Endpoint');
+    if (endpointList.length === 0) {
+      return Errors.notFound('Endpoint');
+    }
+
+    // 删除端点（关联的响应会由于 cascade 自动删除）
+    await db.delete(endpoints).where(eq(endpoints.id, endpointId));
+    invalidateEndpointCache(projectId);
+
+    return success({ message: 'Endpoint deleted' });
+  } catch (err) {
+    return internalError(err, 'DELETE /api/projects/[id]/endpoints/[endpointId]');
   }
-
-  // 删除端点（关联的响应会由于 cascade 自动删除）
-  await db.delete(endpoints).where(eq(endpoints.id, endpointId));
-  invalidateEndpointCache(projectId);
-
-  return success({ message: 'Endpoint deleted' });
 }
 
 // ============================================

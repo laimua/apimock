@@ -31,7 +31,9 @@ export async function POST(request: NextRequest) {
 
   const expected = process.env.MANAGE_TOKEN;
   if (!expected) {
-    return Errors.internal('MANAGE_TOKEN not configured');
+    // B3:未配置 token 对齐 proxy 的 fail-closed 语义(503 MANAGE_TOKEN_NOT_CONFIGURED),
+    // 而非 500 —— 这是"端点禁用"而非"服务端内部错误"
+    return error('MANAGE_TOKEN_NOT_CONFIGURED', 'MANAGE_TOKEN not configured', 503);
   }
 
   let body: unknown;

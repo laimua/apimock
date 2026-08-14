@@ -4,7 +4,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { success, Errors } from '@/lib/api';
+import { success, Errors, internalError } from '@/lib/api';
 import { parseAndExtract, detectFormat } from '@/lib/openapi-parser';
 import { db } from '@/lib/db';
 import { projects } from '@/lib/schema';
@@ -95,6 +95,6 @@ export async function POST(
     });
 
   } catch (err: unknown) {
-    return Errors.internal(err instanceof Error ? err.message : String(err));
+    return internalError(err, 'POST /api/projects/[id]/import/parse');
   }
 }
