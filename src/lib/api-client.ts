@@ -395,3 +395,70 @@ export const projectRequestsApi = {
     return request<{ deleted: number }>(url, { method: 'DELETE' });
   },
 };
+
+// ============================================
+// AI API(C2: settings/ai 页与 AiGenerateDialog 此前裸 fetch,
+// 401 跳转/非 JSON 兜底/错误形状解析各自为政,统一收进 api-client)
+// ============================================
+export interface AiProvider {
+  id: string;
+  name: string;
+  provider: 'openai' | 'anthropic' | 'openai-compatible';
+  baseUrl?: string;
+  models: string[];
+  defaultModel: string;
+  systemPrompt?: string;
+  isActive: boolean;
+  isDefault: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AiProviderFormData {
+  name: string;
+  provider: string;
+  apiKey: string;
+  baseUrl?: string;
+  models: string[];
+  defaultModel: string;
+  systemPrompt?: string;
+  isActive?: boolean;
+  isDefault?: boolean;
+}
+
+export interface AiBudget {
+  requests: number;
+  tokens: number;
+  limits: { tokens: number; requests: number };
+}
+
+export const aiApi = {
+  listProviders: () => request<AiProvider[]>('/ai/providers'),
+  createProvider: (data: AiProviderFormData) =>
+    request<AiProvider>('/ai/providers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateProvider: (id: string, data: AiProviderFormData) =>
+    request<AiProvider>(`/ai/providers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deleteProvider: (id: string) =>
+    request<void>(`/ai/providers/${id}?confirmed=true`, { method: 'DELETE' }),
+  setDefaultProvider: (id: string) =>
+    request<void>(`/ai/providers/${id}/default`, { method: 'POST' }),
+  getBudget: () => request<AiBudget>('/ai/budget'),
+  generate: (data: { prompt: string; count: number; providerId?: string }) =>
+    request<unknown>('/ai/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};
+
+// ============================================
+// 认证 API(C2: GlobalHeader logout 收编,401/非 JSON 统一走 request)
+// ============================================
+export const authApi = {
+  logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
+};

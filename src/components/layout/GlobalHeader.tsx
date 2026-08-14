@@ -7,6 +7,7 @@ import { Menu, X, Plus, Github, LogOut } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
 import { trackEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 import { confirmLeaveIfDirty } from '@/lib/unsaved-changes';
+import { authApi } from '@/lib/api-client';
 
 const navLinks = [
   { href: '/projects', label: 'Projects' },
@@ -40,11 +41,10 @@ export default function GlobalHeader() {
     // 有未保存修改时同样询问,避免退出丢数据
     if (confirmLeaveIfDirty()) return;
     try {
-      const res = await fetch('/api/auth/logout', { method: 'POST' });
-      if (res.ok) {
-        setMobileOpen(false);
-        router.push('/');
-      }
+      // C2: 收进 api-client —— 401 跳登录/非 JSON 兜底统一由 request() 处理
+      await authApi.logout();
+      setMobileOpen(false);
+      router.push('/');
     } catch {
       // 网络异常时保留登录态,不跳转
     }

@@ -15,78 +15,44 @@ import { PresetProvider } from '@/lib/ai-presets';
 import PresetProviders from '@/components/settings/PresetProviders';
 import AddProviderDialog, { type ProviderFormData } from '@/components/settings/AddProviderDialog';
 import { useToast } from '@/components/ui/Toast';
-
-interface Provider {
-  id: string;
-  name: string;
-  provider: 'openai' | 'anthropic' | 'openai-compatible';
-  baseUrl?: string;
-  models: string[];
-  defaultModel: string;
-  systemPrompt?: string;
-  isActive: boolean;
-  isDefault: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
-
-interface BudgetStatus {
-  requests: number;
-  tokens: number;
-  limits: { tokens: number; requests: number };
-}
+import { aiApi, ApiError, type AiProvider, type AiBudget } from '@/lib/api-client';
 
 export default function AiSettingsPage() {
   const { success: toastSuccess, error: toastError } = useToast();
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providers, setProviders] = useState<AiProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
+  const [editingProvider, setEditingProvider] = useState<AiProvider | null>(null);
   const [presetToApply, setPresetToApply] = useState<PresetProvider | null>(null);
-  const [budget, setBudget] = useState<BudgetStatus | null>(null);
+  const [budget, setBudget] = useState<AiBudget | null>(null);
 
   // 加载 providers
+  // C2: 收进 api-client —— 401 跳登录(带 from)、非 JSON 兜底、
+  // 错误形状 {error:{code,message}} 解析统一由 request() 处理
   const loadProviders = useCallback(async () => {
     try {
       setLoadError(null);
       setLoading(true);
-      const res = await fetch('/api/ai/providers');
-      // 401 未登录:跳登录页并带上 from 回跳参数(与全局 request 一致行为)
-      if (res.status === 401) {
-        window.location.href = `/login?from=${encodeURIComponent('/settings/ai')}`;
-        return;
-      }
-      const json = await res.json();
-      if (json.success) {
-        setProviders(json.data);
-      } else {
-        // 错误对象形状:{ error: { code, message } };统一读 .message
-        const message = json.error?.message ?? '加载失败';
-        setLoadError(message);
-        toastError(message);
-      }
+      const data = await aiApi.listProviders();
+      setProviders(data);
     } catch (err) {
-      console.error('Failed to load providers:', err);
-      setLoadError('加载失败，请重试');
-      toastError('加载模型配置失败');
+      if (err instanceof ApiError) {
+        setLoadError(err.message);
+        toastError(err.message);
+      } else {
+        setLoadError('加载失败，请重试');
+        toastError('加载模型配置失败');
+      }
     } finally {
       setLoading(false);
     }
   }, [toastError]);
 
-  // 加载今日 AI 预算用量
+  // 加载今日 AI 预算用量(失败不影响主流程;401 时 request() 已统一跳登录)
   const loadBudget = useCallback(async () => {
     try {
-      const res = await fetch('/api/ai/budget');
-      if (res.status === 401) {
-        // 预算加载 401 静默忽略,主流程由 loadProviders 负责跳登录
-        return;
-      }
-      const json = await res.json();
-      if (json.success) {
-        setBudget(json.data);
-      }
+      setBudget(await aiApi.getBudget());
     } catch {
       // 预算加载失败不影响主流程
     }
@@ -100,82 +66,46 @@ export default function AiSettingsPage() {
   // 添加 provider
   const handleAddProvider = async (providerData: ProviderFormData) => {
     try {
-      const res = await fetch('/api/ai/providers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(providerData),
-      });
-      const json = await res.json();
-      if (json.success) {
-        await loadProviders();
-        setShowAddDialog(false);
-        toastSuccess('模型已添加');
-      } else {
-        toastError(json.error?.message ?? '添加失败');
-      }
+      await aiApi.createProvider(providerData);
+      await loadProviders();
+      setShowAddDialog(false);
+      toastSuccess('模型已添加');
     } catch (err) {
-      console.error('Failed to add provider:', err);
-      toastError(err instanceof Error ? err.message : '添加模型失败');
+      toastError(err instanceof ApiError ? err.message : '添加模型失败');
     }
   };
 
   // 更新 provider
   const handleUpdateProvider = async (id: string, data: ProviderFormData) => {
     try {
-      const res = await fetch(`/api/ai/providers/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (json.success) {
-        await loadProviders();
-        setEditingProvider(null);
-        toastSuccess('模型已更新');
-      } else {
-        toastError(json.error?.message ?? '更新失败');
-      }
+      await aiApi.updateProvider(id, data);
+      await loadProviders();
+      setEditingProvider(null);
+      toastSuccess('模型已更新');
     } catch (err) {
-      console.error('Failed to update provider:', err);
-      toastError(err instanceof Error ? err.message : '更新模型失败');
+      toastError(err instanceof ApiError ? err.message : '更新模型失败');
     }
   };
 
   // 删除 provider
   const handleDeleteProvider = async (id: string) => {
     try {
-      const res = await fetch(`/api/ai/providers/${id}?confirmed=true`, {
-        method: 'DELETE',
-      });
-      const json = await res.json();
-      if (json.success) {
-        await loadProviders();
-        toastSuccess('模型已删除');
-      } else {
-        toastError(json.error?.message ?? '删除失败');
-      }
+      await aiApi.deleteProvider(id);
+      await loadProviders();
+      toastSuccess('模型已删除');
     } catch (err) {
-      console.error('Failed to delete provider:', err);
-      toastError(err instanceof Error ? err.message : '删除模型失败');
+      toastError(err instanceof ApiError ? err.message : '删除模型失败');
     }
   };
 
   // 设置为默认
   const handleSetDefault = async (id: string) => {
     try {
-      const res = await fetch(`/api/ai/providers/${id}/default`, {
-        method: 'POST',
-      });
-      const json = await res.json();
-      if (json.success) {
-        await loadProviders();
-        toastSuccess('已设为默认模型');
-      } else {
-        toastError(json.error?.message ?? '设置失败');
-      }
+      await aiApi.setDefaultProvider(id);
+      await loadProviders();
+      toastSuccess('已设为默认模型');
     } catch (err) {
-      console.error('Failed to set default provider:', err);
-      toastError(err instanceof Error ? err.message : '设置默认失败');
+      toastError(err instanceof ApiError ? err.message : '设置默认失败');
     }
   };
 

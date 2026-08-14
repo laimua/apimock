@@ -17,34 +17,14 @@ import { TemplateLibraryDialog } from '@/components/TemplateLibraryDialog';
 import { ErrorScenariosSelector } from '@/components/ErrorScenariosSelector';
 import { applyErrorScenario, type ErrorScenario } from '@/lib/error-scenarios';
 import { METHODS, STATUS_CODES, COMMON_STATUS_CODES } from '@/lib/constants';
-
-// 常用路径模板
-const PATH_TEMPLATES = [
-  '/api/users',
-  '/api/items',
-  '/api/posts',
-  '/api/comments',
-  '/api/auth/login',
-  '/api/auth/register',
-  '/api/products',
-  '/api/orders',
-];
-
-// 常用 Content-Type
-const CONTENT_TYPES = [
-  { value: 'application/json', label: 'application/json' },
-  { value: 'text/plain', label: 'text/plain' },
-  { value: 'text/html', label: 'text/html' },
-  { value: 'application/xml', label: 'application/xml' },
-];
-
-// 默认响应数据模板
-const DEFAULT_RESPONSES = {
-  'application/json': JSON.stringify({ success: true, data: null }, null, 2),
-  'text/plain': 'Success',
-  'text/html': '<div>Success</div>',
-  'application/xml': '<?xml version="1.0" encoding="UTF-8"?><response>Success</response>',
-};
+// C1a: 表单共享常量/纯函数抽到 endpoint-form-utils(与编辑页共用一份)
+import {
+  PATH_TEMPLATES,
+  CONTENT_TYPES,
+  DEFAULT_RESPONSES,
+  validatePath,
+  buildMockUrl,
+} from '@/lib/endpoint-form-utils';
 
 interface FormErrors {
   path?: string;
@@ -137,33 +117,10 @@ export default function NewEndpointPage() {
     }
   }
 
-  // 获取完整的 Mock URL
+  // 获取完整的 Mock URL(C1a: 拼接逻辑抽到 buildMockUrl)
   function getMockUrl(): string {
     if (typeof window === 'undefined') return '';
-    const origin = window.location.origin;
-    const slug = project?.slug || 'project';
-    const path = form.path.startsWith('/') ? form.path : `/${form.path}`;
-    return `${origin}/${slug}${path}`;
-  }
-
-  function validatePath(path: string): string | undefined {
-    const normalizedPath = path.trim();
-    if (!normalizedPath) {
-      return '路径不能为空';
-    }
-    if (!normalizedPath.startsWith('/')) {
-      return '路径必须以 / 开头';
-    }
-    const segments = normalizedPath.split('/').slice(1);
-    for (const seg of segments) {
-      if (seg === '') continue;
-      if (seg.startsWith(':')) {
-        if (!/^:[a-zA-Z_][a-zA-Z0-9_]*$/.test(seg)) {
-          return `路径参数 "${seg}" 格式非法，应为 :字母开头（如 :id）`;
-        }
-      }
-    }
-    return undefined;
+    return buildMockUrl(window.location.origin, project?.slug, form.path);
   }
 
   function handlePathChange(value: string) {

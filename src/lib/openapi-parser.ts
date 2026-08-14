@@ -260,7 +260,20 @@ function extractEndpoint(path: string, method: string, operation: JsonObject): P
   const opResponses = operation.responses;
   if (opResponses && typeof opResponses === 'object' && !Array.isArray(opResponses)) {
     for (const [status, response] of Object.entries(opResponses as JsonObject)) {
-      const statusCode = status === 'default' ? 200 : parseInt(status, 10);
+      // C7: status key 严格校验。此前 parseInt(status) 对任意字符串产出 NaN
+      // (如扩展字段 '2xx'、'x-vendor'、拼写错误 '20O')→ NaN 落库后在
+      // 状态码下拉/响应选择里变成非法值。规则:
+      //   - 'default' / '2xx' → 200(OAS 合法的通配写法,映射到典型成功码)
+      //   - /^[1-5]\d{2}$/   → 透传
+      //   - 其余              → 跳过(非状态码的扩展字段)
+      let statusCode: number;
+      if (status === 'default' || status === '2xx') {
+        statusCode = 200;
+      } else if (/^[1-5]\d{2}$/.test(status)) {
+        statusCode = parseInt(status, 10);
+      } else {
+        continue;
+      }
       const body = extractResponseBody(response);
       responses.push({ statusCode, body });
     }

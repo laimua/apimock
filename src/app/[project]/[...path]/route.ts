@@ -137,6 +137,23 @@ function makePayloadTooLarge(): NextResponse {
 // ============================================
 // 异步记录请求
 // ============================================
+// C6: requests.body 列此前不限长——1MB 上限内的请求体全量落库,列表页/备份
+// 被单条大 body 撑爆。截断到 4KB 并加 truncated 标记(详见下方实现)。
+const MAX_RECORDED_BODY_CHARS = 4096;
+const TRUNCATED_SUFFIX = '...[truncated]';
+
+/**
+ * C6: body 序列化 + 截断。超 4KB 的 body 截断到 4KB 并追加 truncated 标记,
+ * 前端能看出"被截了"而不是误以为是完整数据(截断后 JSON 可能不再合法)。
+ * 单独导出便于单测。
+ */
+export function serializeAndTruncateBody(body: unknown): string | null {
+  if (!body) return null;
+  const text = typeof body === 'string' ? body : JSON.stringify(body);
+  if (text.length <= MAX_RECORDED_BODY_CHARS) return text;
+  return text.slice(0, MAX_RECORDED_BODY_CHARS) + TRUNCATED_SUFFIX;
+}
+
 async function recordRequest(
   endpointId: string | null,
   method: string,
@@ -157,7 +174,7 @@ async function recordRequest(
       path,
       query: query ? JSON.stringify(query) : null,
       headers: headers ? JSON.stringify(headers) : null,
-      body: body ? (typeof body === 'string' ? body : JSON.stringify(body)) : null,
+      body: serializeAndTruncateBody(body),
       responseStatus,
       responseTime,
       ip,

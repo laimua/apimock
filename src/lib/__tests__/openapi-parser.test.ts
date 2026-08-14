@@ -392,6 +392,44 @@ describe('extractPaths', () => {
     expect(endpoints[0].responses[0].statusCode).toBe(200);
   });
 
+  // C7: status key 严格校验 —— '2xx' 映射 200,非法 key 跳过(不产 NaN)
+  it('C7: 2xx 通配 → 200', () => {
+    const doc = {
+      paths: {
+        '/users': {
+          get: {
+            responses: {
+              '2xx': { content: { 'application/json': { schema: { type: 'object' } } } },
+            },
+          },
+        },
+      },
+    };
+    const endpoints = extractPaths(doc);
+    expect(endpoints[0].responses).toHaveLength(1);
+    expect(endpoints[0].responses[0].statusCode).toBe(200);
+  });
+
+  it('C7: 非法 status key(x- 扩展字段/拼写错误)→ 跳过,不产 NaN', () => {
+    const doc = {
+      paths: {
+        '/users': {
+          get: {
+            responses: {
+              '200': { content: { 'application/json': { schema: { type: 'object' } } } },
+              'x-vendor-field': { description: 'extension, not a status' },
+              '20O': { description: 'typo with letter O' },
+              '999': { description: 'out of HTTP range' },
+            },
+          },
+        },
+      },
+    };
+    const endpoints = extractPaths(doc);
+    expect(endpoints[0].responses).toHaveLength(1);
+    expect(endpoints[0].responses[0].statusCode).toBe(200);
+  });
+
   it('should handle empty paths object', () => {
     const endpoints = extractPaths({ paths: {} });
     expect(endpoints).toEqual([]);

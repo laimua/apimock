@@ -91,6 +91,9 @@ export function ImportOpenAPI({
     setError(null);
 
     try {
+      // TODO(C2): multipart 请求,api-client request() 会强设 Content-Type:
+      // application/json 破坏 FormData 边界——待 request() 支持透传 content-type
+      // 后再收编(方案裁定本批不动)
       const formData = new FormData();
       formData.append('file', file);
 
@@ -120,6 +123,7 @@ export function ImportOpenAPI({
     setError(null);
 
     try {
+      // TODO(C2): 同 parse —— multipart 不走 request(),待其支持 FormData
       const formData = new FormData();
       formData.append('file', file);
 
