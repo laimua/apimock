@@ -4,6 +4,15 @@ name: Release
 # 自动构建 linux-x64 + win32-x64 两个 standalone 发布包并挂到 GitHub Release,
 # 用户下载对应平台的包即可部署(无需 pnpm/docker)。
 # 注:better-sqlite3 原生绑定无法跨平台,故按平台分别构建,不存在通用包。
+#
+# A6 安全加固:
+#   - tag 一律经 env TAG_NAME 传入 shell(不把 ${{ github.ref_name }} 直接内插进
+#     run: 脚本——tag 名是外部输入,内插即 shell 注入面)
+#   - Release 以 --draft 创建;两个平台的包上传 + verify job 校验通过后才发布,
+#     校验失败不会留下半个可下载的正式 Release
+#   - verify job:逐包 tar -tzf 断言无 .env/.git/.db/backups(与打包脚本
+#     scanForbidden 双保险),生成 SHA256SUMS(只含 tar 包,不含 checksum 文件自身),
+#     最后 gh release edit --draft=false 发布
 on:
   push:
     tags:
@@ -12,10 +21,14 @@ on:
 permissions:
   contents: write # 创建 Release + 上传产物
 
+env:
+  # 外部输入(tag 名)只经 env 进 shell,run: 里一律 "$TAG_NAME" 引用
+  TAG_NAME: ${{ github.ref_name }}
+
 jobs:
-  # 先建 Release(--generate-notes 生成变更说明),避免两个打包 job 并发抢建
+  # 先建 Draft Release(--generate-notes 生成变更说明),避免两个打包 job 并发抢建
   create-release:
-    name: Create GitHub Release
+    name: Create draft GitHub Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,17 +38,17 @@ jobs:
       # 否则发布包文件名里的版本号会对不上,直接失败
       - name: Verify tag matches package.json version
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG="${TAG_NAME#v}"
           PKG=$(node -p "require('./package.json').version")
           if [ "$TAG" != "$PKG" ]; then
-            echo "::error::tag $GITHUB_REF_NAME 与 package.json version $PKG 不一致"
+            echo "::error::tag $TAG_NAME 与 package.json version $PKG 不一致"
             exit 1
           fi
 
-      - name: Create release
+      - name: Create draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --generate-notes
+        run: gh release create "$TAG_NAME" --title "$TAG_NAME" --generate-notes --draft
 
   standalone-package:
     name: Package ${{ matrix.platform }} + upload
@@ -72,12 +85,73 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # 构建 + 组装 + 打 tar 包(产出 release/apimock-<ver>-<platform>-<arch>.tar.gz)
+      # 组装内含 scanForbidden 安全自检(产物含 .env/.git/*.db 直接失败)
       # 注:tag 应从已通过 CI(Lint+Unit+E2E)的 master 切出,本工作流不重复跑测试
       - name: Package standalone
         run: pnpm package:standalone
 
-      - name: Upload package to Release
+      - name: Upload package to draft Release
         shell: bash # windows runner 默认 pwsh 不解 glob,统一用 bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.ref_name }}" release/apimock-*.tar.gz --clobber
+        run: gh release upload "$TAG_NAME" release/apimock-*.tar.gz --clobber
+
+  # A6: 资产校验 + checksum + 发布。任一平台的包有问题,Release 停在 draft 不发布。
+  verify-release:
+    name: Verify assets + checksums + publish
+    needs: [standalone-package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download all release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir assets && cd assets
+          gh release download "$TAG_NAME"
+
+      - name: Verify packages (no secrets / no dev DB / no repo metadata)
+        run: |
+          cd assets
+          fail=0
+          for pkg in apimock-*.tar.gz; do
+            [ -e "$pkg" ] || { echo "::error::no apimock-*.tar.gz assets found"; exit 1; }
+            echo "checking $pkg ..."
+            # tar -tzf 列全量条目;命中禁含模式即失败
+            # (.env.example 空模板是有意打进包的,先剔除再匹配)
+            if tar -tzf "$pkg" | grep -vE '(^|/)\.env\.example$' | grep -E '(^|/)\.env($|\.)|(^|/)\.git/|\.db$|(^|/)backups/'; then
+              echo "::error::$pkg contains forbidden files (see matches above)"
+              fail=1
+            fi
+            # 关键运行时文件必须在(否则用户下载后起不来)
+            for must in server.js migrate.mjs; do
+              if ! tar -tzf "$pkg" | grep -qx "\./$must" && \
+                 ! tar -tzf "$pkg" | grep -qx "$must"; then
+                echo "::error::$pkg missing $must"
+                fail=1
+              fi
+            done
+          done
+          # 两个平台包都要在(linux-x64 + win32-x64)
+          n=$(ls apimock-*.tar.gz 2>/dev/null | wc -l)
+          if [ "$n" -lt 2 ]; then
+            echo "::error::expected 2 platform packages, found $n"
+            fail=1
+          fi
+          exit $fail
+
+      - name: Generate SHA256SUMS (excludes itself)
+        run: |
+          cd assets
+          # 只对 tar 包生成校验;SHA256SUMS 自身绝不在列表里
+          # (含自己的 checksum 永远对不上,是自指错误)
+          sha256sum apimock-*.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+          grep -q SHA256SUMS SHA256SUMS && { echo "::error::SHA256SUMS includes itself"; exit 1; } || true
+
+      - name: Upload checksum + publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$TAG_NAME" assets/SHA256SUMS --clobber
+          gh release edit "$TAG_NAME" --draft=false

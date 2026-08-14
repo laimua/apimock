@@ -199,7 +199,7 @@ docker run -d \
 
 ### 方式一：下载预构建发布包（推荐）
 
-每个版本的 [GitHub Releases](https://github.com/laimua/apimock/releases) 附带 CI 自动构建的 `apimock-<版本>-linux-x64.tar.gz` 和 `apimock-<版本>-win32-x64.tar.gz`（打 `v*` tag 触发 `release.yml` 矩阵构建）。按服务器平台下载对应包解压即可，跳到下方"部署"。
+每个版本的 [GitHub Releases](https://github.com/laimua/apimock/releases) 附带 CI 自动构建的 `apimock-<版本>-linux-x64.tar.gz` 和 `apimock-<版本>-win32-x64.tar.gz`（打 `v*` tag 触发 `release.yml` 矩阵构建），以及全量校验文件 `SHA256SUMS`。CI 会在发布前逐包校验（无 `.env`/`.git`/`.db` 泄入、关键文件齐全），校验通过才把 Release 从 draft 转正式。下载后可先验证：`sha256sum -c SHA256SUMS --ignore-missing`。按服务器平台下载对应包解压即可，跳到下方"部署"。
 
 ### 方式二：自行打包（其它平台）
 
