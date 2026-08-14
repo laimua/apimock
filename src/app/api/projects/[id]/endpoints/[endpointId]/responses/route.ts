@@ -5,7 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { success, Errors, validate } from '@/lib/api';
+import { success, Errors, validate, internalError } from '@/lib/api';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
@@ -51,6 +51,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; endpointId: string }> }
 ) {
+  // B2:GET 原先无 catch,DB 异常会冒泡成 Next 默认 500 HTML
+  try {
   const { id: projectId, endpointId } = await params;
 
   // 验证端点是否存在
@@ -111,6 +113,9 @@ export async function GET(
   });
 
   return success(sortedList);
+  } catch (err) {
+    return internalError(err, 'GET .../responses');
+  }
 }
 
 // ============================================
@@ -192,6 +197,6 @@ export async function POST(
     if (err instanceof Error && err.name === 'ValidationError') {
       return Errors.validation((err as unknown as { issues: z.ZodIssue[] }).issues);
     }
-    return Errors.internal(err instanceof Error ? err.message : String(err));
+    return internalError(err, 'POST .../responses');
   }
 }

@@ -392,6 +392,70 @@ describe('extractPaths', () => {
     expect(endpoints[0].responses[0].statusCode).toBe(200);
   });
 
+  // C7: status key 严格校验 —— '2xx' 映射 200,非法 key 跳过(不产 NaN)
+  it('C7: 2xx 通配 → 200', () => {
+    const doc = {
+      paths: {
+        '/users': {
+          get: {
+            responses: {
+              '2xx': { content: { 'application/json': { schema: { type: 'object' } } } },
+            },
+          },
+        },
+      },
+    };
+    const endpoints = extractPaths(doc);
+    expect(endpoints[0].responses).toHaveLength(1);
+    expect(endpoints[0].responses[0].statusCode).toBe(200);
+  });
+
+  // C8: range 通配大小写不敏感 —— OAS 规范写法是 '2XX',与 '2xx' 等价;
+  // 4xx/5xx 映射 400/500(此前只识别小写 '2xx',大写与其余区间全被当扩展字段跳过)
+  it.each([
+    ['2xx', 200],
+    ['2XX', 200],
+    ['4xx', 400],
+    ['4XX', 400],
+    ['5xx', 500],
+    ['5XX', 500],
+  ])('C8: range 通配 %s → %d(大小写不敏感)', (key, expected) => {
+    const doc = {
+      paths: {
+        '/users': {
+          get: {
+            responses: {
+              [key]: { content: { 'application/json': { schema: { type: 'object' } } } },
+            },
+          },
+        },
+      },
+    };
+    const endpoints = extractPaths(doc);
+    expect(endpoints[0].responses).toHaveLength(1);
+    expect(endpoints[0].responses[0].statusCode).toBe(expected);
+  });
+
+  it('C7: 非法 status key(x- 扩展字段/拼写错误)→ 跳过,不产 NaN', () => {
+    const doc = {
+      paths: {
+        '/users': {
+          get: {
+            responses: {
+              '200': { content: { 'application/json': { schema: { type: 'object' } } } },
+              'x-vendor-field': { description: 'extension, not a status' },
+              '20O': { description: 'typo with letter O' },
+              '999': { description: 'out of HTTP range' },
+            },
+          },
+        },
+      },
+    };
+    const endpoints = extractPaths(doc);
+    expect(endpoints[0].responses).toHaveLength(1);
+    expect(endpoints[0].responses[0].statusCode).toBe(200);
+  });
+
   it('should handle empty paths object', () => {
     const endpoints = extractPaths({ paths: {} });
     expect(endpoints).toEqual([]);

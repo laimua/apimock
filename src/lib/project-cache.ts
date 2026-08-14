@@ -23,6 +23,18 @@ type ProjectRow = {
 
 const cache = new Map<string, { project: ProjectRow; expiresAt: number }>();
 
+// C4a: 过期清扫。过期条目此前只在「同 key 再次访问」时惰性删除——
+// 只访问一次就再也不来的 key(扫描器遍历 slug 等)会永远留在 Map 里,
+// 长命进程上无界增长(慢泄漏)。定时清扫兜底;unref 不阻塞进程退出。
+const SWEEP_INTERVAL_MS = 60_000;
+const sweepTimer = setInterval(() => {
+  const now = Date.now();
+  for (const [k, entry] of cache) {
+    if (entry.expiresAt <= now) cache.delete(k);
+  }
+}, SWEEP_INTERVAL_MS);
+sweepTimer.unref?.();
+
 export async function getCachedProject(slug: string): Promise<ProjectRow | null> {
   const now = Date.now();
   const entry = cache.get(slug);

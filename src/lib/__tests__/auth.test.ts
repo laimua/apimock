@@ -122,4 +122,13 @@ describe('G1 auth: sanitizeFromPath（漏洞D 开放重定向防护）', () => {
   it('空字符串拒（不以 / 开头）', () => {
     expect(sanitizeFromPath('')).toBeNull();
   });
+  it('A7 回归：第二字符为 / 或 \\ 的形态全拒', () => {
+    // /\ 与 \/ 在浏览器里同样会走协议相对/反斜杠归一化成跨站跳转
+    expect(sanitizeFromPath('/\\evil.com')).toBeNull();
+    expect(sanitizeFromPath('\\/evil.com')).toBeNull();
+    expect(sanitizeFromPath('/\\')).toBeNull();
+  });
+  it('A7 回归：含反斜杠但不在第二位的普通 path 不受影响', () => {
+    expect(sanitizeFromPath('/a\\b')).toBe('/a\\b');
+  });
 });

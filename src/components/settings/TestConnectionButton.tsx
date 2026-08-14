@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { CheckCircle2, XCircle, Loader2, Plug } from 'lucide-react';
+import { aiApi, ApiError } from '@/lib/api-client';
 
 interface TestConnectionButtonProps {
   providerId: string;
@@ -23,27 +24,26 @@ export default function TestConnectionButton({ providerId }: TestConnectionButto
     setTesting(true);
     setResult(null);
 
+    // C8: 收编 api-client——401 统一跳登录、非 JSON 响应兜底、错误形状解析
+    // ({success:false, error:{code,message}})不再各自为政
     try {
-      const res = await fetch(`/api/ai/providers/${providerId}/test`, {
-        method: 'POST',
-      });
-      const json = await res.json();
-
-      if (json.success && json.data.success) {
+      const data = await aiApi.testProvider(providerId);
+      if (data.success) {
         setResult({
           success: true,
-          message: `连接成功 (${json.data.model})`,
+          message: `连接成功 (${data.model})`,
         });
       } else {
         setResult({
           success: false,
-          message: json.data?.error || '连接失败',
+          message: '连接失败',
         });
       }
-    } catch {
+    } catch (error) {
+      // ApiError.message 是后端标准错误文案;其余(网络中断等)给通用提示
       setResult({
         success: false,
-        message: '请求失败',
+        message: error instanceof ApiError ? error.message : '请求失败',
       });
     } finally {
       setTesting(false);

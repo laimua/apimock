@@ -61,12 +61,28 @@ describe('handleProviderError', () => {
     expect(JSON.stringify(body)).not.toContain('10.0.0.1');
   });
 
-  it('status 非数字 → 回落 500 INTERNAL_ERROR', async () => {
+  it('B3:status 非数字(非法)→ 固定 502 PROVIDER_ERROR', async () => {
     const err = { status: '401', message: 'weird' };
     const res = handleProviderError(err, { publicMessage: '上游 AI 服务请求失败' });
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(502);
     const body = await res.json();
-    expect(body.error.code).toBe('INTERNAL_ERROR');
+    expect(body.error.code).toBe('PROVIDER_ERROR');
+  });
+
+  it('B3:status 越界(0,超时类常见)→ 固定 502', async () => {
+    const err = Object.assign(new Error('Connection error'), { status: 0 });
+    const res = handleProviderError(err, { publicMessage: '上游 AI 服务请求失败' });
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error.code).toBe('PROVIDER_ERROR');
+  });
+
+  it('B3:status 浮点(非整数)→ 固定 502', async () => {
+    const err = Object.assign(new Error('weird'), { status: 401.5 });
+    const res = handleProviderError(err, { publicMessage: '上游 AI 服务请求失败' });
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error.code).toBe('PROVIDER_ERROR');
   });
 
   it('原始 err + context 进 logger,不进响应体', async () => {

@@ -158,6 +158,15 @@ describe('P2-29: encryption deriveKeyCache LRU + key 强度校验', () => {
     expect(decrypt(cipher1)).toBe('first-msg');
   });
 
+  it('C3: 轮换到同长度 ENCRYPTION_KEY 后 decrypt 不得命中旧 key 缓存', () => {
+    // 旧 cacheKey `${secret.length}:${saltHex}` 只按长度区分 secret,
+    // 同长度轮换会命中旧缓存 → 用旧 key 解新数据。C3 改 sha256 后必须抛错。
+    const cipher = encrypt('rotation-canary');
+    // 同长度不同内容的新 key(都是 40 字符)
+    process.env.ENCRYPTION_KEY = 'ROTATED-test-key-with-enough-length-32byt';
+    expect(() => decrypt(cipher)).toThrow(/Decryption failed/);
+  });
+
   it('ENCRYPTION_KEY 短(<16 字符)→ logger.warn 提示(不抛错,保生产可用)', async () => {
     _clearEncryptionKeyCache();
     process.env.ENCRYPTION_KEY = 'short'; // 5 字符,< 16

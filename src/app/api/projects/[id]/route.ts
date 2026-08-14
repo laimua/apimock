@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { success, Errors, validate } from '@/lib/api';
+import { success, Errors, validate, internalError } from '@/lib/api';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { projects } from '@/lib/schema';
@@ -42,15 +42,20 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  // B2:GET 原先无 catch,DB 异常会冒泡成 Next 默认 500 HTML
+  try {
+    const { id } = await params;
 
-  const projectList = await db.select().from(projects).where(eq(projects.id, id));
-  
-  if (projectList.length === 0) {
-    return Errors.notFound('Project');
+    const projectList = await db.select().from(projects).where(eq(projects.id, id));
+
+    if (projectList.length === 0) {
+      return Errors.notFound('Project');
+    }
+
+    return success(formatProject(projectList[0]));
+  } catch (err) {
+    return internalError(err, 'GET /api/projects/[id]');
   }
-
-  return success(formatProject(projectList[0]));
 }
 
 // ============================================
@@ -144,7 +149,7 @@ export async function PUT(
     if (err instanceof Error && err.name === 'ValidationError') {
       return Errors.validation((err as unknown as { issues: z.ZodIssue[] }).issues);
     }
-    return Errors.internal(err instanceof Error ? err.message : String(err));
+    return internalError(err, 'PUT /api/projects/[id]');
   }
 }
 
@@ -190,7 +195,7 @@ export async function DELETE(
 
     return success({ deleted: true });
   } catch (err: unknown) {
-    return Errors.internal(err instanceof Error ? err.message : String(err));
+    return internalError(err, 'DELETE /api/projects/[id]');
   }
 }
 

@@ -167,22 +167,25 @@ describe('Projects API', () => {
           throw new Error('boom from test');
         });
 
-        const request = new Request('http://localhost/api/projects?page=1');
-        const response = await GET(asReq(request));
-        const data = await response.json();
+        try {
+          const request = new Request('http://localhost/api/projects?page=1');
+          const response = await GET(asReq(request));
+          const data = await response.json();
 
-        expect(response.status).toBe(500);
-        expect(data.success).toBe(false);
-        expect(data.error).toEqual(
-          expect.objectContaining({
-            code: 'INTERNAL_ERROR',
-            message: expect.any(String),
-          })
-        );
-        // 确认 message 透传(非空 HTML)
-        expect(data.error.message).toContain('boom from test');
-
-        spy.mockRestore();
+          expect(response.status).toBe(500);
+          expect(data.success).toBe(false);
+          expect(data.error).toEqual(
+            expect.objectContaining({
+              code: 'INTERNAL_ERROR',
+              message: expect.any(String),
+            })
+          );
+          // B1:固定 500 文案,err.message 只进日志不透传(防 SQL/路径细节泄露)
+          expect(data.error.message).toBe('Internal server error');
+          expect(JSON.stringify(data)).not.toContain('boom from test');
+        } finally {
+          spy.mockRestore();
+        }
       });
     });
   });

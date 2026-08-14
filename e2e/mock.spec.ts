@@ -104,6 +104,42 @@ test.describe('Mock Service', () => {
     expect(response.status()).toBe(200);
   });
 
+  // C5: 具体度排序 —— 字面路径必须压过参数路径。
+  // 两个模糊匹配端点(/users/me 与 /users/:id 都非 exact? me 是 exact)——
+  // 真正回归场景是两段以上:/users/me/:action vs /users/:id/:action,
+  // exact 匹配救不了,只能靠排序。
+  test('C5: literal segments beat parameter segments (/users/me/:action vs /users/:id/:action)', async ({ page }) => {
+    // 先建参数端点再建字面端点:若按 createdAt 排序,参数端点(先建)会先命中
+    await page.request.post(`/api/projects/${projectId}/endpoints`, {
+      data: {
+        path: '/users/:id/:action',
+        method: 'GET',
+        name: 'param route (created first)',
+        statusCode: 200,
+        responseBody: { route: 'param' },
+      },
+    });
+    await page.request.post(`/api/projects/${projectId}/endpoints`, {
+      data: {
+        path: '/users/me/:action',
+        method: 'GET',
+        name: 'literal route (created second)',
+        statusCode: 200,
+        responseBody: { route: 'literal' },
+      },
+    });
+
+    const response = await page.request.get(`/${projectSlug}/users/me/profile`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.route).toBe('literal');
+
+    // 参数端点仍正常服务非 me 的请求
+    const other = await page.request.get(`/${projectSlug}/users/123/profile`);
+    const otherBody = await other.json();
+    expect(otherBody.route).toBe('param');
+  });
+
   test('should differentiate between methods on same path', async ({ page }) => {
     // Both GET and POST on /users should work
     const getResponse = await page.request.get(`/${projectSlug}/users`);

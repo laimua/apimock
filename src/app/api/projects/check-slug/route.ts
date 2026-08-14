@@ -4,10 +4,9 @@
  */
 
 import { NextRequest } from 'next/server';
-import { success, Errors } from '@/lib/api';
+import { success, Errors, internalError } from '@/lib/api';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { logger } from '@/lib/logger';
 import { projects } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { isReservedSlug, SLUG_REGEX, MAX_SLUG_LENGTH } from '@/lib/slug';
@@ -55,10 +54,10 @@ export async function GET(request: NextRequest) {
       ...(isAvailable ? {} : { reason: 'exists' as const }),
     });
   } catch (err: unknown) {
-    logger.error({ err }, 'Check slug API error');
     if (err instanceof Error && err.name === 'ZodError') {
       return Errors.validation((err as unknown as { issues: z.ZodIssue[] }).issues);
     }
-    return Errors.internal(err instanceof Error ? err.message : String(err));
+    // B1:err.message 只进日志,对外固定 500 文案(internalError 内部已 logger.error)
+    return internalError(err, 'GET /api/projects/check-slug');
   }
 }

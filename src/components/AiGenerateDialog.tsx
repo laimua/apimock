@@ -3,21 +3,12 @@
 import { useState, useEffect } from 'react';
 import { Cpu } from 'lucide-react';
 import { trackEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
+import { aiApi, ApiError, type AiProvider } from '@/lib/api-client';
 
 interface AiGenerateDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onGenerated: (data: unknown) => void;
-}
-
-interface Provider {
-  id: string;
-  name: string;
-  provider: 'openai' | 'anthropic' | 'openai-compatible';
-  models: string[];
-  defaultModel: string;
-  isDefault: boolean;
-  isActive: boolean;
 }
 
 const EXAMPLES = [
@@ -43,7 +34,7 @@ export function AiGenerateDialog({
   const [prompt, setPrompt] = useState('');
   const [count, setCount] = useState(10);
   const [selectedProviderId, setSelectedProviderId] = useState<string>('');
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providers, setProviders] = useState<AiProvider[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProviders, setLoadingProviders] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,24 +46,21 @@ export function AiGenerateDialog({
     }
   }, [isOpen]);
 
+  // C2: 收进 api-client —— 401 跳登录/非 JSON 兜底/错误形状解析统一由 request() 处理
   const loadProviders = async () => {
     setLoadingProviders(true);
     try {
-      const res = await fetch('/api/ai/providers');
-      const json = await res.json();
-      if (json.success) {
-        const activeProviders = json.data.filter((p: Provider) => p.isActive);
-        setProviders(activeProviders);
-        // 默认选择 default provider
-        const defaultProvider = activeProviders.find((p: Provider) => p.isDefault);
-        if (defaultProvider) {
-          setSelectedProviderId(defaultProvider.id);
-        } else if (activeProviders.length > 0) {
-          setSelectedProviderId(activeProviders[0].id);
-        }
+      const activeProviders = (await aiApi.listProviders()).filter((p) => p.isActive);
+      setProviders(activeProviders);
+      // 默认选择 default provider
+      const defaultProvider = activeProviders.find((p) => p.isDefault);
+      if (defaultProvider) {
+        setSelectedProviderId(defaultProvider.id);
+      } else if (activeProviders.length > 0) {
+        setSelectedProviderId(activeProviders[0].id);
       }
-    } catch (err) {
-      console.error('Failed to load providers:', err);
+    } catch {
+      // 列表加载失败不弹错,用户点生成时会再拿到具体错误
     } finally {
       setLoadingProviders(false);
     }
@@ -90,22 +78,13 @@ export function AiGenerateDialog({
     setError(null);
 
     try {
-      const res = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          prompt, 
-          count,
-          providerId: selectedProviderId || undefined 
-        }),
+      // C2: 同上,错误 message 由 ApiError 携带(error.message 兜底通用文案)
+      const data = await aiApi.generate({
+        prompt,
+        count,
+        providerId: selectedProviderId || undefined,
       });
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error?.message ?? '生成失败，请重试');
-      }
-
-      const { data } = await res.json();
       onGenerated(data);
       // 埋点：AI 生成成功（仅记 provider + count，不含 prompt 内容）
       trackEvent(ANALYTICS_EVENTS.AI_GENERATE_CALLED, {
@@ -114,7 +93,7 @@ export function AiGenerateDialog({
       });
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '生成失败，请重试');
+      setError(err instanceof ApiError ? err.message : '生成失败，请重试');
     } finally {
       setIsLoading(false);
     }

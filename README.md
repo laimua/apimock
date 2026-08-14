@@ -82,7 +82,7 @@ tar xzf apimock-*-linux-x64.tar.gz && cd apimock-*
 cp .env.example .env
 # 编辑 .env 填好:
 #   ENCRYPTION_KEY=$(openssl rand -hex 32)   # 生成后固定保存,更换会导致已加密的 AI key 失效
-#   MANAGE_TOKEN=<管理面登录密码,≥20 位随机串>
+#   MANAGE_TOKEN=<管理面登录密码,建议 ≥32 位 CSPRNG 随机串(openssl rand -hex 32)>
 #   ADMIN_TOKEN=<备份接口 token,≥20 位随机串,与 MANAGE_TOKEN 不同>
 export $(grep -v '^#' .env | xargs)
 

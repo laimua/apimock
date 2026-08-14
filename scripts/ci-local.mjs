@@ -35,6 +35,11 @@ const CI_ENV = {
   SQLITE_PATH: './data/apimock-local-ci.db',
   ENCRYPTION_KEY: 'local-ci-encryption-key-not-for-production',
   SKIP_SEED: 'false',            // 触发 auto-seed（和 CI 一致）
+  // CI 在 job 级设了 MANAGE_TOKEN（ci.yml），本地必须显式带上：
+  // build 后 .env 被恢复，production server 运行时会经 @next/env 读到
+  // 用户 .env 里的 MANAGE_TOKEN 打开鉴权；若 playwright 进程没有该变量，
+  // globalSetup 会跳过登录种 cookie，所有测试 401（已踩坑）。
+  MANAGE_TOKEN: 'ci-e2e-manage-token',
 };
 
 const SQLITE_PATH = CI_ENV.SQLITE_PATH;

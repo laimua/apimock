@@ -9,6 +9,11 @@
 import crypto from 'crypto';
 import { logger } from './logger';
 
+// C3: cacheKey 用 sha256(secret+salt) 完整 digest。旧格式 `${secret.length}:${saltHex}`
+// 只按 secret 长度区分——轮换 ENCRYPTION_KEY 后新旧 key 同长会命中同一条缓存,
+// decrypt 拿旧 key 解新数据静默失败。截断(前 8 hex)虽碰撞概率低,但完整 64 hex
+// digest 零歧义且 Map key 开销可忽略,不再截断。
+
 const ALGORITHM = 'aes-256-gcm';
 const LEGACY_SALT = 'salt';
 const SALT_LENGTH = 16;
@@ -58,8 +63,12 @@ function getSecret(): string {
 }
 
 function getCachedDerivedKey(secret: string, salt: Buffer): Buffer {
-  const saltHex = salt.toString('hex');
-  const cacheKey = `${secret.length}:${saltHex}`;
+  // C3: 完整 sha256 digest(见文件头注释);secret 本体绝不进 cacheKey 明文
+  const cacheKey = crypto
+    .createHash('sha256')
+    .update(secret)
+    .update(salt)
+    .digest('hex');
   const cached = deriveKeyCache.get(cacheKey);
   if (cached) {
     // LRU: 命中后挪到最新位置（删后重插），保证淘汰时删的是真最旧。

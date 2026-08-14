@@ -201,13 +201,36 @@ async function request<T>(
     ...options,
   });
 
-  const data = await response.json();
+  // B3:响应体非 JSON(网关 HTML 错误页/空 body)时 response.json() 会抛
+  // SyntaxError,调用方拿到的是解析异常而非业务错误。统一转 ApiError
+  // (body 已被 json() 消费,text() 兜底 catch 空串)。
+  let data: { success?: boolean; data?: T; error?: { code?: string; message?: string } };
+  try {
+    data = (await response.json()) as typeof data;
+  } catch {
+    const text = await response.text().catch(() => '');
+    throw new ApiError(
+      response.status,
+      response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR',
+      text
+        ? `Non-JSON response: ${text.slice(0, 200)}`
+        : `Request failed with status ${response.status}`
+    );
+  }
 
-  // 401:浏览器环境直接跳登录页(替代抛 ApiError,体验更好);SSR 环境仍走下方抛错
+  // 401:浏览器环境直接跳登录页(替代抛 ApiError,体验更好);SSR 环境仍走下方抛错。
+  // B3:带上 sanitized from(当前 path,同源且必以单 / 开头),登录后跳回原页
   if (response.status === 401 && typeof window !== 'undefined') {
-    window.location.href = '/login';
+    const from = window.location.pathname + window.location.search;
+    window.location.href = `/login?from=${encodeURIComponent(from)}`;
     // 挂起当前请求,避免跳转完成前调用方继续处理错误响应
     return new Promise<T>(() => {});
+  }
+
+  // B3:207 Multi-Status 特判放行 —— 部分成功,data 内含逐项结果/错误,
+  // 交给调用方自行处理(否则 !data.success 会抛 UNKNOWN_ERROR 丢逐项结果)
+  if (response.status === 207) {
+    return data.data as T;
   }
 
   if (!response.ok || !data.success) {
@@ -218,7 +241,7 @@ async function request<T>(
     );
   }
 
-  return data.data;
+  return data.data as T;
 }
 
 export interface CheckSlugResponse {
@@ -371,4 +394,77 @@ export const projectRequestsApi = {
 
     return request<{ deleted: number }>(url, { method: 'DELETE' });
   },
+};
+
+// ============================================
+// AI API(C2: settings/ai 页与 AiGenerateDialog 此前裸 fetch,
+// 401 跳转/非 JSON 兜底/错误形状解析各自为政,统一收进 api-client)
+// ============================================
+export interface AiProvider {
+  id: string;
+  name: string;
+  provider: 'openai' | 'anthropic' | 'openai-compatible';
+  baseUrl?: string;
+  models: string[];
+  defaultModel: string;
+  systemPrompt?: string;
+  isActive: boolean;
+  isDefault: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AiProviderFormData {
+  name: string;
+  provider: string;
+  apiKey: string;
+  baseUrl?: string;
+  models: string[];
+  defaultModel: string;
+  systemPrompt?: string;
+  isActive?: boolean;
+  isDefault?: boolean;
+}
+
+export interface AiBudget {
+  requests: number;
+  tokens: number;
+  limits: { tokens: number; requests: number };
+}
+
+export const aiApi = {
+  listProviders: () => request<AiProvider[]>('/ai/providers'),
+  createProvider: (data: AiProviderFormData) =>
+    request<AiProvider>('/ai/providers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateProvider: (id: string, data: AiProviderFormData) =>
+    request<AiProvider>(`/ai/providers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deleteProvider: (id: string) =>
+    request<void>(`/ai/providers/${id}?confirmed=true`, { method: 'DELETE' }),
+  // C8: 测试 provider 连通性。data:{success,model};失败时 request 抛 ApiError
+  // (error.message 为后端标准文案),401 统一跳登录
+  testProvider: (id: string) =>
+    request<{ success: boolean; model?: string; response?: string }>(`/ai/providers/${id}/test`, {
+      method: 'POST',
+    }),
+  setDefaultProvider: (id: string) =>
+    request<void>(`/ai/providers/${id}/default`, { method: 'POST' }),
+  getBudget: () => request<AiBudget>('/ai/budget'),
+  generate: (data: { prompt: string; count: number; providerId?: string }) =>
+    request<unknown>('/ai/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};
+
+// ============================================
+// 认证 API(C2: GlobalHeader logout 收编,401/非 JSON 统一走 request)
+// ============================================
+export const authApi = {
+  logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
 };

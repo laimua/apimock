@@ -38,30 +38,98 @@ function isPrivateIPv4(v4Str: string): boolean {
   const parts = v4Str.split('.').map(Number);
   if (parts.length !== 4 || parts.some(p => Number.isNaN(p))) return false;
 
-  const int = ipv4ToInt(parts);
+  return isPrivateIPv4Int(ipv4ToInt(parts));
+}
+
+function isPrivateIPv4Int(int: number): boolean {
   return PRIVATE_RANGES.some(r => int >= r.start && int <= r.end);
+}
+
+/**
+ * 解析 IPv6 字符串为 8 组 16-bit 数值（规范化地址）。
+ * 支持 "::" 压缩与末段内嵌 IPv4 点分形式（如 ::ffff:127.0.0.1）。
+ * 非法输入返回 null。
+ *
+ * A1:不做字符串前缀匹配，统一解析后按地址段判断 ——
+ * 否则 ::ffff:7f00:1 这类 hex 形态的 IPv4-mapped 地址可绕过点分正则。
+ */
+function parseIPv6(ip: string): number[] | null {
+  const input = ip.toLowerCase();
+  const dbl = input.indexOf('::');
+  let headStr: string;
+  let tailStr: string | null = null;
+  if (dbl !== -1) {
+    // "::" 只允许出现一次
+    if (input.indexOf('::', dbl + 1) !== -1) return null;
+    headStr = input.slice(0, dbl);
+    tailStr = input.slice(dbl + 2);
+  } else {
+    headStr = input;
+  }
+
+  const parseGroups = (s: string, groups: number[]): boolean => {
+    if (s === '') return true;
+    for (const seg of s.split(':')) {
+      if (seg === '') return false;
+      if (seg.includes('.')) {
+        // 内嵌 IPv4（仅合法于最后一段，占 2 组）
+        const parts = seg.split('.').map(Number);
+        if (parts.length !== 4 || parts.some(p => !Number.isInteger(p) || p < 0 || p > 255)) return false;
+        groups.push((parts[0] << 8) | parts[1]);
+        groups.push((parts[2] << 8) | parts[3]);
+      } else {
+        if (!/^[0-9a-f]{1,4}$/.test(seg)) return false;
+        groups.push(parseInt(seg, 16));
+      }
+    }
+    return true;
+  };
+
+  const head: number[] = [];
+  const tail: number[] = [];
+  if (!parseGroups(headStr, head)) return null;
+  if (tailStr !== null && !parseGroups(tailStr, tail)) return null;
+
+  if (tailStr === null) {
+    // 无 "::" 压缩：必须恰好 8 组
+    return head.length === 8 ? head : null;
+  }
+  const fill = 8 - head.length - tail.length;
+  if (fill < 0) return null;
+  return [...head, ...new Array<number>(fill).fill(0), ...tail];
 }
 
 export function isPrivateIP(ip: string): boolean {
   // 统一去掉 IPv6 方括号并小写
   const normalized = ip.replace(/^\[|\]$/g, '').toLowerCase();
 
-  // IPv6 loopback / 未指定
-  if (normalized === '::1' || normalized === '::') return true;
-
-  if (normalized.includes(':')) {
-    // IPv6 ULA fc00::/7（本地单播，等价内网段）
-    if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
-    // IPv6 link-local fe80::/10（fe80:: - febf::,含 fe8/fe9/fea/feb 开头）
-    // normalized 已小写;/10 表示高 10 位固定,即第三 nibble ∈ {8,9,a,b}
-    if (/^fe[89ab]/.test(normalized)) return true;
-    // IPv4-mapped IPv6 ::ffff:a.b.c.d
-    const v4Match = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (v4Match) return isPrivateIPv4(v4Match[1]);
-    return false;
+  if (!normalized.includes(':')) {
+    return isPrivateIPv4(normalized);
   }
 
-  return isPrivateIPv4(normalized);
+  // IPv6：解析成 8 组后按规范化地址段判断（A1：字符串形态匹配可被
+  // IPv4-mapped 的 hex/点分两种写法绕过，全部走地址解析）
+  const groups = parseIPv6(normalized);
+  if (!groups) return false;
+
+  // IPv4-mapped ::ffff:0:0/96（点分 ::ffff:127.0.0.1 与 hex ::ffff:7f00:1 等价）
+  if (groups.slice(0, 5).every(g => g === 0) && groups[5] === 0xffff) {
+    return isPrivateIPv4Int(((groups[6] << 16) | groups[7]) >>> 0);
+  }
+
+  // 前 96 位为 0：覆盖 ::（未指定）、::1（loopback，0.0.0.1 命中 0.0.0.0/8）
+  // 及已弃用的 IPv4-compatible ::a.b.c.d / ::7f00:1 —— 均按低 32 位 IPv4 段判
+  if (groups.slice(0, 6).every(g => g === 0)) {
+    return isPrivateIPv4Int(((groups[6] << 16) | groups[7]) >>> 0);
+  }
+
+  // IPv6 ULA fc00::/7（fc/fd 开头，本地单播，等价内网段）
+  if ((groups[0] & 0xfe00) === 0xfc00) return true;
+
+  // IPv6 link-local fe80::/10（fe80:: - febf::）
+  if ((groups[0] & 0xffc0) === 0xfe80) return true;
+
+  return false;
 }
 
 const BLOCKED_HOSTNAMES = new Set([

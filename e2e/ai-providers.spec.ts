@@ -19,7 +19,8 @@ test.describe('AI Providers API', () => {
       data: {
         name: 'Test Provider',
         provider: 'openai-compatible',
-        baseUrl: 'https://api.example.com/v1',
+        // 字面公网 IP(TEST-NET-3,保留段),避免本机 fake-IP DNS 对域名解析的干扰
+        baseUrl: 'http://203.0.113.10/v1',
         apiKey: 'sk-test-key-123',
         models: ['model-a', 'model-b'],
         defaultModel: 'model-a',
@@ -32,7 +33,7 @@ test.describe('AI Providers API', () => {
     expect(result.data).toBeDefined();
     expect(result.data.name).toBe('Test Provider');
     expect(result.data.provider).toBe('openai-compatible');
-    expect(result.data.baseUrl).toBe('https://api.example.com/v1');
+    expect(result.data.baseUrl).toBe('http://203.0.113.10/v1');
     expect(result.data.models).toEqual(['model-a', 'model-b']);
     expect(result.data.defaultModel).toBe('model-a');
     expect(result.data.isActive).toBe(true);

@@ -242,6 +242,45 @@ describe('Import API', () => {
       expect(data.success).toBe(false);
       expect(data.error.details).toBeDefined();
     });
+
+    // ============================================
+    // A8:File 强转 500 → 400
+    // ============================================
+    it('A8: file 字段为字符串(非 File)→ 400 非 500', async () => {
+      const formData = new FormData();
+      formData.append('file', 'not-a-file-just-a-string');
+
+      const request = new Request('http://localhost/api/projects/proj1/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const response = await IMPORT_POST(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+      expect(data.error.code).toBe('BAD_REQUEST');
+    });
+
+    it('A8: 非 multipart 请求体(JSON)→ 400 非 500', async () => {
+      const request = new Request('http://localhost/api/projects/proj1/import', {
+        method: 'POST',
+        body: JSON.stringify({ file: 'x' }),
+        headers: { 'content-type': 'application/json' },
+      });
+
+      const response = await IMPORT_POST(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+      expect(data.error.code).toBe('BAD_REQUEST');
+    });
   });
 
   describe('POST /api/projects/[id]/import/parse', () => {
@@ -343,6 +382,40 @@ describe('Import API', () => {
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
       expect(data.error.details).toBeDefined();
+    });
+
+    it('A8: file 字段为字符串(非 File)→ 400 非 500(与 import 对称)', async () => {
+      const formData = new FormData();
+      formData.append('file', 'not-a-file-just-a-string');
+
+      const request = new Request('http://localhost/api/projects/proj1/import/parse', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const response = await PARSE_POST(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error.code).toBe('BAD_REQUEST');
+    });
+
+    it('A8: 非 multipart 请求体(JSON)→ 400 非 500(与 import 对称)', async () => {
+      const request = new Request('http://localhost/api/projects/proj1/import/parse', {
+        method: 'POST',
+        body: JSON.stringify({ file: 'x' }),
+        headers: { 'content-type': 'application/json' },
+      });
+
+      const response = await PARSE_POST(asReq(request), {
+        params: Promise.resolve({ id: testProject.id }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error.code).toBe('BAD_REQUEST');
     });
   });
 
