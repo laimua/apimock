@@ -20,12 +20,18 @@ export const dynamic = 'force-dynamic';
 
 // 登录限流:10 次/min/IP(防暴力撞 token)
 const LOGIN_RATE_LIMIT = 10;
+// A3: 全局桶 100/min,与 per-IP 独立额度——多 IP 轮换撞库时 per-IP 桶
+// 失效,全局桶兜底保证撞试总量仍有上限(与 proxy 的 bearer:__global 同构)
+const LOGIN_GLOBAL_RATE_LIMIT = 100;
 
 export async function POST(request: NextRequest) {
   // 限流(防暴力撞 token)
   const ip = getClientIp(request.headers) ?? 'unknown';
-  const rl = await rateLimit(`login:${ip}`, LOGIN_RATE_LIMIT, 60, 'login');
-  if (!rl.allowed) {
+  const [ipRl, globalRl] = await Promise.all([
+    rateLimit(`login:${ip}`, LOGIN_RATE_LIMIT, 60, 'login'),
+    rateLimit('login:__global', LOGIN_GLOBAL_RATE_LIMIT, 60, 'login'),
+  ]);
+  if (!ipRl.allowed || !globalRl.allowed) {
     return error('RATE_LIMITED', 'Too many login attempts, try again later', 429);
   }
 

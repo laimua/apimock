@@ -1,7 +1,7 @@
 /**
  * 登录路由测试 POST /api/auth/login
  *
- * 覆盖：限流(429) / 未配置(500) / 错 token(401) / 对 token(200+种 cookie+from 透传) /
+ * 覆盖：限流(429) / 未配置(503) / 错 token(401) / 对 token(200+种 cookie+from 透传) /
  * body 非法(400) / 漏洞D from 校验。
  *
  * mock next/headers.cookies 以验证 cookie 种植，不引入 Next 运行时。
@@ -50,12 +50,12 @@ describe('login: 未配置 MANAGE_TOKEN', () => {
   beforeEach(() => {
     vi.stubEnv('MANAGE_TOKEN', '');
   });
-  it('返 500 INTERNAL_ERROR', async () => {
+  it('返 503 MANAGE_TOKEN_NOT_CONFIGURED(B3:对齐 proxy fail-closed,非 500)', async () => {
     const res = await POST(makeReq({ token: TOKEN }));
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(503);
     const json = await res.json();
     expect(json.success).toBe(false);
-    expect(json.error.code).toBe('INTERNAL_ERROR');
+    expect(json.error.code).toBe('MANAGE_TOKEN_NOT_CONFIGURED');
   });
 });
 

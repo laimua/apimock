@@ -241,8 +241,15 @@ curl /api/metrics                         → 401（现状不变，header token�
 proxy 在 cookie 校验之前增加 `Authorization: Bearer <MANAGE_TOKEN>` 通道(`safeEqual` timing-safe 比对),供 agent / 脚本 / CI 直接调管理 API,无需登录拿 cookie(配套 `skills/apimock/`)。
 
 - **与 cookie 并行**:Bearer 错不破坏合法 cookie 会话(继续走 cookie 校验);fail-closed 语义不变(未配 MANAGE_TOKEN 一律 503)
-- **为何不加限流**:Bearer 通道未单独限流,与 login(10/min/IP)不对等是**已知取舍**;
-  安全性依赖 token 高熵(≥20 字符随机)+ timing-safe 比对,爆破在实践上不可行
+- **失败限流(2026-08-14 A2 修订)**:Bearer 失败按双桶计数——per-IP `bearer:<ip>`(30/min)
+  + 全局 `bearer:__global`(300/min),任一超限返统一 429 `RATE_LIMITED`。正确 Bearer 与
+  cookie 路径零额外开销(先验 token、失败才计数);全局桶兜底多 IP 轮换分布式撞库。
+  限流走 KV 抽象层,fail-open 语义与其他限流点一致。
+- **登录全局桶(2026-08-14 A3 修订)**:login 在 10/min/IP 之外补全局桶
+  `login:__global`(100/min),与 per-IP 独立额度,多 IP 撞库时总量仍有上限。
+- **MANAGE_TOKEN 强度校验(2026-08-14 A3 修订)**:短于 32 字符时启动(proxy 首次执行)
+  warn 一次、不致命(对齐 ENCRYPTION_KEY P2-29 范式);文档建议 ≥32 字符 CSPRNG
+  随机串(`openssl rand -hex 32`)。
 - **风险对齐**:Bearer token 出现在 header 里,可能被反向代理访问日志记录——与现有 `X-Admin-Token`(backup)/ `Authorization: Bearer <METRICS_TOKEN>`(metrics)先例一致,部署侧按既有 token 保护实践处理
 
 ---
