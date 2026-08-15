@@ -139,13 +139,47 @@ const BLOCKED_HOSTNAMES = new Set([
   'metadata.google.internal', // GCP metadata
 ]);
 
+/** DNS 解析结果(单条地址) */
+export interface ResolvedAddress {
+  address: string;
+  family: number;
+}
+
+/**
+ * DNS resolver 抽象 —— 测试注入受控解析序列用(rebinding 场景:
+ * 首次解析公网、连接时解析内网),生产用默认的 dns.lookup(all: true)。
+ */
+export type DnsResolver = (hostname: string) => Promise<ResolvedAddress[]>;
+
+export const defaultDnsResolver: DnsResolver = (hostname) =>
+  dns.lookup(hostname, { all: true });
+
+export interface UrlSafetyResult {
+  safe: boolean;
+  reason?: string;
+  /** 校验通过的 hostname(小写,URL 原样保留不重写为 IP) */
+  hostname?: string;
+  /**
+   * 校验时确定的 pin 地址(出口连接强制用它,防 DNS rebinding)。
+   * 全部地址校验通过后取第一条(确定性)。
+   * DNS 解析失败(fail-open 放行)时为 null —— 出口侧 fail-closed。
+   */
+  pinned?: ResolvedAddress | null;
+}
+
+export interface ValidateUrlOptions {
+  resolver?: DnsResolver;
+}
+
 /**
  * 校验 URL 是否安全（不指向私有地址）
- * 返回 { safe: true } 或 { safe: false, reason: string }
+ * 返回 { safe: false, reason } 或
+ * { safe: true, hostname, pinned: 校验时解析到的地址 }
  */
 export async function validateUrlSafe(
-  urlStr: string
-): Promise<{ safe: boolean; reason?: string }> {
+  urlStr: string,
+  options: ValidateUrlOptions = {}
+): Promise<UrlSafetyResult> {
   let url: URL;
   try {
     url = new URL(urlStr);
@@ -174,12 +208,14 @@ export async function validateUrlSafe(
   // 理由：解析失败 ≠ 不安全（可能是 CI/无 DNS 环境的临时网络问题），
   // 强制拒绝会让服务在 DNS 不可用时完全瘫痪。核心防护价值在"解析到私有 IP
   // 则拦截"，这点不受影响；字面 IP / hostname 黑名单检查已在上面完成。
-  let addresses: { address: string; family: number }[];
+  // 出口连接侧(ssrf-fetch)对无 pin 的请求 fail-closed,补上这里的缺口。
+  const resolver = options.resolver ?? defaultDnsResolver;
+  let addresses: ResolvedAddress[];
   try {
-    addresses = await dns.lookup(hostname, { all: true });
+    addresses = await resolver(hostname);
   } catch {
     logger.warn({ hostname }, '[SSRF] DNS lookup failed, skipping resolution check (fail-open)');
-    return { safe: true };
+    return { safe: true, hostname, pinned: null };
   }
 
   for (const { address } of addresses) {
@@ -188,5 +224,5 @@ export async function validateUrlSafe(
     }
   }
 
-  return { safe: true };
+  return { safe: true, hostname, pinned: addresses[0] ?? null };
 }

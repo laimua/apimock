@@ -11,6 +11,7 @@ import { aiProviders } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { decrypt } from '@/lib/encryption';
 import { validateUrlSafe } from '@/lib/ssrf';
+import { createPinnedFetch } from '@/lib/ssrf-fetch';
 import OpenAI from 'openai';
 import { DEFAULT_SYSTEM_PROMPT } from '@/lib/ai-presets';
 import { rateLimit } from '@/lib/rate-limit';
@@ -98,42 +99,52 @@ export async function POST(
       }
     }
 
+    // DNS pinning:自定义 fetch 把出口连接 pin 到校验时的解析结果,
+    // 防止连接期二次解析被 rebinding 到内网(根治,见 ssrf-fetch.ts)
+    const pinnedFetch = provider.baseUrl ? createPinnedFetch() : undefined;
+
     // 创建 OpenAI 客户端
     const openai = new OpenAI({
       apiKey,
       baseURL: provider.baseUrl || undefined,
       timeout: 30_000,
+      ...(pinnedFetch ? { fetch: pinnedFetch.fetch as unknown as typeof globalThis.fetch } : {}),
     });
 
     // 发送测试请求
     const systemPrompt = provider.systemPrompt || DEFAULT_SYSTEM_PROMPT;
 
-    const completion = await openai.chat.completions.create({
-      model: modelToTest,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: 'Hello! Please respond with a simple greeting.' },
-      ],
-      temperature: 0.7,
-      max_tokens: 100,
-    });
+    try {
+      const completion = await openai.chat.completions.create({
+        model: modelToTest,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: 'Hello! Please respond with a simple greeting.' },
+        ],
+        temperature: 0.7,
+        max_tokens: 100,
+      });
 
-    // 上报 token 消耗给预算模块（兼容接口可能缺失 usage）
-    const response = completion.choices[0]?.message?.content;
-    const used = completion.usage?.total_tokens ?? Math.ceil((response ?? '').length / 4);
-    await recordAiUsage(used);
-    // 观测性：与 generate route 对齐，上报 token 消耗到 Prometheus（ai-test 维度）
-    aiCostTokensTotal.inc({ provider: `ai-test:${provider.provider}` }, used);
+      // 上报 token 消耗给预算模块（兼容接口可能缺失 usage）
+      const response = completion.choices[0]?.message?.content;
+      const used = completion.usage?.total_tokens ?? Math.ceil((response ?? '').length / 4);
+      await recordAiUsage(used);
+      // 观测性：与 generate route 对齐，上报 token 消耗到 Prometheus（ai-test 维度）
+      aiCostTokensTotal.inc({ provider: `ai-test:${provider.provider}` }, used);
 
-    if (!response) {
-      return Errors.badRequest('Provider returned no response content');
+      if (!response) {
+        return Errors.badRequest('Provider returned no response content');
+      }
+
+      return success({
+        success: true,
+        model: modelToTest,
+        response: response.substring(0, 200), // 截断过长响应
+      });
+    } finally {
+      // 响应 body 已被 SDK 完全消费(SDK 返回前完成解析),此处关闭 Agent 安全
+      await pinnedFetch?.close();
     }
-
-    return success({
-      success: true,
-      model: modelToTest,
-      response: response.substring(0, 200), // 截断过长响应
-    });
   } catch (err: unknown) {
     // P1:上游错误细节(err.message 等)绝不透传客户端——会泄露 API key 等敏感信息。
     // 对外只给固定文案,原始 err 进日志;上游 status(401/429/超时)仍透传。

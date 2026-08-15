@@ -13,6 +13,7 @@ import { aiProviders } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { decrypt } from '@/lib/encryption';
 import { validateUrlSafe } from '@/lib/ssrf';
+import { createPinnedFetch } from '@/lib/ssrf-fetch';
 import { DEFAULT_SYSTEM_PROMPT } from '@/lib/ai-presets';
 import { rateLimit } from '@/lib/rate-limit';
 import { generateMockData } from '@/lib/mock-data-templates';
@@ -114,14 +115,17 @@ async function generateWithProvider(prompt: string, count: number, provider: typ
     }
   }
 
+  // DNS pinning:自定义 fetch 把出口连接 pin 到校验时的解析结果,
+  // 防止连接期二次解析被 rebinding 到内网(根治,见 ssrf-fetch.ts);
+  // redirect 由 pinned fetch 手动逐跳处理,跨 host 一律拒绝(P2-26 语义收严)
+  const pinnedFetch = provider.baseUrl ? createPinnedFetch() : undefined;
+
   // 创建 OpenAI 客户端
   const openai = new OpenAI({
     apiKey,
     baseURL: provider.baseUrl || undefined,
     timeout: 30_000,
-    // P2-26: 手动处理重定向,防跨 origin 重定向把 Authorization 头带到内网
-    // (SSRF DNS rebinding 的副路径缓解;根治需连接层 pin DNS,见 backlog)
-    fetchOptions: { redirect: 'manual' },
+    ...(pinnedFetch ? { fetch: pinnedFetch.fetch as unknown as typeof globalThis.fetch } : {}),
   });
 
   // 使用 Provider 的 System Prompt 或默认 Prompt
@@ -129,39 +133,44 @@ async function generateWithProvider(prompt: string, count: number, provider: typ
 
   const userPrompt = `请生成 ${count} 条数据：\n${prompt}`;
 
-  const completion = await openai.chat.completions.create({
-    model: modelToUse,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    temperature: 0.7,
-    max_tokens: 4000,
-  });
+  try {
+    const completion = await openai.chat.completions.create({
+      model: modelToUse,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 4000,
+    });
 
-  const content = completion.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error('AI 未返回任何内容');
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('AI 未返回任何内容');
+    }
+
+    // 解析并验证返回的 JSON
+    const result = parseAIResponse(content);
+
+    // 验证基本结构
+    if (typeof result !== 'object' || result === null) {
+      throw new Error('AI 返回的不是有效对象');
+    }
+
+    // 上报 token 消耗给预算模块（completion.usage 可能在某些兼容接口缺失）。
+    // fallback 时同时估算 prompt+completion，避免低估日预算消耗（A4）。
+    const used =
+      completion.usage?.total_tokens ??
+      Math.ceil((userPrompt.length + systemPrompt.length + content.length) / 4);
+    await recordAiUsage(used);
+    aiGenerateTotal.inc({ provider: provider.provider, outcome: 'provider' });
+    aiCostTokensTotal.inc({ provider: provider.provider }, used);
+
+    return success(result);
+  } finally {
+    // 响应 body 已被 SDK 完全消费(SDK 返回前完成解析),此处关闭 Agent 安全
+    await pinnedFetch?.close();
   }
-
-  // 解析并验证返回的 JSON
-  const result = parseAIResponse(content);
-
-  // 验证基本结构
-  if (typeof result !== 'object' || result === null) {
-    throw new Error('AI 返回的不是有效对象');
-  }
-
-  // 上报 token 消耗给预算模块（completion.usage 可能在某些兼容接口缺失）。
-  // fallback 时同时估算 prompt+completion，避免低估日预算消耗（A4）。
-  const used =
-    completion.usage?.total_tokens ??
-    Math.ceil((userPrompt.length + systemPrompt.length + content.length) / 4);
-  await recordAiUsage(used);
-  aiGenerateTotal.inc({ provider: provider.provider, outcome: 'provider' });
-  aiCostTokensTotal.inc({ provider: provider.provider }, used);
-
-  return success(result);
 }
 
 // ============================================
