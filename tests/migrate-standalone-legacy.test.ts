@@ -5,8 +5,9 @@
  * 1. 旧 DDL(id TEXT PRIMARY KEY,notnull=0)造库 + 塞数据 → 跑迁移 →
  *    id notnull=1、数据保留、缺列(is_shareable)补 default、FK/索引保留、
  *    最终 schema 与全新迁移库语义一致
- * 2. 再跑一次 → 幂等(数据不重复、schema 不变)
+ * 2. 再跑一次 → 幂等(数据不重复、schema 不变);user_version 达标后直接跳过迁移
  * 3. 拷数据失败(NULL id 违反新 NOT NULL)→ 回滚,旧 schema 与数据原样保留
+ * 4. 版本标记:迁移成功后 PRAGMA user_version 置位(与迁移代数对齐,v1 → 1)
  */
 
 import { describe, it, expect, afterAll } from 'vitest';
@@ -159,12 +160,17 @@ describe('migrate-standalone 存量库升级(v1:id 补 NOT NULL)', () => {
     const idxNames = db.prepare('PRAGMA index_list(endpoints)').all() as Array<{ name: string }>;
     expect(idxNames.map((i) => i.name)).toContain('endpoints_project_method_path_idx');
 
+    // 版本标记:升级后 user_version 置位为迁移代数(v1 → 1)
+    expect(db.pragma('user_version', { simple: true })).toBe(1);
+
     // 升级库与全新迁移库 schema 语义一致
     const fresh = runMigrate(freshDb);
     expect(fresh.status).toBe(0);
     const freshConn = new Database(freshDb);
     const diffs = diffSchemas(extractSchema(db), extractSchema(freshConn));
     expect(diffs).toEqual([]);
+    // 全新库同样置位
+    expect(freshConn.pragma('user_version', { simple: true })).toBe(1);
     freshConn.close();
     db.close();
   }, 120_000);
@@ -186,8 +192,13 @@ describe('migrate-standalone 存量库升级(v1:id 补 NOT NULL)', () => {
     const again = runMigrate(dbPath);
     expect(again.status).toBe(0);
     expect(again.stdout).not.toMatch(/重建表/);
+    // 二跑:user_version 已达标,直接跳过整段迁移(输出跳过标记)
+    expect(again.stdout).toMatch(/跳过/);
+    expect(again.stdout).not.toMatch(/缺列/);
 
     const db2 = new Database(dbPath);
+    // 跳过路径不改 user_version,仍为 1
+    expect(db2.pragma('user_version', { simple: true })).toBe(1);
     expect(JSON.stringify(extractSchema(db2).tables)).toBe(beforeSchema);
     expect(db2.prepare('SELECT COUNT(*) n FROM projects').get()).toEqual(beforeRows.projects);
     expect(db2.prepare('SELECT COUNT(*) n FROM endpoints').get()).toEqual(beforeRows.endpoints);

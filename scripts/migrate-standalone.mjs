@@ -40,6 +40,21 @@ mkdirSync(dirname(dbPath), { recursive: true });
 const sqlite = new Database(dbPath);
 sqlite.pragma('journal_mode = WAL');
 
+// 版本标记:与版本化迁移代数对齐。v1 = id 补 NOT NULL 重建 + is_shareable
+// 补列 + 孤儿清理。启动先读 user_version,达标直接跳过整段迁移(建表/补列/
+// 清孤儿全免);任一步失败抛错则不会走到置位,重跑即可恢复(幂等)。
+const SCHEMA_VERSION = 1;
+
+const currentVersion = sqlite.pragma('user_version', { simple: true });
+if (currentVersion >= SCHEMA_VERSION) {
+  console.log(
+    `[migrate] user_version=${currentVersion} >= ${SCHEMA_VERSION},schema 已是最新,跳过迁移`
+  );
+  sqlite.close();
+  console.log('[migrate] done');
+  process.exit(0);
+}
+
 // 最终形态的建表语句(对应 src/lib/schema-sqlite.ts;
 // 语义由 scripts/check-sqlite-schema-parity.mjs 门禁比对,改这里务必跑一遍)
 const TABLE_DDLS = {
@@ -221,6 +236,9 @@ ensureColumn('endpoints', 'is_shareable', `is_shareable INTEGER NOT NULL DEFAULT
 sqlite.exec(`DELETE FROM endpoints WHERE project_id NOT IN (SELECT id FROM projects)`);
 sqlite.exec(`DELETE FROM responses WHERE endpoint_id NOT IN (SELECT id FROM endpoints)`);
 sqlite.exec(`DELETE FROM requests WHERE endpoint_id NOT IN (SELECT id FROM endpoints)`);
+
+// 全部迁移步骤成功后置位版本标记(失败路径在上面已 throw,不会走到这里)
+sqlite.pragma(`user_version = ${SCHEMA_VERSION}`);
 
 sqlite.close();
 console.log('[migrate] done');
