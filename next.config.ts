@@ -35,6 +35,13 @@ const nextConfig: NextConfig = {
   // 部署镜像更小、native 依赖(better-sqlite3)更可控。
   // 注:standalone 仍需手动拷贝 public/ 与 .next/static(见 DEPLOY.md)。
   output: 'standalone',
+  // mysql2 必须外部化并显式纳入 file tracing:db.ts 静态 import 双驱动按
+  // DB_TYPE 运行时选择,Next 的静态分析会漏 trace mysql2(更好分析的
+  // better-sqlite3 会被带上),导致 standalone 产物缺包、MySQL 运行时全 500。
+  serverExternalPackages: ['mysql2'],
+  outputFileTracingIncludes: {
+    '/**': ['./node_modules/mysql2/**/*'],
+  },
   async headers() {
     return [
       {
