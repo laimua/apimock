@@ -29,7 +29,7 @@ test.describe('Endpoint Management', () => {
     await expect(page.getByText('端点列表').first()).toBeVisible();
   });
 
-  test('should create a new endpoint', async ({ page }) => {
+  test('@db-core should create a new endpoint', async ({ page }) => {
     // Click "添加端点" button (实际按钮文本)
     await page.click('a:has-text("添加端点")');
 
@@ -57,7 +57,7 @@ test.describe('Endpoint Management', () => {
     await expect(page).toHaveURL(new RegExp(`/projects/${projectId}$`), { timeout: 10000 });
   });
 
-  test('should edit an existing endpoint', async ({ page }) => {
+  test('@db-core should edit an existing endpoint', async ({ page }) => {
     // Create an endpoint first
     const createResponse = await page.request.post(`/api/projects/${projectId}/endpoints`, {
       data: {
@@ -91,7 +91,7 @@ test.describe('Endpoint Management', () => {
     expect(getResult.data.description).toBe('Updated description');
   });
 
-  test('should delete an endpoint', async ({ page }) => {
+  test('@db-core should delete an endpoint', async ({ page }) => {
     // Create an endpoint
     const createResponse = await page.request.post(`/api/projects/${projectId}/endpoints`, {
       data: {
@@ -174,7 +174,7 @@ test.describe('Endpoint Management', () => {
     expect(getResult.data.delayMs).toBe(1000);
   });
 
-  test('should update endpoint response configuration', async ({ page }) => {
+  test('@db-core should update endpoint response configuration', async ({ page }) => {
     // 创建端点
     const createResponse = await page.request.post(`/api/projects/${projectId}/endpoints`, {
       data: {

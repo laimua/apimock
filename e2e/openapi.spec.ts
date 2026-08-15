@@ -24,7 +24,7 @@ test.describe('OpenAPI Import', () => {
     projectId = result.data.id;
   });
 
-  test('should import YAML OpenAPI file', async ({ page }) => {
+  test('@db-core should import YAML OpenAPI file', async ({ page }) => {
     const yamlPath = join(__dirname, 'fixtures', 'openapi-sample.yaml');
     const yamlContent = readFileSync(yamlPath, 'utf-8');
     
@@ -55,7 +55,7 @@ test.describe('OpenAPI Import', () => {
     expect(endpointsResult.data.length).toBeGreaterThan(0);
   });
 
-  test('should import JSON OpenAPI file', async ({ page }) => {
+  test('@db-core should import JSON OpenAPI file', async ({ page }) => {
     const jsonPath = join(__dirname, 'fixtures', 'openapi-sample.json');
     const jsonContent = readFileSync(jsonPath, 'utf-8');
     
