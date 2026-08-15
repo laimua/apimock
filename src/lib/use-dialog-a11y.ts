@@ -1,5 +1,6 @@
 /**
  * 弹窗无障碍 hook(UX-8):document 级 Escape 关闭 + 初始聚焦首个可聚焦元素 + Tab 循环 trap。
+ * Tab 时焦点不在弹窗内(如点了空白区,activeElement=body)会拦截并拉回首个可聚焦元素。
  *
  * 用法:const dialogRef = useDialogA11y<HTMLDivElement>(isOpen, onClose);
  * 把 dialogRef 挂到弹窗容器(含全部可聚焦元素的那层 div)上。
@@ -37,10 +38,17 @@ export function useDialogA11y<T extends HTMLElement>(isOpen: boolean, onClose: (
       if (focusables.length === 0) return;
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
+      const active = document.activeElement;
+      // 焦点不在弹窗内(如点击空白区后 activeElement=body):拦截并拉回首元素,防止 Tab 逃逸到背景页
+      if (!active || !dialogRef.current.contains(active)) {
+        e.preventDefault();
+        first.focus();
+        return;
+      }
+      if (e.shiftKey && active === first) {
         e.preventDefault();
         last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
+      } else if (!e.shiftKey && active === last) {
         e.preventDefault();
         first.focus();
       }

@@ -77,4 +77,29 @@ describe('useDialogA11y (UX-8)', () => {
     expect(preventSpy).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(middle);
   });
+
+  it('焦点在 body(弹窗外)时 Tab 拦截并聚焦首元素,不逃逸到背景页', () => {
+    render(<Harness isOpen onClose={() => {}} />);
+    // 模拟点击弹窗空白区:activeElement 落回 body
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    expect(document.activeElement).toBe(document.body);
+
+    const event = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    const preventSpy = vi.spyOn(event, 'preventDefault');
+    fireEvent(document, event);
+
+    expect(preventSpy).toHaveBeenCalled();
+    expect(document.activeElement).toBe(screen.getByText('first'));
+  });
+
+  it('onClose 变化不重复挂监听,Escape 只触发一次且用最新回调', () => {
+    const onClose1 = vi.fn();
+    const onClose2 = vi.fn();
+    const { rerender } = render(<Harness isOpen onClose={onClose1} />);
+    rerender(<Harness isOpen onClose={onClose2} />);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose1).not.toHaveBeenCalled();
+    expect(onClose2).toHaveBeenCalledTimes(1);
+  });
 });
