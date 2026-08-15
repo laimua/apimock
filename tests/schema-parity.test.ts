@@ -18,6 +18,7 @@ import Database from 'better-sqlite3';
 import {
   extractSchema,
   diffSchemas,
+  validateSchemaCoverage,
 } from '../scripts/check-sqlite-schema-parity.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -237,5 +238,181 @@ describe('diffSchemas 比对器', () => {
     ];
     const diffs = diffSchemas(schemaOf(BASE_DDL), schemaOf(variant));
     expect(diffs.some((d) => d.includes('autoincrement'))).toBe(true);
+  });
+});
+
+// ============================================
+// 新维度变异测试:复合 FK / index_xinfo / CHECK / collation /
+// generated column / view / trigger / 覆盖防呆
+// ============================================
+describe('diffSchemas 新维度(变异测试)', () => {
+  function schemaOf(ddl: string[]) {
+    const db = new Database(':memory:');
+    for (const sql of ddl) db.exec(sql);
+    const schema = extractSchema(db);
+    db.close();
+    return schema;
+  }
+
+  const PAIRS_DDL = `CREATE TABLE pairs (a TEXT NOT NULL, b TEXT NOT NULL, PRIMARY KEY (a, b))`;
+  const compositeFkItems = (fkClause: string) => [
+    `CREATE TABLE items (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      pa TEXT,
+      pb TEXT,
+      ${fkClause}
+    )`,
+    PAIRS_DDL,
+  ];
+
+  it('复合 FK 与拆成两个单列 FK 能区分(按 id 分组)', () => {
+    const base = compositeFkItems('FOREIGN KEY (pa, pb) REFERENCES pairs(a, b)');
+    const variant = compositeFkItems(
+      'FOREIGN KEY (pa) REFERENCES pairs(a), FOREIGN KEY (pb) REFERENCES pairs(b)'
+    );
+    const diffs = diffSchemas(schemaOf(base), schemaOf(variant));
+    expect(diffs.some((d) => d.includes('外键差异'))).toBe(true);
+  });
+
+  it('复合 FK 列序颠倒能区分(保留 seq)', () => {
+    const base = compositeFkItems('FOREIGN KEY (pa, pb) REFERENCES pairs(a, b)');
+    const variant = compositeFkItems('FOREIGN KEY (pb, pa) REFERENCES pairs(b, a)');
+    const diffs = diffSchemas(schemaOf(base), schemaOf(variant));
+    expect(diffs.some((d) => d.includes('外键差异'))).toBe(true);
+  });
+
+  const idxItems = (indexDdl: string) => [
+    `CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, count INTEGER DEFAULT 0)`,
+    indexDdl,
+  ];
+
+  it('索引列 DESC 变化能定位', () => {
+    const base = idxItems(`CREATE INDEX items_count_idx ON items(count)`);
+    const variant = idxItems(`CREATE INDEX items_count_idx ON items(count DESC)`);
+    expect(diffSchemas(schemaOf(base), schemaOf(variant)).some((d) => d.includes('索引差异'))).toBe(true);
+  });
+
+  it('索引列 collation 变化能定位', () => {
+    const base = idxItems(`CREATE INDEX items_count_idx ON items(count)`);
+    const variant = idxItems(`CREATE INDEX items_count_idx ON items(count COLLATE NOCASE)`);
+    expect(diffSchemas(schemaOf(base), schemaOf(variant)).some((d) => d.includes('索引差异'))).toBe(true);
+  });
+
+  it('表达式索引与普通列索引能区分', () => {
+    const base = idxItems(`CREATE INDEX items_count_idx ON items(count)`);
+    const variant = idxItems(`CREATE INDEX items_count_idx ON items(abs(count))`);
+    expect(diffSchemas(schemaOf(base), schemaOf(variant)).some((d) => d.includes('索引差异'))).toBe(true);
+  });
+
+  it('partial 索引 WHERE 谓词差异能定位', () => {
+    const base = idxItems(`CREATE INDEX items_count_idx ON items(count) WHERE count > 0`);
+    const variant = idxItems(`CREATE INDEX items_count_idx ON items(count) WHERE count > 10`);
+    expect(diffSchemas(schemaOf(base), schemaOf(variant)).some((d) => d.includes('索引差异'))).toBe(true);
+  });
+
+  const checkItems = (check: string) => [
+    `CREATE TABLE items (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      count INTEGER DEFAULT 0 ${check}
+    )`,
+  ];
+
+  it('CHECK constraint 缺失能定位', () => {
+    const base = checkItems('CHECK (count >= 0)');
+    const variant = checkItems('');
+    expect(diffSchemas(schemaOf(base), schemaOf(variant)).some((d) => d.includes('CHECK 差异'))).toBe(true);
+  });
+
+  it('CHECK 表达式差异能定位', () => {
+    const base = checkItems('CHECK (count >= 0)');
+    const variant = checkItems('CHECK (count > 0)');
+    expect(diffSchemas(schemaOf(base), schemaOf(variant)).some((d) => d.includes('CHECK 差异'))).toBe(true);
+  });
+
+  it('列 collation 差异能定位', () => {
+    const base = schemaOf([
+      `CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL)`,
+    ]);
+    const variant = schemaOf([
+      `CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, name TEXT COLLATE NOCASE NOT NULL)`,
+    ]);
+    expect(
+      diffSchemas(base, variant).some((d) => d.includes('name.collate'))
+    ).toBe(true);
+  });
+
+  const generatedItems = (colDef: string) => [
+    `CREATE TABLE items (
+      id TEXT PRIMARY KEY NOT NULL,
+      count INTEGER DEFAULT 0${colDef ? ',' + colDef : ''}
+    )`,
+  ];
+
+  it('generated column(VIRTUAL)新增能定位', () => {
+    const base = schemaOf(generatedItems(''));
+    const variant = schemaOf(
+      generatedItems(`dbl INTEGER GENERATED ALWAYS AS (count * 2)`)
+    );
+    expect(
+      diffSchemas(base, variant).some((d) => d.includes('列 dbl'))
+    ).toBe(true);
+  });
+
+  it('generated column VIRTUAL vs STORED 能区分', () => {
+    const base = schemaOf(
+      generatedItems(`dbl INTEGER GENERATED ALWAYS AS (count * 2)`)
+    );
+    const variant = schemaOf(
+      generatedItems(`dbl INTEGER GENERATED ALWAYS AS (count * 2) STORED`)
+    );
+    expect(
+      diffSchemas(base, variant).some((d) => d.includes('dbl.hidden'))
+    ).toBe(true);
+  });
+
+  const ITEMS_MIN = `CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL)`;
+  const VIEW_DDL = `CREATE VIEW v_items AS SELECT id FROM items`;
+  const TRIGGER_DDL = `CREATE TRIGGER t_items AFTER INSERT ON items BEGIN UPDATE items SET name = name WHERE id = NEW.id; END`;
+
+  it('view 缺失/SQL 差异能定位', () => {
+    const base = schemaOf([ITEMS_MIN, VIEW_DDL]);
+    expect(
+      diffSchemas(schemaOf([ITEMS_MIN]), base).some((d) => d.includes('view v_items'))
+    ).toBe(true);
+    const variant = schemaOf([
+      ITEMS_MIN,
+      `CREATE VIEW v_items AS SELECT id, name FROM items`,
+    ]);
+    expect(
+      diffSchemas(base, variant).some((d) => d.includes('SQL 差异'))
+    ).toBe(true);
+  });
+
+  it('trigger 缺失/SQL 差异能定位', () => {
+    const base = schemaOf([ITEMS_MIN, TRIGGER_DDL]);
+    expect(
+      diffSchemas(schemaOf([ITEMS_MIN]), base).some((d) => d.includes('trigger t_items'))
+    ).toBe(true);
+    const variant = schemaOf([
+      ITEMS_MIN,
+      `CREATE TRIGGER t_items AFTER UPDATE ON items BEGIN UPDATE items SET name = name WHERE id = NEW.id; END`,
+    ]);
+    expect(
+      diffSchemas(base, variant).some((d) => d.includes('SQL 差异'))
+    ).toBe(true);
+  });
+
+  it('validateSchemaCoverage:空 schema / 缺已知表 报错,5 表齐全通过', () => {
+    expect(validateSchemaCoverage({}, 'X')).toHaveLength(1);
+    const partial: Record<string, never> = { projects: {} as never };
+    const errors = validateSchemaCoverage(partial, 'X');
+    expect(errors.some((e) => e.includes('endpoints'))).toBe(true);
+
+    const full = Object.fromEntries(
+      ['projects', 'endpoints', 'requests', 'responses', 'ai_providers'].map((t) => [t, {}])
+    );
+    expect(validateSchemaCoverage(full as Record<string, never>, 'X')).toEqual([]);
   });
 });

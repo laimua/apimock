@@ -7,13 +7,14 @@
  *   hostname 与校验值不一致直接报错 —— 连接期二次解析(攻击者 rebinding 到
  *   127.0.0.1/元数据地址)无法生效;
  * - URL 保持原 hostname 不重写为 IP:保住 Host header 与 TLS SNI/证书校验;
- * - redirect 手动逐跳处理:仅允许同 host 跳转(保持 pin),换 host 一律拒绝,
- *   不允许自动跟随未校验的跨 host redirect;
+ * - redirect 手动逐跳处理:仅允许同 origin(protocol+host+port)跳转(保持 pin),
+ *   换 host / 端口漂移 / https→http scheme 降级一律拒绝;
+ *   301/302(仅 POST)/303 按 fetch 规范改写为 GET 并移除 body 与 Content-* 头;
  * - Agent 生命周期:每请求(hop)一个 Agent,创建后推入调用方传入的 agents
  *   数组统一管理,响应 body 完全消费后 close,不在返回 Response 前 destroy。
  */
 
-import { fetch as undiciFetch, Agent } from 'undici';
+import { fetch as undiciFetch, Agent, Headers as UndiciHeaders } from 'undici';
 import type { Response as UndiciResponse, RequestInit as UndiciRequestInit } from 'undici';
 import type { LookupFunction } from 'node:net';
 import { validateUrlSafe, type DnsResolver, type ResolvedAddress } from './ssrf';
@@ -77,6 +78,28 @@ export interface FetchWithPinOptions {
 }
 
 /**
+ * redirect 方法改写(fetch 规范):
+ * - 303 任意方法 → GET;
+ * - 301/302 仅 POST → GET(其余方法保持,如 PUT 301 后仍是 PUT);
+ * - 307/308 永不改写(连 body 语义一起保留);
+ * - 改写为 GET 时移除 body 与 Content-* 头(Content-Type/Length 等)。
+ */
+export function rewriteInitForRedirect(
+  status: number,
+  init: UndiciRequestInit
+): UndiciRequestInit {
+  const method = (init.method ?? 'GET').toUpperCase();
+  const toGet = status === 303 || ((status === 301 || status === 302) && method === 'POST');
+  if (!toGet) return init;
+
+  const headers = new UndiciHeaders(init.headers as HeadersInit | undefined);
+  for (const name of [...headers.keys()]) {
+    if (name.toLowerCase().startsWith('content-')) headers.delete(name);
+  }
+  return { ...init, method: 'GET', body: undefined, headers };
+}
+
+/**
  * 底层出口 fetch:URL 保持原 hostname(Host/SNI 不变),连接 pin 到指定地址,
  * 手动逐跳处理 redirect(同 host 保持 pin;换 host 拒绝)。
  *
@@ -92,41 +115,57 @@ export async function fetchWithPin(
   const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
   const agents = options.agents ?? [];
 
-  const hop = async (url: URL): Promise<UndiciResponse> => {
+  const hop = async (url: URL, reqInit: UndiciRequestInit): Promise<UndiciResponse> => {
     const agent = new Agent({
       connect: { lookup: createPinnedLookup(pinned.hostname, pinned.pin) },
     });
     agents.push(agent);
     return undiciFetch(url, {
-      ...init,
+      ...reqInit,
       redirect: 'manual',
       // undici fetch 的 dispatcher 选项(RequestInit 扩展)
       dispatcher: agent,
     });
   };
 
-  let current = new URL(urlStr);
-  let response = await hop(current);
+  const initial = new URL(urlStr);
+  let current = initial;
+  let requestInit: UndiciRequestInit = init;
+  let response = await hop(current, requestInit);
+  let redirects = 0;
 
   while (REDIRECT_STATUSES.has(response.status)) {
     const location = response.headers.get('location');
     if (!location) break;
 
-    if (agents.length > maxRedirects) {
-      throw new Error(`SSRF: too many redirects (>${maxRedirects})`);
+    // try/finally:拒绝/超限抛错路径同样先 cancel 旧 body,
+    // 否则未消费的响应体会占住 socket,调用方的 Agent.close() 永远不返回
+    let next!: URL;
+    try {
+      if (++redirects > maxRedirects) {
+        throw new Error(`SSRF: too many redirects (>${maxRedirects})`);
+      }
+
+      next = new URL(location, current);
+      // 跨 origin 校验:比 protocol + host(含 port),不只是 hostname ——
+      // https→http scheme 降级、端口漂移、换 host 一律拒绝
+      if (next.protocol !== initial.protocol || next.host !== initial.host) {
+        throw new SsrfRejectedError(
+          `SSRF: redirect to different origin rejected (${next.protocol}//${next.host} != ${initial.protocol}//${initial.host})`
+        );
+      }
+      if (next.hostname.toLowerCase() !== pinned.hostname) {
+        throw new SsrfRejectedError(
+          `SSRF: redirect to different host rejected (${next.hostname} != ${pinned.hostname})`
+        );
+      }
+    } finally {
+      await response.body?.cancel().catch(() => undefined);
     }
 
-    const next = new URL(location, current);
-    if (next.hostname.toLowerCase() !== pinned.hostname) {
-      throw new SsrfRejectedError(
-        `SSRF: redirect to different host rejected (${next.hostname} != ${pinned.hostname})`
-      );
-    }
-
-    // 释放上一跳未消费的 body 再发下一跳
-    await response.body?.cancel().catch(() => undefined);
+    requestInit = rewriteInitForRedirect(response.status, requestInit);
     current = next;
-    response = await hop(current);
+    response = await hop(current, requestInit);
   }
 
   return response;

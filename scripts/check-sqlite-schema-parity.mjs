@@ -7,11 +7,17 @@
  *
  * 比对维度(语义,不做原始 DDL 全等):
  *   - table 集合(排除 sqlite_ 前缀系统表与 drizzle 元表)
- *   - PRAGMA table_xinfo:列名/类型/notnull/default/pk
- *   - PRAGMA foreign_key_list:外键(表/列/on_update/on_delete)
- *   - PRAGMA index_list + index_info:索引(唯一性/列序/origin;
- *     sqlite_autoindex_* 名随约束序号变化,按 origin+unique+列集比对)
+ *   - PRAGMA table_xinfo:列名/类型/notnull/default/pk/generated(hidden:
+ *     1=VIRTUAL 生成列,2=STORED 生成列)/列 collation(DDL 提取)
+ *   - PRAGMA foreign_key_list:按 id 分组、保留列序 seq(复合 FK 不漏检;
+ *     表/列序/on_update/on_delete)
+ *   - PRAGMA index_list + index_xinfo:索引(唯一性/origin/每列 desc/collation/
+ *     表达式列/partial WHERE 谓词;sqlite_autoindex_* 名随约束序号变化,
+ *     按 origin+unique+列集比对)
+ *   - CHECK constraint(normalized DDL 提取,表达式语义比对)
  *   - 表属性:AUTOINCREMENT / STRICT / WITHOUT ROWID(normalized DDL 提取)
+ *   - view / trigger:名字集合 + normalized SQL
+ *   - 覆盖防呆:两侧 schema 非空且包含已知 5 表(防"两边都空"通过)
  * 不比种子数据。
  *
  * 差异输出为对象+字段级可读文本(非 boolean);exit 1 = 有差异。
@@ -52,6 +58,110 @@ function normalizeType(type) {
   return String(type ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+function normalizeSql(sql) {
+  return String(sql ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/** 从 openIdx 的 '(' 找到配对的 ')' 下标(找不到返回 -1) */
+function findMatchingParen(s, openIdx) {
+  let depth = 0;
+  for (let i = openIdx; i < s.length; i++) {
+    if (s[i] === '(') depth++;
+    else if (s[i] === ')') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/** 按顶层逗号切分(括号内的逗号不切) */
+function splitTopLevel(s) {
+  const parts = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of s) {
+    if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+    if (ch === ',' && depth === 0) {
+      parts.push(cur.trim());
+      cur = '';
+      continue;
+    }
+    cur += ch;
+  }
+  if (cur.trim()) parts.push(cur.trim());
+  return parts;
+}
+
+/** 列定义首 token(支持 "..." / `...` / [...] / 裸标识符),失败返回 null */
+function parseIdentifier(def) {
+  const m = def.match(/^"(?:[^"]|"")*"|^`[^`]+`|^\[[^\]]+\]|^[A-Za-z_][\w$]*/);
+  if (!m) return null;
+  const tok = m[0];
+  if (tok.startsWith('"')) return tok.slice(1, -1).replace(/""/g, '"');
+  if (tok.startsWith('`')) return tok.slice(1, -1);
+  if (tok.startsWith('[')) return tok.slice(1, -1);
+  return tok;
+}
+
+/** CREATE TABLE 列定义(排除 FOREIGN KEY/PRIMARY KEY/UNIQUE/CHECK/CONSTRAINT 表约束) */
+function parseColumnDefs(sql) {
+  const s = normalizeSql(sql);
+  const open = s.indexOf('(');
+  if (open === -1) return [];
+  const close = findMatchingParen(s, open);
+  if (close === -1) return [];
+  return splitTopLevel(s.slice(open + 1, close)).filter(
+    (d) => !/^(?:foreign\s+key|primary\s+key|unique|check|constraint)\b/i.test(d)
+  );
+}
+
+/** 每列 collation(DDL COLLATE 子句;无则 null) */
+function extractColumnCollations(sql) {
+  const out = {};
+  for (const def of parseColumnDefs(sql)) {
+    const name = parseIdentifier(def);
+    if (!name) continue;
+    const m = def.match(/\bcollate\s+([A-Za-z_]\w*)/i);
+    out[name] = m ? m[1].toLowerCase() : null;
+  }
+  return out;
+}
+
+/** CHECK constraint 表达式列表(列级 + 表级,normalized + 排序) */
+function extractChecks(sql) {
+  const s = normalizeSql(sql);
+  const checks = [];
+  const re = /\bcheck\s*\(/gi;
+  let m;
+  while ((m = re.exec(s))) {
+    const start = m.index + m[0].length;
+    const end = findMatchingParen(s, start - 1);
+    if (end === -1) break;
+    checks.push(s.slice(start, end).replace(/\s+/g, ' ').trim().toLowerCase());
+    re.lastIndex = end;
+  }
+  return checks.sort();
+}
+
+/** partial index 的 WHERE 谓词(sqlite_master 索引 DDL 提取;无则 null) */
+function extractIndexWhere(db, indexName) {
+  const row = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type='index' AND name=?")
+    .get(indexName);
+  const s = normalizeSql(row?.sql ?? '');
+  if (!s) return null;
+  const open = s.indexOf('(');
+  const close = open === -1 ? -1 : findMatchingParen(s, open);
+  if (close === -1) return null;
+  const m = s
+    .slice(close + 1)
+    .trim()
+    .match(/^where\s+(.+)$/i);
+  return m ? m[1].replace(/\s+/g, ' ').trim().toLowerCase() : null;
+}
+
 /** 表属性:AUTOINCREMENT/STRICT/WITHOUT ROWID(normalized DDL 提取) */
 function extractTableAttrs(sql) {
   const s = (sql ?? '').replace(/\s+/g, ' ');
@@ -65,16 +175,27 @@ function extractTableAttrs(sql) {
 /**
  * 从 better-sqlite3 连接提取规范化 schema 描述
  * @param {import('better-sqlite3').Database} db
+ * @returns {{ tables: Record<string, object>, views: Record<string, string>, triggers: Record<string, string> }}
  */
 export function extractSchema(db) {
   const tables = {};
+  const views = {};
+  const triggers = {};
   const rows = db
     .prepare(
-      "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+      "SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
     )
     .all();
 
-  for (const { name, sql } of rows) {
+  for (const { type, name, sql } of rows) {
+    if (type === 'view' || type === 'trigger') {
+      const target = type === 'view' ? views : triggers;
+      target[name] = normalizeSql(sql).toLowerCase();
+    }
+  }
+
+  for (const { name, sql } of rows.filter((r) => r.type === 'table')) {
+    const collations = extractColumnCollations(sql);
     const columns = db
       .prepare(`PRAGMA table_xinfo(${JSON.stringify(name)})`)
       .all()
@@ -84,57 +205,115 @@ export function extractSchema(db) {
         notnull: c.notnull === 1,
         default: normalizeDefault(c.dflt_value),
         pk: c.pk,
+        // hidden: 0=普通列,1=VIRTUAL 生成列,2=STORED 生成列
+        hidden: c.hidden,
+        collate: collations[c.name] ?? null,
       }));
 
-    const fks = db
+    // FK 按 id 分组、组内保留 seq 列序:复合 FK 的 (a,b) 与 (b,a)、
+    // 复合与两个单列 FK 才能区分,不会漏检
+    const fkRows = db
       .prepare(`PRAGMA foreign_key_list(${JSON.stringify(name)})`)
       .all()
-      .map((f) => ({
-        table: f.table,
-        from: f.from,
-        to: f.to,
-        onUpdate: f.on_update,
-        onDelete: f.on_delete,
+      .sort((a, b) => a.id - b.id || a.seq - b.seq);
+    const fkGroups = new Map();
+    for (const f of fkRows) {
+      let g = fkGroups.get(f.id);
+      if (!g) {
+        g = { table: f.table, from: [], to: [], onUpdate: f.on_update, onDelete: f.on_delete };
+        fkGroups.set(f.id, g);
+      }
+      g.from.push(f.from);
+      g.to.push(f.to ?? '');
+    }
+    const fks = [...fkGroups.values()]
+      .map((g) => ({
+        table: g.table,
+        from: g.from.join(','),
+        to: g.to.join(','),
+        onUpdate: g.onUpdate,
+        onDelete: g.onDelete,
       }))
-      .sort((a, b) => `${a.from}|${a.to}|${a.table}`.localeCompare(`${b.from}|${b.to}|${b.table}`));
+      .sort(
+        (a, b) =>
+          `${a.from}|${a.to}|${a.table}`.localeCompare(`${b.from}|${b.to}|${b.table}`)
+      );
 
     const indexes = db
       .prepare(`PRAGMA index_list(${JSON.stringify(name)})`)
       .all()
       .map((idx) => {
+        // index_xinfo:每列 seqno/desc/collation;表达式列 name 为 null → '?expr'
         const cols = db
-          .prepare(`PRAGMA index_info(${JSON.stringify(idx.name)})`)
+          .prepare(`PRAGMA index_xinfo(${JSON.stringify(idx.name)})`)
           .all()
-          .map((c) => c.name); // 表达式列 name 为 null → '?'
+          .filter((c) => c.key === 1)
+          .sort((a, b) => a.seqno - b.seqno)
+          .map((c) => `${c.name ?? '?expr'}:${c.desc === 1 ? 'desc' : 'asc'}:${c.coll}`);
+        // partial 索引的 WHERE 谓词(autoindex 不可能是 partial,sql 为 null)
+        const where = idx.partial === 1 ? extractIndexWhere(db, idx.name) : null;
         // sqlite_autoindex_* 的名字由约束序号决定,同名不同义/同义不同名都会误报,
         // 改按 origin+unique+列集做 key(拼进 key 本身即完成比对)
         const isAuto = idx.name.startsWith('sqlite_autoindex_');
-        const key = isAuto
-          ? `auto:${idx.origin}:${idx.unique}:${cols.map((c) => c ?? '?').join(',')}`
-          : `${idx.name}:${idx.origin}:${idx.unique}:${cols.map((c) => c ?? '?').join(',')}`;
-        return { key, name: idx.name };
-      });
+        return `${
+          isAuto ? 'auto' : idx.name
+        }:${idx.origin}:${idx.unique}:${where ?? '-'}:${cols.join(',')}`;
+      })
+      .sort();
 
     tables[name] = {
       columns,
       fks,
-      indexes: indexes.map((i) => i.key).sort(),
+      indexes,
+      checks: extractChecks(sql),
       attrs: extractTableAttrs(sql),
     };
   }
-  return tables;
+  return { tables, views, triggers };
+}
+
+/** parity 门禁必须覆盖的表(防"两边都空"通过) */
+export const REQUIRED_TABLES = [
+  'projects',
+  'endpoints',
+  'requests',
+  'responses',
+  'ai_providers',
+];
+
+/**
+ * 覆盖防呆:两侧 schema 非空且包含已知 5 表
+ * @param {Record<string, object>} tables
+ * @param {string} label
+ * @returns {string[]}
+ */
+export function validateSchemaCoverage(tables, label) {
+  const errors = [];
+  const names = Object.keys(tables);
+  if (names.length === 0) {
+    errors.push(`[coverage] ${label}: schema 为空(建库链路可能静默失败)`);
+    return errors;
+  }
+  for (const t of REQUIRED_TABLES) {
+    if (!(t in tables)) {
+      errors.push(`[coverage] ${label}: 缺少已知表 ${t}`);
+    }
+  }
+  return errors;
 }
 
 /**
  * 语义比对两个 schema 描述,输出字段级可读差异行(空数组 = 一致)
- * @param {Record<string, ReturnType<typeof extractSchema>[string]>} a
- * @param {Record<string, ReturnType<typeof extractSchema>[string]>} b
+ * @param {{ tables: Record<string, object>, views: Record<string, string>, triggers: Record<string, string> }} sa
+ * @param {{ tables: Record<string, object>, views: Record<string, string>, triggers: Record<string, string> }} sb
  * @param {string} labelA A 侧标签
  * @param {string} labelB B 侧标签
  * @returns {string[]}
  */
-export function diffSchemas(a, b, labelA = 'A(drizzle push)', labelB = 'B(migrate-standalone)') {
+export function diffSchemas(sa, sb, labelA = 'A(drizzle push)', labelB = 'B(migrate-standalone)') {
   const diffs = [];
+  const a = sa.tables ?? sa;
+  const b = sb.tables ?? sb;
   const names = [...new Set([...Object.keys(a), ...Object.keys(b)])].sort();
 
   for (const name of names) {
@@ -160,7 +339,7 @@ export function diffSchemas(a, b, labelA = 'A(drizzle push)', labelB = 'B(migrat
       } else if (!cb) {
         diffs.push(`[table ${name}] 列 ${col}: 仅存在于 ${labelA}`);
       } else {
-        for (const field of ['type', 'notnull', 'default', 'pk']) {
+        for (const field of ['type', 'notnull', 'default', 'pk', 'hidden', 'collate']) {
           if (String(ca[field]) !== String(cb[field])) {
             diffs.push(
               `[table ${name}] 列 ${col}.${field}: ${labelA}=${JSON.stringify(ca[field])} / ${labelB}=${JSON.stringify(cb[field])}`
@@ -190,11 +369,36 @@ export function diffSchemas(a, b, labelA = 'A(drizzle push)', labelB = 'B(migrat
       );
     }
 
+    // CHECK constraint 比对
+    const ckA = JSON.stringify(ta.checks);
+    const ckB = JSON.stringify(tb.checks);
+    if (ckA !== ckB) {
+      diffs.push(`[table ${name}] CHECK 差异:\n    ${labelA}: ${ckA}\n    ${labelB}: ${ckB}`);
+    }
+
     // 表属性比对
     for (const attr of ['autoincrement', 'strict', 'withoutRowid']) {
       if (ta.attrs[attr] !== tb.attrs[attr]) {
         diffs.push(
           `[table ${name}] 表属性 ${attr}: ${labelA}=${ta.attrs[attr]} / ${labelB}=${tb.attrs[attr]}`
+        );
+      }
+    }
+  }
+
+  // view / trigger 比对(名字集合 + normalized SQL)
+  for (const kind of ['views', 'triggers']) {
+    const va = sa[kind] ?? {};
+    const vb = sb[kind] ?? {};
+    const label = kind === 'views' ? 'view' : 'trigger';
+    for (const name of [...new Set([...Object.keys(va), ...Object.keys(vb)])].sort()) {
+      if (!(name in va)) {
+        diffs.push(`[${label} ${name}] 仅存在于 ${labelB}`);
+      } else if (!(name in vb)) {
+        diffs.push(`[${label} ${name}] 仅存在于 ${labelA}`);
+      } else if (va[name] !== vb[name]) {
+        diffs.push(
+          `[${label} ${name}] SQL 差异:\n    ${labelA}: ${va[name]}\n    ${labelB}: ${vb[name]}`
         );
       }
     }
@@ -261,9 +465,14 @@ if (isMain) {
     const schemaB = extractSchema(dbBConn);
     dbAConn.close();
     dbBConn.close();
-    diffs = diffSchemas(schemaA, schemaB);
+    // 覆盖防呆:非空 + 已知 5 表(防"两边都空"通过)
+    diffs = [
+      ...validateSchemaCoverage(schemaA.tables, 'A(drizzle push)'),
+      ...validateSchemaCoverage(schemaB.tables, 'B(migrate-standalone)'),
+      ...diffSchemas(schemaA, schemaB),
+    ];
 
-    const tableCount = Object.keys(schemaA).length;
+    const tableCount = Object.keys(schemaA.tables).length;
     if (diffs.length === 0) {
       console.log(`[parity] OK — ${tableCount} 张表语义一致`);
     } else {

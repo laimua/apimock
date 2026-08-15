@@ -18,6 +18,7 @@ import {
   type ServerResponse,
 } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import type { Agent } from 'undici';
 import { validateUrlSafe, type DnsResolver } from '../ssrf';
 import {
   createPinnedLookup,
@@ -54,15 +55,33 @@ async function closeAll(): Promise<void> {
   );
 }
 
-/** 收集请求的 server(记录 Host header + path) */
+/** 收集请求的 server(记录 Host header / path / method / header 名集合 / body) */
+interface SeenRequest {
+  host: string | undefined;
+  path: string;
+  method: string | undefined;
+  headerNames: string[];
+  body: string;
+}
+
 function recordingServer(responses: Array<{ status: number; body?: string; location?: string }>) {
-  const seen: Array<{ host: string | undefined; path: string }> = [];
-  const promise = startLocalServer((_req, url, res) => {
-    seen.push({ host: _req.headers.host, path: url.pathname });
-    const next = responses[Math.min(seen.length - 1, responses.length - 1)];
-    if (next.location) res.writeHead(next.status, { location: next.location });
-    else res.writeHead(next.status, { 'content-type': 'application/json' });
-    res.end(next.body ?? '{"ok":true}');
+  const seen: SeenRequest[] = [];
+  const promise = startLocalServer((req, url, res) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (c: Buffer) => chunks.push(c));
+    req.on('end', () => {
+      seen.push({
+        host: req.headers.host,
+        path: url.pathname,
+        method: req.method,
+        headerNames: Object.keys(req.headers),
+        body: Buffer.concat(chunks).toString('utf8'),
+      });
+      const next = responses[Math.min(seen.length - 1, responses.length - 1)];
+      if (next.location) res.writeHead(next.status, { location: next.location });
+      else res.writeHead(next.status, { 'content-type': 'application/json' });
+      res.end(next.body ?? '{"ok":true}');
+    });
   });
   return { promise, seen };
 }
@@ -264,6 +283,157 @@ describe('fetchWithPin — URL 保持原 hostname + redirect 处理', () => {
     await expect(
       fetchWithPin(`http://host.test:${port}/start`, {}, localPin, { maxRedirects: 2 })
     ).rejects.toThrow(/too many redirects/);
+  });
+
+  it('跨 host 拒绝路径已 cancel 旧 body,Agent.close() 能返回', async () => {
+    const agents: Agent[] = [];
+    const { promise } = recordingServer([{ status: 302, location: 'http://other.test/x' }]);
+    const { origin } = await promise;
+    const port = new URL(origin).port;
+
+    await expect(
+      fetchWithPin(`http://host.test:${port}/r`, {}, localPin, { agents })
+    ).rejects.toThrow(SsrfRejectedError);
+
+    // 未 cancel 的 body 会占住 socket → close() 永不 resolve;给 3s 兜底超时
+    await Promise.race([
+      Promise.all(agents.map((a) => a.close())),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Agent.close() 未返回 — redirect body 未 cancel')), 3000)
+      ),
+    ]);
+  }, 10_000);
+
+  it('超限路径同样已 cancel body,Agent.close() 能返回', async () => {
+    const agents: Agent[] = [];
+    const { promise } = recordingServer([{ status: 302, location: '/loop' }]);
+    const { origin } = await promise;
+    const port = new URL(origin).port;
+
+    await expect(
+      fetchWithPin(`http://host.test:${port}/start`, {}, localPin, {
+        maxRedirects: 2,
+        agents,
+      })
+    ).rejects.toThrow(/too many redirects/);
+
+    await Promise.race([
+      Promise.all(agents.map((a) => a.close())),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Agent.close() 未返回 — redirect body 未 cancel')), 3000)
+      ),
+    ]);
+  }, 10_000);
+
+  it('redirect scheme 变化(降级/升级)被拒 — 只比 hostname 会漏掉', async () => {
+    const { promise } = recordingServer([
+      { status: 302, location: `https://host.test/x` }, // hostname 相同,scheme 变了
+    ]);
+    const { origin } = await promise;
+    const port = new URL(origin).port;
+
+    await expect(
+      fetchWithPin(`http://host.test:${port}/r`, {}, localPin)
+    ).rejects.toThrow(/different origin/);
+  });
+
+  it('redirect 端口漂移被拒(同 hostname 不同 port)', async () => {
+    const { promise } = recordingServer([
+      { status: 302, location: `http://host.test:1/x` },
+    ]);
+    const { origin } = await promise;
+    const port = new URL(origin).port;
+
+    await expect(
+      fetchWithPin(`http://host.test:${port}/r`, {}, localPin)
+    ).rejects.toThrow(/different origin/);
+  });
+
+  it('303 任意方法改写为 GET,body 与 Content-* 头被移除', async () => {
+    const { promise, seen } = recordingServer([
+      { status: 303, location: '/final' },
+      { status: 200, body: '{"ok":true}' },
+    ]);
+    const { origin } = await promise;
+    const port = new URL(origin).port;
+
+    const res = await fetchWithPin(
+      `http://host.test:${port}/first`,
+      {
+        method: 'POST',
+        body: '{"a":1}',
+        headers: {
+          'content-type': 'application/json',
+          'content-length': '7',
+          'x-keep': '1',
+        },
+      },
+      localPin
+    );
+    expect(res.status).toBe(200);
+    expect(seen[1].method).toBe('GET');
+    expect(seen[1].body).toBe('');
+    expect(seen[1].headerNames.some((h) => h.startsWith('content-'))).toBe(false);
+    expect(seen[1].headerNames).toContain('x-keep');
+  });
+
+  it('302 + POST 改写为 GET(fetch 规范)', async () => {
+    const { promise, seen } = recordingServer([
+      { status: 302, location: '/final' },
+      { status: 200 },
+    ]);
+    const { origin } = await promise;
+    const port = new URL(origin).port;
+
+    const res = await fetchWithPin(
+      `http://host.test:${port}/first`,
+      { method: 'POST', body: 'x' },
+      localPin
+    );
+    expect(res.status).toBe(200);
+    expect(seen[1].method).toBe('GET');
+    expect(seen[1].body).toBe('');
+  });
+
+  it('301 非 POST 方法不改写(PUT 保持 PUT)', async () => {
+    const { promise, seen } = recordingServer([
+      { status: 301, location: '/final' },
+      { status: 200 },
+    ]);
+    const { origin } = await promise;
+    const port = new URL(origin).port;
+
+    const res = await fetchWithPin(
+      `http://host.test:${port}/first`,
+      { method: 'PUT', body: 'x' },
+      localPin
+    );
+    expect(res.status).toBe(200);
+    expect(seen[1].method).toBe('PUT');
+    expect(seen[1].body).toBe('x');
+  });
+
+  it('307 保持方法与 body(语义转发)', async () => {
+    const { promise, seen } = recordingServer([
+      { status: 307, location: '/final' },
+      { status: 200 },
+    ]);
+    const { origin } = await promise;
+    const port = new URL(origin).port;
+
+    const res = await fetchWithPin(
+      `http://host.test:${port}/first`,
+      {
+        method: 'POST',
+        body: '{"keep":true}',
+        headers: { 'content-type': 'application/json' },
+      },
+      localPin
+    );
+    expect(res.status).toBe(200);
+    expect(seen[1].method).toBe('POST');
+    expect(seen[1].body).toBe('{"keep":true}');
+    expect(seen[1].headerNames).toContain('content-type');
   });
 });
 
