@@ -40,7 +40,7 @@ test.describe('Mock Service', () => {
     });
   });
 
-  test('should respond to GET mock request', async ({ page }) => {
+  test('@db-core should respond to GET mock request', async ({ page }) => {
     const response = await page.request.get(`/${projectSlug}/users`);
 
     expect(response.status()).toBe(200);
@@ -49,7 +49,7 @@ test.describe('Mock Service', () => {
     expect(response.headers()['x-mock-endpoint']).toBe('/users');
   });
 
-  test('should respond to POST mock request', async ({ page }) => {
+  test('@db-core should respond to POST mock request', async ({ page }) => {
     const response = await page.request.post(`/${projectSlug}/users`, {
       data: { name: 'Test User' },
     });
@@ -58,7 +58,7 @@ test.describe('Mock Service', () => {
     expect(response.headers()['x-mock-server']).toBe('ApiMock');
   });
 
-  test('should return 404 for non-existent endpoint', async ({ page }) => {
+  test('@db-core should return 404 for non-existent endpoint', async ({ page }) => {
     const response = await page.request.get(`/${projectSlug}/non-existent`);
 
     expect(response.status()).toBe(404);

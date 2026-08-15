@@ -10,7 +10,7 @@ test.describe('Project Management', () => {
     await expect(page.locator('h1')).toContainText('AI 智能 Mock 平台');
   });
 
-  test('should create a new project', async ({ page }) => {
+  test('@db-core should create a new project', async ({ page }) => {
     // 使用唯一的项目名避免 slug 冲突
     const uniqueName = `E2E Test ${Date.now()}`;
     
@@ -93,7 +93,7 @@ test.describe('Project Management', () => {
     await expect(page.locator('body')).toContainText(uniqueName);
   });
 
-  test('should update a project via API', async ({ page }) => {
+  test('@db-core should update a project via API', async ({ page }) => {
     // 创建测试项目
     const uniqueName = `Update Test ${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const createResponse = await page.request.post('/api/projects', {
@@ -128,7 +128,7 @@ test.describe('Project Management', () => {
     expect(getResult.data.name).toBe(updatedName);
   });
 
-  test('should delete a project via API', async ({ page }) => {
+  test('@db-core should delete a project via API', async ({ page }) => {
     // 创建测试项目
     const uniqueName = `Delete Test ${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const createResponse = await page.request.post('/api/projects', {
