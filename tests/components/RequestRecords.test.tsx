@@ -227,3 +227,76 @@ describe('RequestRecords', () => {
     });
   });
 });
+
+
+describe('RequestRecords 加载更多 (UX-4)', () => {
+  function makeItems(start: number, count: number) {
+    return Array.from({ length: count }, (_, i) => ({
+      id: `req-${start + i}`,
+      endpointId: 'endpoint-1',
+      method: 'GET',
+      path: `/api/item-${start + i}`,
+      query: null,
+      headers: null,
+      body: null,
+      responseStatus: 200,
+      responseTime: 100,
+      ip: '127.0.0.1',
+      userAgent: 'test',
+      createdAt: Date.now(),
+      endpoint: { path: '/api', method: 'GET' },
+    }));
+  }
+
+  it('首屏满 50 条显示「加载更多」,点击后 offset 步进 50 追加第二页数据', async () => {
+    listMock
+      .mockResolvedValueOnce({ items: makeItems(0, 50), total: 53, page: 1, pageSize: 50 })
+      .mockResolvedValueOnce({ items: makeItems(50, 3), total: 53, page: 2, pageSize: 50 });
+
+    render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/item-0')).toBeInTheDocument();
+    });
+    expect(screen.getByText('加载更多')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('加载更多'));
+
+    // 第二页数据断言:首条与末页数据同时在列表中
+    await waitFor(() => {
+      expect(screen.getByText('/api/item-52')).toBeInTheDocument();
+    });
+    expect(screen.getByText('/api/item-0')).toBeInTheDocument();
+    expect(apiClient.requestsApi.list).toHaveBeenLastCalledWith('project-1', 'endpoint-1', 50, 50);
+  });
+
+  it('返回数 < 50 判定无更多,「加载更多」按钮消失', async () => {
+    listMock
+      .mockResolvedValueOnce({ items: makeItems(0, 50), total: 53, page: 1, pageSize: 50 })
+      .mockResolvedValueOnce({ items: makeItems(50, 3), total: 53, page: 2, pageSize: 50 });
+
+    render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('加载更多')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('加载更多'));
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/item-52')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('加载更多')).not.toBeInTheDocument();
+  });
+
+  it('首屏不足 50 条时不显示「加载更多」', async () => {
+    listMock.mockResolvedValue({ items: makeItems(0, 10), total: 10, page: 1, pageSize: 50 });
+
+    render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/item-0')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('加载更多')).not.toBeInTheDocument();
+  });
+});

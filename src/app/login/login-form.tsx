@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -18,7 +18,6 @@ interface LoginFormProps {
 
 export default function LoginForm({ error, from }: LoginFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [token, setToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -40,10 +39,9 @@ export default function LoginForm({ error, from }: LoginFormProps) {
 
       if (res.ok && json.success) {
         // 开放重定向防护:from 必须是同站 path(/ 开头且非 //host)
-        const fromParam = searchParams.get('from') ?? from;
         const target =
-          fromParam && fromParam.startsWith('/') && !fromParam.startsWith('//')
-            ? fromParam
+          from && from.startsWith('/') && !from.startsWith('//')
+            ? from
             : '/projects';
         router.push(target);
         return;

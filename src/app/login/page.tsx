@@ -3,7 +3,6 @@
  * server 组件壳:解析 searchParams,渲染客户端登录表单
  */
 
-import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import LoginForm from './login-form';
 
@@ -18,9 +17,5 @@ interface LoginPageProps {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { error, from } = await searchParams;
 
-  return (
-    <Suspense>
-      <LoginForm error={error} from={from} />
-    </Suspense>
-  );
+  return <LoginForm error={error} from={from} />;
 }

@@ -22,6 +22,8 @@ export default function GlobalHeader() {
   const router = useRouter();
 
   const isActive = (href: string) => pathname.startsWith(href);
+  // 匿名可访问页面(/login、/share/*)隐藏导航/New Project/退出,只留 logo + GitHub + ThemeToggle
+  const isAnonymousPage = pathname === '/login' || pathname.startsWith('/share');
   // 登录页不显示退出按钮
   const showLogout = pathname !== '/login';
 
@@ -61,6 +63,22 @@ export default function GlobalHeader() {
             <span>Api<span className="text-blue-600">Mock</span></span>
           </Link>
 
+          {isAnonymousPage ? (
+            <div className="flex items-center gap-4">
+              <a
+                href={GITHUB_REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleGithubClick}
+                aria-label="GitHub repository"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              >
+                <Github className="w-5 h-5" />
+              </a>
+              <ThemeToggle />
+            </div>
+          ) : (
+          <>
           <nav className="hidden sm:flex items-center gap-6">
             {navLinks.map((link) => (
               <Link
@@ -127,10 +145,12 @@ export default function GlobalHeader() {
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
+          </>
+          )}
         </div>
       </div>
 
-      {mobileOpen && (
+      {mobileOpen && !isAnonymousPage && (
         <div className="sm:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <nav className="flex flex-col px-4 py-3 gap-3">
             {navLinks.map((link) => (

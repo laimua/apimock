@@ -15,6 +15,9 @@ interface RequestRecordsProps {
   endpointId: string;
 }
 
+// 每页加载数量;返回数 < PAGE_SIZE 即判定没有更多
+const PAGE_SIZE = 50;
+
 // Helper functions defined outside component to avoid type inference issues
 function hasQuery(req: RequestRecord): boolean {
   return Boolean(req.query && Object.keys(req.query).length > 0);
@@ -28,6 +31,8 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
   const { success, error: toastError } = useToast();
   const [requests, setRequests] = useState<RequestRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [expandedRequest, setExpandedRequest] = useState<string | null>(null);
@@ -41,8 +46,10 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
   async function loadRequests() {
     try {
       setLoading(true);
-      const data = await requestsApi.list(projectId, endpointId, 50, 0);
-      setRequests(data.items as RequestRecord[]);
+      const data = await requestsApi.list(projectId, endpointId, PAGE_SIZE, 0);
+      const items = data.items as RequestRecord[];
+      setRequests(items);
+      setHasMore(items.length >= PAGE_SIZE);
     } catch (err) {
       if (err instanceof ApiError) {
         toastError(err.message);
@@ -54,12 +61,33 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
     }
   }
 
+  // 加载更多:以当前列表长度为 offset 步进拉取,返回数 < PAGE_SIZE 判定无更多
+  async function handleLoadMore() {
+    if (loadingMore) return;
+    try {
+      setLoadingMore(true);
+      const data = await requestsApi.list(projectId, endpointId, PAGE_SIZE, requests.length);
+      const items = data.items as RequestRecord[];
+      setRequests((prev) => [...prev, ...items]);
+      setHasMore(items.length >= PAGE_SIZE);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        toastError(err.message);
+      } else {
+        toastError('加载更多失败');
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   async function handleClear() {
     try {
       setClearing(true);
       await requestsApi.clear(projectId, endpointId);
       success('请求记录已清空');
       setRequests([]);
+      setHasMore(false);
       setShowClearDialog(false);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -142,6 +170,7 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
               <p className="text-sm mt-1">调用 Mock 接口后会自动记录</p>
             </div>
           ) : (
+            <>
             <div className="space-y-2">
               {requests.map((req) => {
                 if (!req?.id) return null;
@@ -233,6 +262,20 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
                 );
               })}
             </div>
+            {hasMore && (
+              <div className="mt-3 text-center">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? '加载中' : '加载更多'}
+                </Button>
+              </div>
+            )}
+            </>
           )}
         </CardBody>
       </Card>
