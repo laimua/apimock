@@ -337,7 +337,7 @@ export function EndpointForm({
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors${isCreate ? ' text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' : ''}`}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                 placeholder={isCreate ? '获取用户列表' : undefined}
                 disabled={disabled}
               />
@@ -352,7 +352,7 @@ export function EndpointForm({
                 id="endpoint-description"
                 value={form.description}
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none${isCreate ? ' text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' : ''}`}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                 rows={3}
                 placeholder={isCreate ? '端点描述（可选）' : undefined}
                 disabled={disabled}
@@ -406,7 +406,7 @@ export function EndpointForm({
                 type="number"
                 value={form.delayMs}
                 onChange={(e) => setForm((prev) => ({ ...prev, delayMs: Math.max(0, parseInt(e.target.value) || 0) }))}
-                className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors${isCreate ? ' text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' : ''}`}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                 min={0}
                 placeholder={isCreate ? '0' : undefined}
                 disabled={disabled}
