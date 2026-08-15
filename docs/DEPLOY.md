@@ -321,6 +321,8 @@ pnpm db:migrate
 
 迁移脚本幂等（重复运行无副作用），MySQL 用 try-catch 处理 `CREATE INDEX IF NOT EXISTS` 不支持的情况。
 
+> **Windows 注意**：`db:push`/`db:generate` 的 `SQLITE_PATH` 写 Windows 绝对路径（如 `D:\work\apimock\data\apimock.db`）即可——`drizzle.config.ts` 会自动用 `pathToFileURL` 归一为 `file://` URL，避免 libsql 把盘符当 URL scheme 报 `URL_SCHEME_NOT_SUPPORTED`。
+
 ---
 
 ## 环境变量速查

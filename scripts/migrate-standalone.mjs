@@ -40,6 +40,11 @@ mkdirSync(dirname(dbPath), { recursive: true });
 const sqlite = new Database(dbPath);
 sqlite.pragma('journal_mode = WAL');
 
+// 版本标记:与版本化迁移代数对齐。v1 = id 补 NOT NULL 重建 + is_shareable
+// 补列 + 孤儿清理。门禁逻辑见下方 verifySchemaInvariants 前的版本分派
+// (user_version 只说明"曾跑过迁移",不等于"schema 现在完好")。
+const SCHEMA_VERSION = 1;
+
 // 最终形态的建表语句(对应 src/lib/schema-sqlite.ts;
 // 语义由 scripts/check-sqlite-schema-parity.mjs 门禁比对,改这里务必跑一遍)
 const TABLE_DDLS = {
@@ -206,6 +211,71 @@ function ensureColumn(table, column, ddl) {
   }
 }
 
+// ============================================
+// 版本分派:user_version 只信一半,跳过前先校验 schema 关键不变量
+// ============================================
+
+/**
+ * 校验最终 schema 的关键不变量(与 v1 迁移的产出形态一一对应)。
+ * 返回问题描述列表;空数组 = 通过。
+ * 背景:user_version 是"曾迁移成功"的标记,但库文件可能被旧版本部署包、
+ * 手工操作或外部工具改动,标记与实际 schema 脱节。此时静默跳过迁移会把
+ * 坏 schema 当好 schema 用,所以跳过前必须复核。
+ */
+function verifySchemaInvariants() {
+  const problems = [];
+  for (const table of Object.keys(TABLE_DDLS)) {
+    if (!tableExists(table)) {
+      problems.push(`缺表 ${table}`);
+      continue;
+    }
+    const idCol = sqlite
+      .prepare(`PRAGMA table_info(${table})`)
+      .all()
+      .find((c) => c.name === 'id');
+    if (idCol === undefined) problems.push(`${table} 缺 id 列`);
+    else if (idCol.notnull !== 1) problems.push(`${table}.id 缺 NOT NULL(旧 schema)`);
+  }
+  const endpointCols = sqlite.prepare('PRAGMA table_info(endpoints)').all();
+  if (endpointCols.length > 0 && !endpointCols.some((c) => c.name === 'is_shareable')) {
+    problems.push('endpoints 缺列 is_shareable');
+  }
+  const hasSlugUnique = sqlite
+    .prepare("SELECT 1 FROM sqlite_master WHERE type='index' AND name='projects_slug_unique'")
+    .get() !== undefined;
+  if (!hasSlugUnique) problems.push('缺关键唯一索引 projects_slug_unique');
+  return problems;
+}
+
+const currentVersion = sqlite.pragma('user_version', { simple: true });
+if (currentVersion > SCHEMA_VERSION) {
+  console.error(
+    `[migrate] user_version=${currentVersion} > ${SCHEMA_VERSION}:库已被更新版本的迁移器迁移,` +
+      `拒绝降级/跨版本处理。请改用与库版本匹配的部署包,或人工降级 user_version 前先确认后果。`
+  );
+  sqlite.close();
+  process.exit(1);
+}
+if (currentVersion === SCHEMA_VERSION) {
+  const problems = verifySchemaInvariants();
+  if (problems.length > 0) {
+    console.error(
+      `[migrate] user_version=${currentVersion} 已达标,但 schema 关键不变量校验失败,` +
+        `元数据/schema 不一致,请人工检查:`
+    );
+    for (const p of problems) console.error(`  - ${p}`);
+    sqlite.close();
+    process.exit(1);
+  }
+  console.log(
+    `[migrate] user_version=${currentVersion} = ${SCHEMA_VERSION} 且 schema 不变量校验通过,跳过迁移`
+  );
+  sqlite.close();
+  console.log('[migrate] done');
+  process.exit(0);
+}
+// user_version < SCHEMA_VERSION(含 0):走正常迁移
+
 console.log(`[migrate] db: ${dbPath}`);
 for (const ddl of Object.values(TABLE_DDLS)) sqlite.exec(ddl);
 for (const ddl of ALL_INDEX_DDLS) sqlite.exec(ddl);
@@ -221,6 +291,9 @@ ensureColumn('endpoints', 'is_shareable', `is_shareable INTEGER NOT NULL DEFAULT
 sqlite.exec(`DELETE FROM endpoints WHERE project_id NOT IN (SELECT id FROM projects)`);
 sqlite.exec(`DELETE FROM responses WHERE endpoint_id NOT IN (SELECT id FROM endpoints)`);
 sqlite.exec(`DELETE FROM requests WHERE endpoint_id NOT IN (SELECT id FROM endpoints)`);
+
+// 全部迁移步骤成功后置位版本标记(失败路径在上面已 throw,不会走到这里)
+sqlite.pragma(`user_version = ${SCHEMA_VERSION}`);
 
 sqlite.close();
 console.log('[migrate] done');
