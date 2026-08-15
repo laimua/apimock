@@ -210,23 +210,6 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Debug server boot (temporary)
-        run: |
-          pnpm start > /tmp/server.log 2>&1 &
-          SRV=$!
-          sleep 12
-          echo "--- health/ready:"
-          curl -s localhost:3000/api/health/ready || true
-          echo; echo "--- login:"
-          curl -s -X POST localhost:3000/api/auth/login -H 'Content-Type: application/json' \
-            -d '{"token":"ci-e2e-manage-token"}' -c /tmp/cj.txt || true
-          echo; echo "--- create project:"
-          curl -s -X POST localhost:3000/api/projects -b /tmp/cj.txt \
-            -H 'Content-Type: application/json' -d '{"name":"dbg","slug":"dbg"}' || true
-          echo; echo "--- server log (first 80 lines):"
-          head -80 /tmp/server.log
-          kill $SRV || true
-
       - name: Run core E2E (@db-core only)
         run: pnpm exec playwright test --project=chromium --retries=0 --grep @db-core
 
