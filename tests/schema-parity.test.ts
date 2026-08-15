@@ -404,6 +404,113 @@ describe('diffSchemas 新维度(变异测试)', () => {
     ).toBe(true);
   });
 
+// ============================================
+// codex 复审漏检点变异测试:表达式索引文本 /
+// generated 生成表达式 / 字符串字面量大小写
+// ============================================
+describe('diffSchemas 深度语义(表达式/字面量)', () => {
+  function schemaOf(ddl: string[]) {
+    const db = new Database(':memory:');
+    for (const sql of ddl) db.exec(sql);
+    const schema = extractSchema(db);
+    db.close();
+    return schema;
+  }
+
+  const idxItems = (indexDdl: string) => [
+    `CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, count INTEGER DEFAULT 0)`,
+    indexDdl,
+  ];
+
+  it('表达式索引表达式文本差异能定位(abs(count) vs count+1)', () => {
+    const base = idxItems(`CREATE INDEX items_count_idx ON items(abs(count))`);
+    const variant = idxItems(`CREATE INDEX items_count_idx ON items(count+1)`);
+    expect(
+      diffSchemas(schemaOf(base), schemaOf(variant)).some((d) => d.includes('索引差异'))
+    ).toBe(true);
+  });
+
+  it('表达式索引等价写法(大小写/空白不同)不误报', () => {
+    const base = idxItems(`CREATE INDEX items_count_idx ON items(abs(count))`);
+    const variant = idxItems(`create index items_count_idx on items( ABS(  count  ) )`);
+    expect(diffSchemas(schemaOf(base), schemaOf(variant))).toEqual([]);
+  });
+
+  const generatedItems = (colDef: string) => [
+    `CREATE TABLE items (
+      id TEXT PRIMARY KEY NOT NULL,
+      count INTEGER DEFAULT 0,
+      ${colDef}
+    )`,
+  ];
+
+  it('generated column 生成表达式差异能定位(count*2 vs count*3)', () => {
+    const base = schemaOf(
+      generatedItems(`dbl INTEGER GENERATED ALWAYS AS (count * 2)`)
+    );
+    const variant = schemaOf(
+      generatedItems(`dbl INTEGER GENERATED ALWAYS AS (count * 3)`)
+    );
+    expect(
+      diffSchemas(base, variant).some((d) => d.includes('dbl.generated'))
+    ).toBe(true);
+  });
+
+  it('generated column 等价写法(省略 GENERATED ALWAYS/大小写)不误报', () => {
+    const base = schemaOf(
+      generatedItems(`dbl INTEGER GENERATED ALWAYS AS (count * 2)`)
+    );
+    const variant = schemaOf(generatedItems(`dbl INTEGER as (COUNT * 2)`));
+    expect(diffSchemas(base, variant)).toEqual([]);
+  });
+
+  const checkItems = (check: string) => [
+    `CREATE TABLE items (
+      id TEXT PRIMARY KEY NOT NULL,
+      status TEXT NOT NULL ${check}
+    )`,
+  ];
+
+  it("CHECK 字符串字面量大小写差异能定位(status='ACTIVE' vs 'active')", () => {
+    const base = checkItems(`CHECK (status = 'ACTIVE')`);
+    const variant = checkItems(`CHECK (status = 'active')`);
+    expect(
+      diffSchemas(schemaOf(base), schemaOf(variant)).some((d) => d.includes('CHECK 差异'))
+    ).toBe(true);
+  });
+
+  it('CHECK 等价写法(关键字大小写/空白不同)不误报', () => {
+    const base = checkItems(`CHECK (status = 'ACTIVE')`);
+    const variant = checkItems(`check( STATUS='ACTIVE' )`);
+    expect(diffSchemas(schemaOf(base), schemaOf(variant))).toEqual([]);
+  });
+
+  it("partial 索引 WHERE 字面量大小写差异能定位", () => {
+    const base = idxItems(
+      `CREATE INDEX items_name_idx ON items(id) WHERE name = 'Foo'`
+    );
+    const variant = idxItems(
+      `CREATE INDEX items_name_idx ON items(id) WHERE name = 'foo'`
+    );
+    expect(
+      diffSchemas(schemaOf(base), schemaOf(variant)).some((d) => d.includes('索引差异'))
+    ).toBe(true);
+  });
+
+  it("view SQL 字符串字面量大小写差异能定位", () => {
+    const base = schemaOf([
+      `CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL)`,
+      `CREATE VIEW v_items AS SELECT id FROM items WHERE name = 'Foo'`,
+    ]);
+    const variant = schemaOf([
+      `CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL)`,
+      `CREATE VIEW v_items AS SELECT id FROM items WHERE name = 'foo'`,
+    ]);
+    expect(
+      diffSchemas(base, variant).some((d) => d.includes('SQL 差异'))
+    ).toBe(true);
+  });
+
   it('validateSchemaCoverage:空 schema / 缺已知表 报错,5 表齐全通过', () => {
     expect(validateSchemaCoverage({}, 'X')).toHaveLength(1);
     const partial: Record<string, never> = { projects: {} as never };
@@ -415,4 +522,5 @@ describe('diffSchemas 新维度(变异测试)', () => {
     );
     expect(validateSchemaCoverage(full as Record<string, never>, 'X')).toEqual([]);
   });
+});
 });

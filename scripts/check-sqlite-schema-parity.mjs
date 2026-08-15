@@ -8,15 +8,18 @@
  * 比对维度(语义,不做原始 DDL 全等):
  *   - table 集合(排除 sqlite_ 前缀系统表与 drizzle 元表)
  *   - PRAGMA table_xinfo:列名/类型/notnull/default/pk/generated(hidden:
- *     1=VIRTUAL 生成列,2=STORED 生成列)/列 collation(DDL 提取)
+ *     1=VIRTUAL 生成列,2=STORED 生成列)/生成表达式(DDL AS(...) 提取)/
+ *     列 collation(DDL 提取)
  *   - PRAGMA foreign_key_list:按 id 分组、保留列序 seq(复合 FK 不漏检;
  *     表/列序/on_update/on_delete)
  *   - PRAGMA index_list + index_xinfo:索引(唯一性/origin/每列 desc/collation/
- *     表达式列/partial WHERE 谓词;sqlite_autoindex_* 名随约束序号变化,
- *     按 origin+unique+列集比对)
+ *     表达式列原文(DDL 提取,非固定 '?expr')/partial WHERE 谓词;
+ *     sqlite_autoindex_* 名随约束序号变化,按 origin+unique+列集比对)
  *   - CHECK constraint(normalized DDL 提取,表达式语义比对)
  *   - 表属性:AUTOINCREMENT / STRICT / WITHOUT ROWID(normalized DDL 提取)
  *   - view / trigger:名字集合 + normalized SQL
+ *   - SQL 归一化:关键字/标识符小写化,字符串字面量原样保留
+ *     ('ACTIVE' 与 'active' 不等价)
  *   - 覆盖防呆:两侧 schema 非空且包含已知 5 表(防"两边都空"通过)
  * 不比种子数据。
  *
@@ -60,6 +63,39 @@ function normalizeType(type) {
 
 function normalizeSql(sql) {
   return String(sql ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * 语义小写:关键字/标识符小写化,单引号字符串字面量原样保留。
+ * 直接 toLowerCase 整串会让 CHECK (x='ACTIVE') 与 ='active' 误判等价,
+ * 故先把字面量替换为占位符再 lower,最后还原(支持 '' 转义)。
+ */
+function lowerKeepLiterals(s) {
+  const literals = [];
+  const replaced = String(s ?? '').replace(/'(?:[^']|'')*'/g, (m) => {
+    literals.push(m);
+    return `${literals.length - 1}`;
+  });
+  return replaced
+    .toLowerCase()
+    .replace(/(\d+)/g, (_, i) => literals[Number(i)]);
+}
+
+/**
+ * 表达式语义归一化:在 lowerKeepLiterals 基础上再删掉字面量外的全部空白。
+ * 用于 CHECK/生成表达式/索引表达式/WHERE 谓词 —— 这些是纯表达式,
+ * 空白无语义(ABS( count ) 与 abs(count) 等价)。
+ */
+function normalizeExpr(s) {
+  const literals = [];
+  const replaced = String(s ?? '').replace(/'(?:[^']|'')*'/g, (m) => {
+    literals.push(m);
+    return `${literals.length - 1}`;
+  });
+  return replaced
+    .replace(/\s+/g, '')
+    .toLowerCase()
+    .replace(/(\d+)/g, (_, i) => literals[Number(i)]);
 }
 
 /** 从 openIdx 的 '(' 找到配对的 ')' 下标(找不到返回 -1) */
@@ -139,7 +175,7 @@ function extractChecks(sql) {
     const start = m.index + m[0].length;
     const end = findMatchingParen(s, start - 1);
     if (end === -1) break;
-    checks.push(s.slice(start, end).replace(/\s+/g, ' ').trim().toLowerCase());
+    checks.push(normalizeExpr(s.slice(start, end).trim()));
     re.lastIndex = end;
   }
   return checks.sort();
@@ -159,7 +195,46 @@ function extractIndexWhere(db, indexName) {
     .slice(close + 1)
     .trim()
     .match(/^where\s+(.+)$/i);
-  return m ? m[1].replace(/\s+/g, ' ').trim().toLowerCase() : null;
+  return m ? normalizeExpr(m[1].trim()) : null;
+}
+
+/**
+ * 索引 DDL 顶层列定义(sqlite_master 提取)。
+ * 表达式索引列在 index_xinfo 里 name 为 null,固定记 '?expr' 会让
+ * abs(count) 与 count+1 误判等价,故从 DDL 提取表达式原文参与比对;
+ * 尾部 COLLATE/DESC/ASC 修饰已由 xinfo 的 coll/desc 单独覆盖,剥离之。
+ */
+function extractIndexColumnDefs(db, indexName) {
+  const row = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type='index' AND name=?")
+    .get(indexName);
+  const s = normalizeSql(row?.sql ?? '');
+  if (!s) return null;
+  const open = s.indexOf('(');
+  const close = open === -1 ? -1 : findMatchingParen(s, open);
+  if (close === -1) return null;
+  return splitTopLevel(s.slice(open + 1, close)).map((c) =>
+    normalizeExpr(
+      c.replace(/(\s+collate\s+\w+|\s+desc|\s+asc)+\s*$/gi, '').trim()
+    )
+  );
+}
+
+/** generated column 生成表达式(表 DDL 的 AS (...) 提取;非生成列返回 null) */
+function extractColumnGenerations(sql) {
+  const out = {};
+  for (const def of parseColumnDefs(sql)) {
+    const name = parseIdentifier(def);
+    if (!name) continue;
+    const m = def.match(/\b(?:generated\s+always\s+)?as\s*\(/i);
+    if (!m) continue;
+    const open = m.index + m[0].length - 1;
+    const close = findMatchingParen(def, open);
+    if (close !== -1) {
+      out[name] = normalizeExpr(def.slice(open + 1, close).trim());
+    }
+  }
+  return out;
 }
 
 /** 表属性:AUTOINCREMENT/STRICT/WITHOUT ROWID(normalized DDL 提取) */
@@ -190,12 +265,13 @@ export function extractSchema(db) {
   for (const { type, name, sql } of rows) {
     if (type === 'view' || type === 'trigger') {
       const target = type === 'view' ? views : triggers;
-      target[name] = normalizeSql(sql).toLowerCase();
+      target[name] = lowerKeepLiterals(normalizeSql(sql));
     }
   }
 
   for (const { name, sql } of rows.filter((r) => r.type === 'table')) {
     const collations = extractColumnCollations(sql);
+    const generations = extractColumnGenerations(sql);
     const columns = db
       .prepare(`PRAGMA table_xinfo(${JSON.stringify(name)})`)
       .all()
@@ -208,6 +284,8 @@ export function extractSchema(db) {
         // hidden: 0=普通列,1=VIRTUAL 生成列,2=STORED 生成列
         hidden: c.hidden,
         collate: collations[c.name] ?? null,
+        // 生成表达式:仅 hidden>0 参与(普通列恒 null);提取失败记 '?expr' 防漏检
+        generated: c.hidden > 0 ? (generations[c.name] ?? '?expr') : null,
       }));
 
     // FK 按 id 分组、组内保留 seq 列序:复合 FK 的 (a,b) 与 (b,a)、
@@ -243,13 +321,19 @@ export function extractSchema(db) {
       .prepare(`PRAGMA index_list(${JSON.stringify(name)})`)
       .all()
       .map((idx) => {
-        // index_xinfo:每列 seqno/desc/collation;表达式列 name 为 null → '?expr'
-        const cols = db
+        // index_xinfo:每列 seqno/desc/collation;表达式列 name 为 null,
+        // 从索引 DDL 提取表达式原文(按序号对位)参与比对
+        const xcols = db
           .prepare(`PRAGMA index_xinfo(${JSON.stringify(idx.name)})`)
           .all()
           .filter((c) => c.key === 1)
-          .sort((a, b) => a.seqno - b.seqno)
-          .map((c) => `${c.name ?? '?expr'}:${c.desc === 1 ? 'desc' : 'asc'}:${c.coll}`);
+          .sort((a, b) => a.seqno - b.seqno);
+        const ddlCols = xcols.some((c) => c.name === null)
+          ? extractIndexColumnDefs(db, idx.name)
+          : null;
+        const cols = xcols.map(
+          (c, i) => `${c.name ?? ddlCols?.[i] ?? '?expr'}:${c.desc === 1 ? 'desc' : 'asc'}:${c.coll}`
+        );
         // partial 索引的 WHERE 谓词(autoindex 不可能是 partial,sql 为 null)
         const where = idx.partial === 1 ? extractIndexWhere(db, idx.name) : null;
         // sqlite_autoindex_* 的名字由约束序号决定,同名不同义/同义不同名都会误报,
@@ -339,7 +423,7 @@ export function diffSchemas(sa, sb, labelA = 'A(drizzle push)', labelB = 'B(migr
       } else if (!cb) {
         diffs.push(`[table ${name}] 列 ${col}: 仅存在于 ${labelA}`);
       } else {
-        for (const field of ['type', 'notnull', 'default', 'pk', 'hidden', 'collate']) {
+        for (const field of ['type', 'notnull', 'default', 'pk', 'hidden', 'collate', 'generated']) {
           if (String(ca[field]) !== String(cb[field])) {
             diffs.push(
               `[table ${name}] 列 ${col}.${field}: ${labelA}=${JSON.stringify(ca[field])} / ${labelB}=${JSON.stringify(cb[field])}`
@@ -437,7 +521,9 @@ function buildViaDrizzlePush(dbPath) {
 }
 
 function buildViaMigrateStandalone(dbPath) {
-  run('node', ['scripts/migrate-standalone.mjs'], { SQLITE_PATH: dbPath });
+  // 用 process.execPath 而非裸 'node':PATH 上的 node 版本可能与当前进程
+  // 不一致(本地 nvm 多版本),导致 better-sqlite3 原生模块 ABI 不匹配
+  run(process.execPath, ['scripts/migrate-standalone.mjs'], { SQLITE_PATH: dbPath });
 }
 
 // ============================================
