@@ -8,6 +8,7 @@ import {
   type MockTemplate,
   formatTemplateContent,
 } from '@/lib/mock-templates';
+import { useDialogA11y } from '@/lib/use-dialog-a11y';
 
 interface TemplateLibraryDialogProps {
   isOpen: boolean;
@@ -92,8 +93,6 @@ export function TemplateLibraryDialog({
   const [selectedTemplate, setSelectedTemplate] = useState<MockTemplate | null>(null);
   const [previewContent, setPreviewContent] = useState<string>('');
 
-  if (!isOpen) return null;
-
   const filteredTemplates = selectedCategory === 'all'
     ? MOCK_TEMPLATES
     : MOCK_TEMPLATES.filter((t) => t.category === selectedCategory);
@@ -117,14 +116,17 @@ export function TemplateLibraryDialog({
     onClose();
   };
 
+  // 统一弹窗无障碍:Escape 关闭 + 初始聚焦 + Tab 循环(document 级,替代原 onKeyDown)
+  const dialogRef = useDialogA11y<HTMLDivElement>(isOpen, handleClose);
+
+  if (!isOpen) return null;
+
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center"
       role="dialog"
       aria-modal="true"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') handleClose();
-      }}
     >
       {/* Backdrop */}
       <div data-testid="template-library-backdrop" className="absolute inset-0 bg-black/50" onClick={handleClose} />

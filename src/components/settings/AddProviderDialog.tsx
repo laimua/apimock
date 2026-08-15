@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PRESET_PROVIDERS, PresetProvider } from '@/lib/ai-presets';
+import { useDialogA11y } from '@/lib/use-dialog-a11y';
 import { X, Loader2 } from 'lucide-react';
 
 interface Provider {
@@ -170,16 +171,17 @@ export default function AddProviderDialog({
     }
   };
 
+  // 统一弹窗无障碍:Escape 关闭 + 初始聚焦 + Tab 循环(document 级,替代原 onKeyDown)
+  const dialogRef = useDialogA11y<HTMLDivElement>(isOpen, onClose);
+
   if (!isOpen) return null;
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       role="dialog"
       aria-modal="true"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
-      }}
     >
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-auto">
         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">

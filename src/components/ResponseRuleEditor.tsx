@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/Toast';
 import { JsonEditor } from '@/components/JsonEditor';
 import { STATUS_CODES } from '@/lib/constants';
 import { resolveBodyOnContentTypeChange } from '@/lib/utils';
+import { useDialogA11y } from '@/lib/use-dialog-a11y';
 
 // 常用 Content-Type
 const CONTENT_TYPES = [
@@ -60,6 +61,9 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
   // 匹配规则简化表单（数组形式，支持空键/重复键，避免对象键冲突丢数据）
   const [queryMatches, setQueryMatches] = useState<Array<{ key: string; value: string }>>([]);
   const [headerMatches, setHeaderMatches] = useState<Array<{ key: string; value: string }>>([]);
+
+  // 统一弹窗无障碍:Escape 关闭 + 初始聚焦 + Tab 循环(document 级,替代原 onKeyDown)
+  const dialogRef = useDialogA11y<HTMLDivElement>(showDialog, () => setShowDialog(false));
 
   useEffect(() => {
     loadResponses();
@@ -430,12 +434,10 @@ export function ResponseRuleEditor({ projectId, endpointId }: ResponseRuleEditor
       {/* 添加/编辑对话框 */}
       {showDialog && (
         <div
+          ref={dialogRef}
           className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
           role="dialog"
           aria-modal="true"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setShowDialog(false);
-          }}
         >
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">

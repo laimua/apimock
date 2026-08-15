@@ -1,5 +1,7 @@
 'use client';
 
+import { useDialogA11y } from '@/lib/use-dialog-a11y';
+
 interface ConfirmDialogProps {
   isOpen: boolean;
   title: string;
@@ -23,6 +25,9 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  // 统一弹窗无障碍:Escape 关闭 + 初始聚焦 + Tab 循环(document 级,替代原 onKeyDown)
+  const dialogRef = useDialogA11y<HTMLDivElement>(isOpen, onCancel);
+
   if (!isOpen) return null;
 
   const variantStyles = {
@@ -56,12 +61,10 @@ export function ConfirmDialog({
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onCancel();
-      }}
     >
       {/* Backdrop */}
       <div

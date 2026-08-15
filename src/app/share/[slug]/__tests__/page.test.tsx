@@ -1,34 +1,14 @@
 /**
- * P2-49 回归测试:share 页 toast setTimeout 清理。
+ * SharePage 全局 toast 测试(UX-6)。
  *
- * 原实现 showToast 的 setTimeout 无清理,连续复制时第一个 toast 的 timer
- * 会提前清掉第二个新 toast(两个 timer 各 2000ms,但第二个显示时间被第一个
- * 截断)。修复:用 toastTimerRef 在每次新 toast 前清掉旧 timer。
- *
- * 用 fake timer 精确控制时间线:
- *   t=0   第一次复制 → toast A
- *   t=500 第二次复制 → toast B(修复后 A 的 timer 被清,只有 B 的 timer 在跑)
- *   t=2000(从 B 起算 1500ms,从 A 起算 2000ms)
- *         修复前:A 的 timer 触发 → toast 被清(B 消失,bug)
- *         修复后:A 的 timer 已清,只有 B 的 timer 在等 → B 仍在
- *   t=2500(B 起算 2000ms) → B 才消失
+ * share 页复制提示从自实现 toast(本地 state + setTimeout)换成全局
+ * ToastProvider/useToast。本测试验证复制按钮经全局 ToastProvider 出 toast;
+ * 同时覆盖内联「添加一行」表单(UX-7)的空 key/重复 key 行内报错。
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import 'react';
-
-// 本测试 import 了 share/[slug]/page.tsx,该文件用了 styled-jsx 的 `<style jsx>`。
-// 测试 tsconfig 没有 @types/styled-jsx(app tsconfig 由 Next 插件处理)。这里通过
-// 模块增强 react 给 StyleHTMLAttributes 补 jsx/global 属性,使被传递检查的 page.tsx
-// 不报 TS2322(直接重新声明 IntrinsicElements.style 会因类型不一致触发 TS2717)。
-declare module 'react' {
-  // T 必须与 React 原声明的类型参数一致(否则 TS2428),本身在本增强里不用。
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface StyleHTMLAttributes<T> {
-    jsx?: boolean;
-    global?: boolean;
-  }
-}
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { ToastProvider } from '@/components/ui/Toast';
+import SharePage from '../page';
 
 // useParams mock —— vi.hoisted 保证在 vi.mock 提升后仍可用
 const { mockUseParams } = vi.hoisted(() => ({
@@ -70,7 +50,18 @@ Object.defineProperty(globalThis.navigator, 'clipboard', {
   writable: true,
 });
 
-describe('SharePage — P2-49 toast setTimeout 清理', () => {
+async function renderSharePage() {
+  render(
+    <ToastProvider>
+      <SharePage />
+    </ToastProvider>
+  );
+  await waitFor(() => {
+    expect(screen.getByText('hello')).toBeInTheDocument();
+  });
+}
+
+describe('SharePage — 全局 toast (UX-6)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMock.mockResolvedValue({
@@ -80,52 +71,87 @@ describe('SharePage — P2-49 toast setTimeout 清理', () => {
     });
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('连续复制时第二个 toast 不被第一个的 timer 提前清掉', async () => {
-    // 全程用 fake timer;fetch/clipboard 的微任务通过 advanceTimersByTimeAsync(0) 推进
-    vi.useFakeTimers();
-
-    const { default: SharePage } = await import('../page');
-    render(<SharePage />);
-
-    // 推进让初始 fetch resolve + 组件渲染列表(fake timer 下不能依赖 waitFor)
-    for (let i = 0; i < 10 && !screen.queryByText('hello'); i++) {
-      await vi.advanceTimersByTimeAsync(0);
-    }
-    expect(screen.getByText('hello')).toBeTruthy();
+  it('复制端点 URL 后经全局 ToastProvider 显示成功 toast', async () => {
+    await renderSharePage();
 
     const copyButtons = screen.getAllByRole('button', { name: '复制' });
-    const copyBtn = copyButtons[0];
+    fireEvent.click(copyButtons[0]);
 
-    // t=0:第一次复制
-    await act(async () => {
-      fireEvent.click(copyBtn);
-      await vi.advanceTimersByTimeAsync(0); // 让 writeText + showToast 跑完
+    await waitFor(() => {
+      expect(screen.getByText('已复制: /hello')).toBeInTheDocument();
     });
-    expect(writeText).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('已复制: /hello')).toBeTruthy();
+    expect(writeText).toHaveBeenCalledWith('http://localhost:3000/m/demo/hello');
+  });
 
-    // t=500:第二次复制(A 的 2000ms timer 此刻还剩 1500ms)
-    await vi.advanceTimersByTimeAsync(500);
-    await act(async () => {
-      fireEvent.click(copyBtn);
-      await vi.advanceTimersByTimeAsync(0);
+  it('clipboard 失败时显示错误 toast', async () => {
+    writeText.mockRejectedValueOnce(new Error('denied'));
+    await renderSharePage();
+
+    const copyButtons = screen.getAllByRole('button', { name: '复制' });
+    fireEvent.click(copyButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('复制失败，请手动复制')).toBeInTheDocument();
     });
-    expect(writeText).toHaveBeenCalledTimes(2);
-    expect(screen.getByText('已复制: /hello')).toBeTruthy();
+  });
+});
 
-    // t=2000(自 A 起):
-    //   修复前:A 的 timer 触发 → toast 被提前清掉(bug)
-    //   修复后:A 的 timer 在第二次 showToast 时已被清 → toast 仍在
-    await vi.advanceTimersByTimeAsync(1500);
-    expect(screen.queryByText('已复制: /hello')).toBeTruthy();
+describe('SharePage — 内联「添加一行」表单 (UX-7)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => shareData,
+    });
+  });
 
-    // t=2500(自 B 起 2000ms)→ B 的 timer 触发,toast 才消失
-    await vi.advanceTimersByTimeAsync(500);
-    await vi.advanceTimersByTimeAsync(0); // 刷新 React commit
-    expect(screen.queryByText('已复制: /hello')).toBeNull();
+  async function expandTestPanel() {
+    await renderSharePage();
+    fireEvent.click(screen.getByRole('button', { name: '测试' }));
+    await waitFor(() => {
+      expect(screen.getByText('查询参数')).toBeInTheDocument();
+    });
+  }
+
+  it('输入参数名后添加一行,参数出现在列表中', async () => {
+    await expandTestPanel();
+
+    const input = screen.getByPlaceholderText('参数名');
+    fireEvent.change(input, { target: { value: 'page' } });
+    fireEvent.click(screen.getAllByRole('button', { name: '添加一行' })[0]);
+
+    // 新增行:key 只读展示 + value 可编辑
+    expect(screen.getByDisplayValue('page')).toBeInTheDocument();
+    // URL 实时带上新参数(值为空串时 buildFullUrl 不带,这里验证 key 出现即可)
+  });
+
+  it('key 为空时行内报错,不添加', async () => {
+    await expandTestPanel();
+
+    fireEvent.click(screen.getAllByRole('button', { name: '添加一行' })[0]);
+
+    expect(screen.getByText('名称不能为空')).toBeInTheDocument();
+    expect(screen.getByText('无查询参数')).toBeInTheDocument();
+  });
+
+  it('key 重复时行内报错,不产生第二行', async () => {
+    await expandTestPanel();
+
+    const input = screen.getByPlaceholderText('参数名');
+    fireEvent.change(input, { target: { value: 'page' } });
+    fireEvent.click(screen.getAllByRole('button', { name: '添加一行' })[0]);
+    expect(screen.getByDisplayValue('page')).toBeInTheDocument();
+
+    // 再添加同名 key
+    fireEvent.change(input, { target: { value: 'page' } });
+    fireEvent.click(screen.getAllByRole('button', { name: '添加一行' })[0]);
+
+    expect(screen.getByText('名称已存在')).toBeInTheDocument();
+    // 已添加行里同名 key 仍只有一行(表单输入框里的 'page' 不算,只数只读 key 列)
+    const keyCells = screen
+      .getAllByDisplayValue('page')
+      .filter((el) => el.hasAttribute('readonly'));
+    expect(keyCells.length).toBe(1);
   });
 });

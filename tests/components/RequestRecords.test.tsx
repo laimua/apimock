@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { RequestRecords } from '@/components/RequestRecords';
 import * as apiClient from '@/lib/api-client';
 
@@ -18,11 +18,9 @@ vi.mock('@/lib/api-client', () => ({
 }));
 
 // Mock Toast
+const toastMocks = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('@/components/ui/Toast', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-  }),
+  useToast: () => toastMocks,
 }));
 
 // Mock Badge
@@ -225,5 +223,190 @@ describe('RequestRecords', () => {
     await waitFor(() => {
       expect(apiClient.requestsApi.list).toHaveBeenCalledWith('project-1', 'endpoint-1', 50, 0);
     });
+  });
+});
+
+
+describe('RequestRecords 加载更多 (UX-4)', () => {
+  function makeItems(start: number, count: number) {
+    return Array.from({ length: count }, (_, i) => ({
+      id: `req-${start + i}`,
+      endpointId: 'endpoint-1',
+      method: 'GET',
+      path: `/api/item-${start + i}`,
+      query: null,
+      headers: null,
+      body: null,
+      responseStatus: 200,
+      responseTime: 100,
+      ip: '127.0.0.1',
+      userAgent: 'test',
+      createdAt: Date.now(),
+      endpoint: { path: '/api', method: 'GET' },
+    }));
+  }
+
+  it('首屏满 50 条显示「加载更多」,点击后 offset 步进 50 追加第二页数据', async () => {
+    listMock
+      .mockResolvedValueOnce({ items: makeItems(0, 50), total: 53, page: 1, pageSize: 50 })
+      .mockResolvedValueOnce({ items: makeItems(50, 3), total: 53, page: 2, pageSize: 50 });
+
+    render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/item-0')).toBeInTheDocument();
+    });
+    expect(screen.getByText('加载更多')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('加载更多'));
+
+    // 第二页数据断言:首条与末页数据同时在列表中
+    await waitFor(() => {
+      expect(screen.getByText('/api/item-52')).toBeInTheDocument();
+    });
+    expect(screen.getByText('/api/item-0')).toBeInTheDocument();
+    expect(apiClient.requestsApi.list).toHaveBeenLastCalledWith('project-1', 'endpoint-1', 50, 50);
+  });
+
+  it('返回数 < 50 判定无更多,「加载更多」按钮消失', async () => {
+    listMock
+      .mockResolvedValueOnce({ items: makeItems(0, 50), total: 53, page: 1, pageSize: 50 })
+      .mockResolvedValueOnce({ items: makeItems(50, 3), total: 53, page: 2, pageSize: 50 });
+
+    render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('加载更多')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('加载更多'));
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/item-52')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('加载更多')).not.toBeInTheDocument();
+  });
+
+  it('首屏不足 50 条时不显示「加载更多」', async () => {
+    listMock.mockResolvedValue({ items: makeItems(0, 10), total: 10, page: 1, pageSize: 50 });
+
+    render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/item-0')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('加载更多')).not.toBeInTheDocument();
+  });
+});
+
+
+describe('RequestRecords 竞态与互斥 (UX-4 返工)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listMock.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 50 });
+  });
+
+  function makeItems(start: number, count: number, prefix = 'req') {
+    return Array.from({ length: count }, (_, i) => ({
+      id: `${prefix}-${start + i}`,
+      endpointId: 'endpoint-1',
+      method: 'GET',
+      path: `/api/${prefix}-${start + i}`,
+      query: null,
+      headers: null,
+      body: null,
+      responseStatus: 200,
+      responseTime: 100,
+      ip: '127.0.0.1',
+      userAgent: 'test',
+      createdAt: Date.now(),
+      endpoint: { path: '/api', method: 'GET' },
+    }));
+  }
+
+  it('endpoint 切换后丢弃旧 endpoint 的迟到响应', async () => {
+    let resolveOld!: (value: unknown) => void;
+    listMock.mockImplementationOnce(
+      () => new Promise((resolve) => { resolveOld = resolve; })
+    );
+
+    const { rerender } = render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
+
+    // 旧请求未返回时切换到 endpoint-2,新数据正常渲染
+    listMock.mockResolvedValueOnce({ items: makeItems(0, 1, 'new'), total: 1, page: 1, pageSize: 50 });
+    rerender(<RequestRecords projectId="project-1" endpointId="endpoint-2" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/new-0')).toBeInTheDocument();
+    });
+
+    // 旧 endpoint 的响应迟到,应被代际保护丢弃
+    await act(async () => {
+      resolveOld({ items: makeItems(0, 1, 'old'), total: 1, page: 1, pageSize: 50 });
+    });
+    expect(screen.queryByText('/api/old-0')).not.toBeInTheDocument();
+    expect(screen.getByText('/api/new-0')).toBeInTheDocument();
+  });
+
+  it('clear 进行中禁用「加载更多」,二者互斥', async () => {
+    listMock.mockResolvedValue({ items: makeItems(0, 50), total: 100, page: 1, pageSize: 50 });
+    const clearMock = apiClient.requestsApi.clear as unknown as ReturnType<typeof vi.fn>;
+    let resolveClear!: () => void;
+    clearMock.mockImplementation(() => new Promise<void>((resolve) => { resolveClear = resolve; }));
+
+    render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('加载更多')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('清空记录'));
+    fireEvent.click(screen.getByText('清空'));
+
+    // clear 未完成时「加载更多」禁用
+    expect(screen.getByText('加载更多').closest('button')).toBeDisabled();
+
+    // clear 完成后列表清空,「加载更多」消失
+    await act(async () => {
+      resolveClear();
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('加载更多')).not.toBeInTheDocument();
+    });
+  });
+
+  it('首屏加载失败(网络错误)时 toast 报通用错误并显示空态', async () => {
+    listMock.mockRejectedValueOnce(new Error('network down'));
+
+    render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
+
+    await waitFor(() => {
+      expect(toastMocks.error).toHaveBeenCalledWith('加载请求记录失败');
+    });
+    await waitFor(() => {
+      expect(screen.getByText('暂无请求记录')).toBeInTheDocument();
+    });
+  });
+
+  it('首屏加载失败(ApiError)时透传服务端错误消息', async () => {
+    listMock.mockRejectedValueOnce(new apiClient.ApiError(500, 'INTERNAL', '服务器开小差'));
+
+    render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
+
+    await waitFor(() => {
+      expect(toastMocks.error).toHaveBeenCalledWith('服务器开小差');
+    });
+  });
+
+  it('恰好 50 条且 total=50 时判定无更多,不多发空页请求', async () => {
+    listMock.mockResolvedValue({ items: makeItems(0, 50), total: 50, page: 1, pageSize: 50 });
+
+    render(<RequestRecords projectId="project-1" endpointId="endpoint-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/req-0')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('加载更多')).not.toBeInTheDocument();
+    expect(listMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { requestsApi, ApiError, RequestRecord } from '@/lib/api-client';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +15,9 @@ interface RequestRecordsProps {
   endpointId: string;
 }
 
+// 每页加载数量;以服务端 total 判定是否还有更多(避免恰好满页时多发一次空页请求)
+const PAGE_SIZE = 50;
+
 // Helper functions defined outside component to avoid type inference issues
 function hasQuery(req: RequestRecord): boolean {
   return Boolean(req.query && Object.keys(req.query).length > 0);
@@ -28,9 +31,13 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
   const { success, error: toastError } = useToast();
   const [requests, setRequests] = useState<RequestRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [expandedRequest, setExpandedRequest] = useState<string | null>(null);
+  // 请求代际号:每次发起加载递增,响应回来时代际不匹配即丢弃(endpoint 切换/刷新竞态)
+  const requestSeq = useRef(0);
 
   useEffect(() => {
     loadRequests();
@@ -39,18 +46,47 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
   }, [projectId, endpointId]);
 
   async function loadRequests() {
+    const seq = ++requestSeq.current;
     try {
       setLoading(true);
-      const data = await requestsApi.list(projectId, endpointId, 50, 0);
-      setRequests(data.items as RequestRecord[]);
+      const data = await requestsApi.list(projectId, endpointId, PAGE_SIZE, 0);
+      if (seq !== requestSeq.current) return;
+      const items = data.items as RequestRecord[];
+      setRequests(items);
+      setHasMore(items.length < data.total);
     } catch (err) {
+      if (seq !== requestSeq.current) return;
       if (err instanceof ApiError) {
         toastError(err.message);
       } else {
         toastError('加载请求记录失败');
       }
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
+    }
+  }
+
+  // 加载更多:以当前列表长度为 offset 步进拉取,已加载数 >= total 判定无更多
+  async function handleLoadMore() {
+    if (loadingMore || clearing) return;
+    const seq = requestSeq.current;
+    const offset = requests.length;
+    try {
+      setLoadingMore(true);
+      const data = await requestsApi.list(projectId, endpointId, PAGE_SIZE, offset);
+      if (seq !== requestSeq.current) return;
+      const items = data.items as RequestRecord[];
+      setRequests((prev) => [...prev, ...items]);
+      setHasMore(offset + items.length < data.total);
+    } catch (err) {
+      if (seq !== requestSeq.current) return;
+      if (err instanceof ApiError) {
+        toastError(err.message);
+      } else {
+        toastError('加载更多失败');
+      }
+    } finally {
+      if (seq === requestSeq.current) setLoadingMore(false);
     }
   }
 
@@ -60,6 +96,7 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
       await requestsApi.clear(projectId, endpointId);
       success('请求记录已清空');
       setRequests([]);
+      setHasMore(false);
       setShowClearDialog(false);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -142,6 +179,7 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
               <p className="text-sm mt-1">调用 Mock 接口后会自动记录</p>
             </div>
           ) : (
+            <>
             <div className="space-y-2">
               {requests.map((req) => {
                 if (!req?.id) return null;
@@ -233,6 +271,20 @@ export function RequestRecords({ projectId, endpointId }: RequestRecordsProps) {
                 );
               })}
             </div>
+            {hasMore && (
+              <div className="mt-3 text-center">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore || clearing}
+                >
+                  {loadingMore ? '加载中' : '加载更多'}
+                </Button>
+              </div>
+            )}
+            </>
           )}
         </CardBody>
       </Card>

@@ -48,10 +48,20 @@ export default function ErrorBoundary({ error, reset }: ErrorBoundaryProps) {
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
           渲染过程发生异常,请尝试重试或返回首页。
         </p>
-        {error?.message && (
-          <p className="text-xs text-gray-500 dark:text-gray-500 mb-6 font-mono break-all">
-            {error.message}
-          </p>
+        {/* 生产环境只显示 digest(避免把内部错误细节泄漏给最终用户);
+            非生产显示完整 message 方便调试 */}
+        {process.env.NODE_ENV === 'production' ? (
+          error?.digest && (
+            <p className="text-xs text-gray-500 dark:text-gray-500 mb-6 font-mono break-all">
+              错误标识: {error.digest}
+            </p>
+          )
+        ) : (
+          error?.message && (
+            <p className="text-xs text-gray-500 dark:text-gray-500 mb-6 font-mono break-all">
+              {error.message}
+            </p>
+          )
         )}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button

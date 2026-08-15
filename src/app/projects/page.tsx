@@ -9,7 +9,8 @@ import { useToast } from '@/components/ui/Toast';
 import { useDebounce } from '@/lib/hooks';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { Search, X, FolderOpen, Edit2, Trash2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pagination } from '@/components/ui/Pagination';
+import { Search, X, FolderOpen, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { DEMO_PROJECT_SLUG } from '@/lib/demo-seed';
 
 export default function ProjectsPage() {
@@ -301,31 +302,13 @@ export default function ProjectsPage() {
         )}
 
         {/* 分页 */}
-        {totalPages > 1 && (
-          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              共 {filteredProjects.length} 个项目，第 {page}/{totalPages} 页
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page <= 1}
-                className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                上一页
-              </button>
-              <button
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page >= totalPages}
-                className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                下一页
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={filteredProjects.length}
+          onPageChange={setPage}
+          itemLabel="项目"
+        />
       </main>
     </div>
   );
