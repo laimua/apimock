@@ -193,12 +193,15 @@ async function request<T>(
   url: string,
   options?: RequestInit
 ): Promise<T> {
+  // FormData(multipart)不能强设 Content-Type:浏览器需自动带 boundary,
+  // 写死 application/json 会让服务端解析不到表单字段(C2 修复,ImportOpenAPI 收编前提)
+  const isFormData = typeof FormData !== 'undefined' && options?.body instanceof FormData;
   const response = await fetch(`${API_BASE}${url}`, {
+    ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...options?.headers,
     },
-    ...options,
   });
 
   // B3:响应体非 JSON(网关 HTML 错误页/空 body)时 response.json() 会抛
@@ -467,4 +470,57 @@ export const aiApi = {
 // ============================================
 export const authApi = {
   logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
+};
+
+// ============================================
+// OpenAPI 导入 API(C2: ImportOpenAPI 收编裸 fetch;multipart 走 request 的 FormData 分支)
+// ============================================
+
+/** import/parse 预览返回的端点形状(与服务端 parse 路由一致) */
+export interface ImportParseEndpoint {
+  path: string;
+  method: string;
+  operationId?: string;
+  summary?: string;
+  description?: string;
+  responses?: Record<string, unknown>;
+}
+
+export interface ImportParseResponse {
+  endpoints: ImportParseEndpoint[];
+  total: number;
+  parseErrors: string[];
+}
+
+/**
+ * import 写库返回的批量结果。HTTP 状态语义:
+ * - 201 全部成功(errors 为空)
+ * - 207 部分成功(created>0 且 errors 非空;request() 对 207 特判放行,data 原样返回)
+ * - 500 全部失败(created===0 且有 errors,request() 抛 ApiError)
+ */
+export interface ImportResultPayload {
+  total: number;
+  created: number;
+  skipped: number;
+  errors: { error: string }[];
+  parseErrors: string[];
+}
+
+function buildFileFormData(file: File): FormData {
+  const formData = new FormData();
+  formData.append('file', file);
+  return formData;
+}
+
+export const importApi = {
+  parse: (projectId: string, file: File) =>
+    request<ImportParseResponse>(`/projects/${projectId}/import/parse`, {
+      method: 'POST',
+      body: buildFileFormData(file),
+    }),
+  import: (projectId: string, file: File) =>
+    request<ImportResultPayload>(`/projects/${projectId}/import`, {
+      method: 'POST',
+      body: buildFileFormData(file),
+    }),
 };

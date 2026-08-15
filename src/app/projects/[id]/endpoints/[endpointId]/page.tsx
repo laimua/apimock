@@ -1,35 +1,32 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { splitTags as normalizeTags, parseTags, resolveBodyOnContentTypeChange } from '@/lib/utils';
+import { splitTags as normalizeTags } from '@/lib/utils';
 import { setDirty, clearDirty } from '@/lib/unsaved-changes';
 import { useRouter, useParams } from 'next/navigation';
 import { endpointsApi, projectsApi, ApiError, Endpoint, Project } from '@/lib/api-client';
 import { applyErrorScenario, type ErrorScenario } from '@/lib/error-scenarios';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { copyToClipboard, formatDate } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { JsonEditor } from '@/components/JsonEditor';
-import { AiGenerateDialog } from '@/components/AiGenerateDialog';
 import { ResponseRuleEditor } from '@/components/ResponseRuleEditor';
 import { RequestRecords } from '@/components/RequestRecords';
 import { ErrorScenariosSelector } from '@/components/ErrorScenariosSelector';
-import { TemplateLibraryDialog } from '@/components/TemplateLibraryDialog';
+import { EndpointForm, type EndpointFormErrors } from '@/components/EndpointForm';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { METHODS, STATUS_CODES, COMMON_STATUS_CODES } from '@/lib/constants';
-// C1a: 表单共享常量/纯函数抽到 endpoint-form-utils(与新建页共用一份)
+// C1b/C1c: endpointToForm 下沉 endpoint-form-utils;表单卡片由 EndpointForm 承载(与新建页共享)
 import {
-  CONTENT_TYPES,
-  DEFAULT_RESPONSES,
+  EMPTY_ENDPOINT_FORM,
   validatePath,
   buildMockUrl,
+  endpointToForm,
+  type EndpointFormState,
 } from '@/lib/endpoint-form-utils';
 
-// 快速错误场景（简化版）
+// 快速错误场景（简化版,编辑页专属 —— C1c 合并后作为 EndpointForm 的 edit-only slot 传入）
 const QUICK_ERROR_SCENARIOS = [
   {
     id: 'quick-500',
@@ -118,51 +115,6 @@ const QUICK_ERROR_SCENARIOS = [
   },
 ];
 
-// 初始表单状态类型
-type InitialFormState = {
-  path: string;
-  method: Endpoint['method'];
-  name: string;
-  description: string;
-  delayMs: number;
-  statusCode: number;
-  contentType: string;
-  responseBody: string;
-  tags: string[];
-  isShareable: boolean;
-};
-
-// tags 可能是字符串（DB JSON）、数组、或 undefined,统一转为 string[]。
-// 复用 src/lib/utils.ts 的 parseTags(同时被公开分享页使用),保持防御性解析一致。
-// 本地包装保持 unknown 兼容(Endpoint.tags 来自 fetch 已是 unknown)。
-function safeTagsToForm(tags: unknown): string[] {
-  if (Array.isArray(tags)) return tags.filter((t): t is string => typeof t === 'string');
-  if (typeof tags === 'string') return parseTags(tags);
-  return [];
-}
-
-// 把服务端 Endpoint 归一化为表单状态。初始加载与保存成功后回写共用同一份逻辑，
-// 保证 form / initialForm / endpoint 三者源一致，isDirty 比较不会错位。
-function endpointToForm(data: Endpoint): InitialFormState {
-  const responseBodyStr =
-    typeof data.responseBody === 'string'
-      ? data.responseBody
-      : JSON.stringify(data.responseBody || {}, null, 2);
-
-  return {
-    path: data.path,
-    method: data.method,
-    name: data.name || '',
-    description: data.description || '',
-    delayMs: data.delayMs || 0,
-    statusCode: data.statusCode || 200,
-    contentType: data.contentType || 'application/json',
-    responseBody: responseBodyStr || DEFAULT_RESPONSES['application/json'],
-    tags: safeTagsToForm(data.tags),
-    isShareable: data.isShareable !== false,
-  };
-}
-
 export default function EditEndpointPage() {
   const router = useRouter();
   const params = useParams();
@@ -184,33 +136,9 @@ export default function EditEndpointPage() {
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   // 本组件实例在全局未保存修改注册表里的唯一 id,供 GlobalHeader 导航前询问
   const dirtyIdRef = useRef(`endpoint-edit-${projectId}-${endpointId}-${Math.random().toString(36).slice(2)}`);
-  const [showAiDialog, setShowAiDialog] = useState(false);
-  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
-  const [initialForm, setInitialForm] = useState<InitialFormState>({
-    path: '',
-    method: 'GET' as Endpoint['method'],
-    name: '',
-    description: '',
-    delayMs: 0,
-    statusCode: 200,
-    contentType: 'application/json',
-    responseBody: DEFAULT_RESPONSES['application/json'],
-    tags: [],
-    isShareable: true,
-  });
-  const [form, setForm] = useState<InitialFormState>({
-    path: '',
-    method: 'GET' as Endpoint['method'],
-    name: '',
-    description: '',
-    delayMs: 0,
-    statusCode: 200,
-    contentType: 'application/json',
-    responseBody: DEFAULT_RESPONSES['application/json'],
-    tags: [],
-    isShareable: true,
-  });
+  const [errors, setErrors] = useState<EndpointFormErrors>({});
+  const [initialForm, setInitialForm] = useState<EndpointFormState>({ ...EMPTY_ENDPOINT_FORM });
+  const [form, setForm] = useState<EndpointFormState>({ ...EMPTY_ENDPOINT_FORM });
 
   // 标签输入框的临时字符串 state:输入期保留用户原始输入(含尾逗号/空格),
   // blur 时才归一化为 form.tags 数组,否则受控 value=tags.join(',') 会吞掉逗号。
@@ -225,7 +153,7 @@ export default function EditEndpointPage() {
   const isDirty = !deepEqual(form, initialForm);
 
   // 深度比较两个对象是否相等
-  function deepEqual(obj1: InitialFormState, obj2: InitialFormState): boolean {
+  function deepEqual(obj1: EndpointFormState, obj2: EndpointFormState): boolean {
     return (
       obj1.path === obj2.path &&
       obj1.method === obj2.method &&
@@ -328,21 +256,6 @@ export default function EditEndpointPage() {
     }
   }
 
-  // 处理内容类型变更
-  function handleContentTypeChange(contentType: string) {
-    setForm((prev) => ({
-      ...prev,
-      contentType,
-      // P1-17:仅当当前 body 为空或等于当前类型默认模板时才替换,否则保留用户已写内容
-      responseBody: resolveBodyOnContentTypeChange(
-        prev.responseBody,
-        prev.contentType,
-        contentType,
-        DEFAULT_RESPONSES,
-      ),
-    }));
-  }
-
   // 验证 JSON
   function validateJson(json: string): boolean {
     if (form.contentType !== 'application/json') return true;
@@ -436,17 +349,6 @@ export default function EditEndpointPage() {
       setDeleting(false);
     }
   }
-
-  const handleAiGenerated = (data: unknown) => {
-    // FE23:防 undefined(AI 可能返空),JSON.stringify(undefined) 返 undefined 非字符串致 JsonEditor 崩
-    const jsonString = JSON.stringify(data ?? {}, null, 2);
-    setForm((prev) => ({ ...prev, responseBody: jsonString }));
-  };
-
-  const handleTemplateApplied = (content: string) => {
-    setForm((prev) => ({ ...prev, responseBody: content }));
-    success('模板已应用');
-  };
 
   // 处理错误场景应用
   const handleApplyErrorScenario = (scenario: ErrorScenario) => {
@@ -546,22 +448,113 @@ export default function EditEndpointPage() {
     );
   }
 
+  // edit-only slot: 快速错误场景(E2E 锚点 data-testid="quick-scenario-*" 逐字保留)
+  const quickScenariosSlot = (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        快速错误场景
+      </label>
+      <div className="grid grid-cols-5 gap-2">
+        {QUICK_ERROR_SCENARIOS.map((scenario) => (
+          <button
+            key={scenario.id}
+            type="button"
+            data-testid={`quick-scenario-${scenario.id}`}
+            onClick={() => handleQuickErrorScenario(scenario)}
+            disabled={saving}
+            className={`relative px-3 py-3 rounded-lg border-2 transition-all disabled:opacity-50 group ${
+              form.statusCode === scenario.statusCode &&
+              form.delayMs === scenario.delayMs
+                ? 'border-red-500 bg-red-50 dark:bg-red-900/30 shadow-sm'
+                : 'border-gray-200 dark:border-gray-600 hover:border-red-300 dark:hover:border-red-700 bg-white dark:bg-gray-800 hover:bg-red-50/50 dark:hover:bg-red-900/20'
+            }`}
+            title={scenario.description}
+          >
+            <div className="flex flex-col items-center gap-1.5">
+              {/* 图标 */}
+              <div className={`p-1.5 rounded-lg ${
+                form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
+                  ? 'bg-red-100 dark:bg-red-900/50'
+                  : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-red-100 dark:group-hover:bg-red-900/50'
+              }`}>
+                {scenario.icon === 'server' && (
+                  <svg className={`w-4 h-4 ${
+                    form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-gray-500 dark:text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400'
+                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                  </svg>
+                )}
+                {scenario.icon === 'search-off' && (
+                  <svg className={`w-4 h-4 ${
+                    form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-gray-500 dark:text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400'
+                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                )}
+                {scenario.icon === 'lock' && (
+                  <svg className={`w-4 h-4 ${
+                    form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-gray-500 dark:text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400'
+                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                )}
+                {scenario.icon === 'shield-off' && (
+                  <svg className={`w-4 h-4 ${
+                    form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-gray-500 dark:text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400'
+                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                )}
+                {scenario.icon === 'clock' && (
+                  <svg className={`w-4 h-4 ${
+                    form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
+                      ? 'text-orange-600 dark:text-orange-400'
+                      : 'text-gray-500 dark:text-gray-400 group-hover:text-orange-600 dark:group-hover:text-orange-400'
+                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+              </div>
+              {/* 名称 */}
+              <span className={`text-xs font-semibold text-center leading-tight ${
+                form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
+                  ? 'text-red-700 dark:text-red-400'
+                  : 'text-gray-700 dark:text-gray-300'
+              }`}>
+                {scenario.name}
+              </span>
+            </div>
+            {scenario.delayMs > 0 && (
+              <div className="absolute -top-1 -right-1">
+                <span className="flex h-4 w-4">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-orange-500 items-center justify-center">
+                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                    </svg>
+                  </span>
+                </span>
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        点击快速配置常见错误场景，自动填充状态码、响应体和延迟
+      </p>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* AI 生成对话框 */}
-      <AiGenerateDialog
-        isOpen={showAiDialog}
-        onClose={() => setShowAiDialog(false)}
-        onGenerated={handleAiGenerated}
-      />
-
-      {/* 模板库对话框 */}
-      <TemplateLibraryDialog
-        isOpen={showTemplateDialog}
-        onClose={() => setShowTemplateDialog(false)}
-        onApply={handleTemplateApplied}
-      />
-
       {/* 确认删除对话框 */}
       <ConfirmDialog
         isOpen={showDeleteDialog}
@@ -619,161 +612,20 @@ export default function EditEndpointPage() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* 左侧：表单 */}
           <div className="lg:col-span-2 space-y-6">
-            {/* 基本信息 */}
-            <Card>
-              <form onSubmit={handleSubmit}>
-                <CardHeader>
-                  <h2 className="font-semibold text-gray-900 dark:text-white">基本信息</h2>
-                </CardHeader>
-                <CardBody className="space-y-6">
-                  {errors.path && (
-                    <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-4 rounded-lg flex items-start gap-2">
-                      <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                          fillRule="evenodd"
-                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      {errors.path}
-                    </div>
-                  )}
-
-                  {/* 请求方法 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      请求方法
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {METHODS.map((method) => (
-                        <button
-                          key={method}
-                          type="button"
-                          onClick={() => setForm((prev) => ({ ...prev, method }))}
-                          disabled={saving}
-                          className={`p-2 rounded-lg border-2 transition-colors disabled:opacity-50 ${
-                            form.method === method
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                              : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
-                          }`}
-                        >
-                          <Badge method={method} />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 路径 */}
-                  <div>
-                    <label htmlFor="endpoint-path" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      路径 <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="endpoint-path"
-                      type="text"
-                      value={form.path}
-                      onChange={(e) => {
-                        setForm((prev) => ({ ...prev, path: e.target.value }));
-                        setErrors((prev) => ({ ...prev, path: undefined }));
-                      }}
-                      className={`w-full px-4 py-2 border rounded-lg font-mono text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 transition-colors ${
-                        errors.path
-                          ? 'border-red-300 dark:border-red-700 focus:ring-2 focus:ring-red-500 focus:border-red-500'
-                          : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                      }`}
-                      disabled={saving}
-                    />
-                  </div>
-
-                  {/* 名称 */}
-                  <div>
-                    <label htmlFor="endpoint-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      名称
-                    </label>
-                    <input
-                      id="endpoint-name"
-                      type="text"
-                      value={form.name}
-                      onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                      disabled={saving}
-                    />
-                  </div>
-
-                  {/* 描述 */}
-                  <div>
-                    <label htmlFor="endpoint-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      描述
-                    </label>
-                    <textarea
-                      id="endpoint-description"
-                      value={form.description}
-                      onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none"
-                      rows={3}
-                      disabled={saving}
-                    />
-                  </div>
-
-                  {/* 标签 */}
-                  <div>
-                    <label htmlFor="endpoint-tags" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      标签
-                    </label>
-                    <input
-                      id="endpoint-tags"
-                      type="text"
-                      value={tagsInput}
-                      onChange={(e) => setTagsInput(e.target.value)}
-                      onBlur={() => {
-                        // 失焦时把输入串归一化(trim/去空/去重)落回 form.tags
-                        const tags = normalizeTags(tagsInput);
-                        setForm((prev) => ({ ...prev, tags }));
-                        setTagsInput(tags.join(', '));
-                      }}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                      placeholder="用逗号分隔，如: 用户, 列表, 分页"
-                      disabled={saving}
-                    />
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      用于项目详情页的标签筛选
-                    </p>
-                  </div>
-
-                  {/* 分享可见性 */}
-                  <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                      <input
-                        type="checkbox"
-                        checked={form.isShareable}
-                        onChange={(e) => setForm((prev) => ({ ...prev, isShareable: e.target.checked }))}
-                        disabled={saving}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      在分享页显示此端点
-                    </label>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      关闭后，访问分享页的协作者看不到此端点
-                    </p>
-                  </div>
-
-                  {/* 模拟延迟 */}
-                  <div>
-                    <label htmlFor="endpoint-delay" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      模拟延迟 (ms)
-                    </label>
-                    <input
-                      id="endpoint-delay"
-                      type="number"
-                      value={form.delayMs}
-                      onChange={(e) => setForm((prev) => ({ ...prev, delayMs: Math.max(0, parseInt(e.target.value) || 0) }))}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                      min={0}
-                      disabled={saving}
-                    />
-                  </div>
-                </CardBody>
-
+            {/* C1c: 基本信息 + 响应配置两张卡片由 EndpointForm 承载(与新建页共享);
+                快速错误场景与底部按钮以 slot 传入,行为与布局保持原样 */}
+            <EndpointForm
+              mode="edit"
+              form={form}
+              setForm={setForm}
+              tagsInput={tagsInput}
+              setTagsInput={setTagsInput}
+              errors={errors}
+              setErrors={setErrors}
+              disabled={saving}
+              onSubmit={handleSubmit}
+              quickScenariosSlot={quickScenariosSlot}
+              footerSlot={
                 <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800 rounded-b-xl flex justify-end gap-3">
                   <Button
                     type="button"
@@ -787,290 +639,8 @@ export default function EditEndpointPage() {
                     {saving ? '保存中...' : '保存'}
                   </Button>
                 </div>
-              </form>
-            </Card>
-
-            {/* 响应配置 */}
-            <Card>
-              <CardHeader>
-                <h2 className="font-semibold text-gray-900 dark:text-white">响应配置</h2>
-              </CardHeader>
-              <CardBody className="space-y-6">
-                {/* 快速错误场景 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    快速错误场景
-                  </label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {QUICK_ERROR_SCENARIOS.map((scenario) => (
-                      <button
-                        key={scenario.id}
-                        type="button"
-                        data-testid={`quick-scenario-${scenario.id}`}
-                        onClick={() => handleQuickErrorScenario(scenario)}
-                        disabled={saving}
-                        className={`relative px-3 py-3 rounded-lg border-2 transition-all disabled:opacity-50 group ${
-                          form.statusCode === scenario.statusCode &&
-                          form.delayMs === scenario.delayMs
-                            ? 'border-red-500 bg-red-50 dark:bg-red-900/30 shadow-sm'
-                            : 'border-gray-200 dark:border-gray-600 hover:border-red-300 dark:hover:border-red-700 bg-white dark:bg-gray-800 hover:bg-red-50/50 dark:hover:bg-red-900/20'
-                        }`}
-                        title={scenario.description}
-                      >
-                        <div className="flex flex-col items-center gap-1.5">
-                          {/* 图标 */}
-                          <div className={`p-1.5 rounded-lg ${
-                            form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
-                              ? 'bg-red-100 dark:bg-red-900/50'
-                              : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-red-100 dark:group-hover:bg-red-900/50'
-                          }`}>
-                            {scenario.icon === 'server' && (
-                              <svg className={`w-4 h-4 ${
-                                form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
-                                  ? 'text-red-600 dark:text-red-400'
-                                  : 'text-gray-500 dark:text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400'
-                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-                              </svg>
-                            )}
-                            {scenario.icon === 'search-off' && (
-                              <svg className={`w-4 h-4 ${
-                                form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
-                                  ? 'text-red-600 dark:text-red-400'
-                                  : 'text-gray-500 dark:text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400'
-                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                              </svg>
-                            )}
-                            {scenario.icon === 'lock' && (
-                              <svg className={`w-4 h-4 ${
-                                form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
-                                  ? 'text-red-600 dark:text-red-400'
-                                  : 'text-gray-500 dark:text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400'
-                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                              </svg>
-                            )}
-                            {scenario.icon === 'shield-off' && (
-                              <svg className={`w-4 h-4 ${
-                                form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
-                                  ? 'text-red-600 dark:text-red-400'
-                                  : 'text-gray-500 dark:text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400'
-                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                              </svg>
-                            )}
-                            {scenario.icon === 'clock' && (
-                              <svg className={`w-4 h-4 ${
-                                form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
-                                  ? 'text-orange-600 dark:text-orange-400'
-                                  : 'text-gray-500 dark:text-gray-400 group-hover:text-orange-600 dark:group-hover:text-orange-400'
-                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                            )}
-                          </div>
-                          {/* 名称 */}
-                          <span className={`text-xs font-semibold text-center leading-tight ${
-                            form.statusCode === scenario.statusCode && form.delayMs === scenario.delayMs
-                              ? 'text-red-700 dark:text-red-400'
-                              : 'text-gray-700 dark:text-gray-300'
-                          }`}>
-                            {scenario.name}
-                          </span>
-                        </div>
-                        {scenario.delayMs > 0 && (
-                          <div className="absolute -top-1 -right-1">
-                            <span className="flex h-4 w-4">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-4 w-4 bg-orange-500 items-center justify-center">
-                                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                                </svg>
-                              </span>
-                            </span>
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    点击快速配置常见错误场景，自动填充状态码、响应体和延迟
-                  </p>
-                </div>
-
-                {/* 状态码 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    响应状态码
-                  </label>
-                  <div className="space-y-3">
-                    {/* 常用状态码快速选择 */}
-                    <div className="grid grid-cols-4 gap-2">
-                      {COMMON_STATUS_CODES.map((code) => (
-                        <button
-                          key={code.value}
-                          type="button"
-                          onClick={() => setForm((prev) => ({ ...prev, statusCode: code.value }))}
-                          disabled={saving}
-                          className={`relative px-3 py-2 rounded-lg border-2 transition-all disabled:opacity-50 group ${
-                            form.statusCode === code.value
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-sm'
-                              : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750'
-                          }`}
-                          title={code.description}
-                        >
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className={`text-sm font-semibold ${
-                              form.statusCode === code.value
-                                ? 'text-blue-700 dark:text-blue-400'
-                                : 'text-gray-700 dark:text-gray-300'
-                            }`}>
-                              {code.label}
-                            </span>
-                            <span className={`text-[10px] leading-tight ${
-                              form.statusCode === code.value
-                                ? 'text-blue-600 dark:text-blue-500'
-                                : 'text-gray-500 dark:text-gray-400'
-                            }`}>
-                              {code.description}
-                            </span>
-                          </div>
-                          {form.statusCode === code.value && (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-4 w-4 bg-blue-500 items-center justify-center">
-                                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                              </span>
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* 下拉框（选择其他状态码） */}
-                    <div>
-                      <label htmlFor="endpoint-status-code" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        或选择其他状态码
-                      </label>
-                      <select
-                        id="endpoint-status-code"
-                        data-testid="status-code-select"
-                        value={form.statusCode}
-                        onChange={(e) => setForm((prev) => ({ ...prev, statusCode: parseInt(e.target.value) || 200 }))}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                        disabled={saving}
-                      >
-                        {STATUS_CODES.map((code) => (
-                          <option key={code.value} value={code.value}>
-                            {code.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Content-Type */}
-                <div>
-                  <label htmlFor="endpoint-content-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Content-Type
-                  </label>
-                  <select
-                    id="endpoint-content-type"
-                    value={form.contentType}
-                    onChange={(e) => handleContentTypeChange(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                    disabled={saving}
-                  >
-                    {CONTENT_TYPES.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 响应数据 */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label htmlFor="endpoint-response-body" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      响应数据
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        data-testid="open-template-library"
-                        onClick={() => setShowTemplateDialog(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors"
-                        disabled={saving}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                        模板库
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowAiDialog(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-lg transition-colors"
-                        disabled={saving}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                        </svg>
-                        AI 生成
-                      </button>
-                    </div>
-                  </div>
-                  <div className="relative">
-                    {form.contentType === 'application/json' ? (
-                      <JsonEditor
-                        value={form.responseBody}
-                        onChange={(value) => {
-                          setForm((prev) => ({ ...prev, responseBody: value }));
-                          setErrors((prev) => ({ ...prev, responseBody: undefined }));
-                        }}
-                        readOnly={saving}
-                        height="300px"
-                      />
-                    ) : (
-                      <textarea
-                        id="endpoint-response-body"
-                        value={form.responseBody}
-                        onChange={(e) => {
-                          setForm((prev) => ({ ...prev, responseBody: e.target.value }));
-                          setErrors((prev) => ({ ...prev, responseBody: undefined }));
-                        }}
-                        className="w-full px-4 py-2 font-mono text-sm border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none border-gray-300 dark:border-gray-600"
-                        rows={12}
-                        disabled={saving}
-                        placeholder={form.contentType === 'application/json' ? '{"success": true}' : 'Response body'}
-                      />
-                    )}
-                    {errors.responseBody && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            fillRule="evenodd"
-                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        {errors.responseBody}
-                      </p>
-                    )}
-                  </div>
-                  {form.contentType === 'application/json' && (
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      输入有效的 JSON 格式数据，编辑器会自动检测语法错误
-                    </p>
-                  )}
-                </div>
-              </CardBody>
-            </Card>
+              }
+            />
 
             {/* 响应规则 */}
             <ResponseRuleEditor projectId={projectId} endpointId={endpointId} />
