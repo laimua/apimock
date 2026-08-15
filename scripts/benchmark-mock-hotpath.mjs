@@ -30,6 +30,16 @@ import dotenv from 'dotenv';
 import * as selectorModule from '../src/lib/mock-response-selector.ts';
 const selectResponse = selectorModule.selectResponse ?? selectorModule.default?.selectResponse;
 
+// 启动即断言 selectResponse 成功解析:interop 失败(如 tsx/打包方式变化导致
+// 命名导出丢失)会把 undefined 静默带进计时循环,产出全废的数据而不是报错。
+if (typeof selectResponse !== 'function') {
+  console.error(
+    '[bench] selectResponse 解析失败(mock-response-selector 导出形态变化?),benchmark 无法运行,退出。' +
+      ` 实际拿到: ${typeof selectResponse}`
+  );
+  process.exit(1);
+}
+
 dotenv.config();
 
 // ============================================

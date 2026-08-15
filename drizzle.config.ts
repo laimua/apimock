@@ -12,7 +12,7 @@ const dbType = (process.env.DB_TYPE || 'sqlite').toLowerCase();
 // drizzle-kit 时,会被 libsql 按 URL scheme 解析而报 URL_SCHEME_NOT_SUPPORTED。
 // 仅当是绝对路径且非 file: 协议时归一为 file:// URL;相对路径(./data/x.db)
 // 与 :memory: 原样透传,由 drizzle-kit 自行解析。
-function toSqliteUrl(p: string): string {
+export function toSqliteUrl(p: string): string {
   if (!isAbsolute(p) || p.startsWith('file:')) return p;
   return pathToFileURL(p).href;
 }
