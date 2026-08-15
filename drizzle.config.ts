@@ -1,10 +1,21 @@
 import { defineConfig } from 'drizzle-kit';
 import dotenv from 'dotenv';
+import { isAbsolute } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // 加载 .env 文件
 dotenv.config();
 
 const dbType = (process.env.DB_TYPE || 'sqlite').toLowerCase();
+
+// Windows 绝对路径(如 D:\work\apimock\data\x.db)直接作为 sqlite url 传给
+// drizzle-kit 时,会被 libsql 按 URL scheme 解析而报 URL_SCHEME_NOT_SUPPORTED。
+// 仅当是绝对路径且非 file: 协议时归一为 file:// URL;相对路径(./data/x.db)
+// 与 :memory: 原样透传,由 drizzle-kit 自行解析。
+function toSqliteUrl(p: string): string {
+  if (!isAbsolute(p) || p.startsWith('file:')) return p;
+  return pathToFileURL(p).href;
+}
 
 export default defineConfig({
   // drizzle-kit 按方言过滤 schema 导出:dialect=mysql 时必须喂 schema-mysql。
@@ -23,6 +34,6 @@ export default defineConfig({
         database: process.env.MYSQL_DATABASE || 'apimock',
       }
     : {
-        url: process.env.SQLITE_PATH || './data/apimock.db',
+        url: toSqliteUrl(process.env.SQLITE_PATH || './data/apimock.db'),
       },
 });
