@@ -2,15 +2,12 @@
 
 import { useState, useCallback } from 'react';
 import { Badge } from '@/components/ui/Badge';
-
-interface OpenAPIEndpoint {
-  path: string;
-  method: string;
-  operationId?: string;
-  summary?: string;
-  description?: string;
-  responses?: Record<string, unknown>;
-}
+import {
+  importApi,
+  ApiError,
+  type ImportParseEndpoint,
+  type ImportResultPayload,
+} from '@/lib/api-client';
 
 interface ImportOpenAPIProps {
   projectId: string;
@@ -29,8 +26,10 @@ export function ImportOpenAPI({
   const [isDragging, setIsDragging] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [endpoints, setEndpoints] = useState<OpenAPIEndpoint[]>([]);
+  const [endpoints, setEndpoints] = useState<ImportParseEndpoint[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // 207 部分成功时不关窗,进部分完成面板展示逐项失败
+  const [partialResult, setPartialResult] = useState<ImportResultPayload | null>(null);
 
   const isValidFileType = (file: File) => {
     const validTypes = [
@@ -91,26 +90,12 @@ export function ImportOpenAPI({
     setError(null);
 
     try {
-      // TODO(C2): multipart 请求,api-client request() 会强设 Content-Type:
-      // application/json 破坏 FormData 边界——待 request() 支持透传 content-type
-      // 后再收编(方案裁定本批不动)
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const res = await fetch(`/api/projects/${projectId}/import/parse`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error?.message ?? '解析失败，请检查文件格式');
-      }
-
-      const { data } = await res.json();
+      // C2: multipart 走 api-client(request 的 FormData 分支不强设 Content-Type,
+      // 浏览器自动带 boundary);401 跳登录/非 JSON 兜底/错误形状解析随之统一
+      const data = await importApi.parse(projectId, file);
       setEndpoints(data.endpoints || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '解析失败，请重试');
+      setError(err instanceof ApiError ? err.message : '解析失败，请重试');
     } finally {
       setIsParsing(false);
     }
@@ -123,25 +108,21 @@ export function ImportOpenAPI({
     setError(null);
 
     try {
-      // TODO(C2): 同 parse —— multipart 不走 request(),待其支持 FormData
-      const formData = new FormData();
-      formData.append('file', file);
+      const result = await importApi.import(projectId, file);
 
-      const res = await fetch(`/api/projects/${projectId}/import`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error?.message ?? '导入失败，请重试');
+      if (result.errors.length > 0) {
+        // 207 部分成功:不关窗,进部分完成面板(摘要 + 逐项错误 + parseErrors 折叠);
+        // 已创建的端点已落库,先触发 onSuccess 刷新背后的列表
+        onSuccess();
+        setPartialResult(result);
+      } else {
+        // 201 全部成功:保持原行为,刷新并关窗
+        onSuccess();
+        handleClose();
       }
-
-      await res.json();
-      onSuccess();
-      handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '导入失败，请重试');
+      // 4xx/5xx(含 500 全部失败):红条展示,不关窗
+      setError(err instanceof ApiError ? err.message : '导入失败，请重试');
     } finally {
       setIsImporting(false);
     }
@@ -152,6 +133,7 @@ export function ImportOpenAPI({
     setEndpoints([]);
     setError(null);
     setIsDragging(false);
+    setPartialResult(null);
     onClose();
   };
 
@@ -208,8 +190,61 @@ export function ImportOpenAPI({
             上传 OpenAPI (Swagger) 文档，自动创建 Mock 端点
           </p>
 
-          {/* Upload Area */}
-          {endpoints.length === 0 ? (
+          {/* 207 部分成功面板:摘要 + 逐项错误 + parseErrors 折叠 + 完成按钮 */}
+          {partialResult ? (
+            <div data-testid="import-partial-panel" className="mb-6">
+              <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">
+                  部分端点导入成功
+                </p>
+                <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                  共 {partialResult.total} 个端点：成功 {partialResult.created} 个，
+                  跳过 {partialResult.skipped} 个，失败 {partialResult.errors.length} 个
+                </p>
+              </div>
+
+              {/* 逐项错误 */}
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  失败明细
+                </h4>
+                <ul className="border border-red-200 dark:border-red-800 rounded-lg divide-y divide-red-100 dark:divide-red-900/40 max-h-40 overflow-y-auto">
+                  {partialResult.errors.map((item, index) => (
+                    <li
+                      key={index}
+                      className="px-3 py-2 text-sm text-red-600 dark:text-red-400 break-all"
+                    >
+                      {item.error}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* 解析警告(折叠) */}
+              {partialResult.parseErrors.length > 0 && (
+                <details className="mb-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                  <summary className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                    解析警告（{partialResult.parseErrors.length} 条）
+                  </summary>
+                  <ul className="px-3 pb-3 pt-1 space-y-1">
+                    {partialResult.parseErrors.map((msg, index) => (
+                      <li key={index} className="text-xs text-gray-500 dark:text-gray-400 break-all">
+                        {msg}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+
+              <button
+                type="button"
+                onClick={handleClose}
+                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                完成
+              </button>
+            </div>
+          ) : endpoints.length === 0 ? (
             <div
               className={`mb-6 border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
                 isDragging
@@ -349,14 +384,15 @@ export function ImportOpenAPI({
             </>
           )}
 
-          {/* Error Message */}
-          {error && (
+          {/* Error Message(部分完成面板态不展示,面板内有失败明细) */}
+          {!partialResult && error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           )}
 
-          {/* Buttons */}
+          {/* Buttons(部分完成面板态由面板内"完成"按钮收尾) */}
+          {!partialResult && (
           <div className="flex gap-3">
             <button
               type="button"
@@ -468,6 +504,7 @@ export function ImportOpenAPI({
               </button>
             )}
           </div>
+          )}
         </div>
       </div>
     </div>
