@@ -8,6 +8,7 @@ import {
   type ImportParseEndpoint,
   type ImportResultPayload,
 } from '@/lib/api-client';
+import { useDialogA11y } from '@/lib/use-dialog-a11y';
 
 interface ImportOpenAPIProps {
   projectId: string;
@@ -137,6 +138,9 @@ export function ImportOpenAPI({
     onClose();
   };
 
+  // 统一弹窗无障碍:Escape 关闭 + 初始聚焦 + Tab 循环(document 级,替代原 onKeyDown)
+  const dialogRef = useDialogA11y<HTMLDivElement>(isOpen, handleClose);
+
   if (!isOpen) return null;
 
   const getDefaultStatusCode = (responses: Record<string, unknown> | undefined) => {
@@ -150,12 +154,10 @@ export function ImportOpenAPI({
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center"
       role="dialog"
       aria-modal="true"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') handleClose();
-      }}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" onClick={handleClose} />

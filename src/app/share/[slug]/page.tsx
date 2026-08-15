@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { useToast } from '@/components/ui/Toast';
 import { parseTags, buildFullUrl } from '@/lib/utils';
 
 interface ShareEndpoint {
@@ -183,6 +184,65 @@ interface TestResponse {
 }
 
 // ============================================
+// 内联「添加一行」表单(替代原生 prompt())
+// key 为空或与现有键重复时行内报错
+// ============================================
+function AddKeyForm({
+  placeholder,
+  existingKeys,
+  onAdd,
+}: {
+  placeholder: string;
+  existingKeys: string[];
+  onAdd: (key: string) => void;
+}) {
+  const [key, setKey] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = key.trim();
+    if (!trimmed) {
+      setError('名称不能为空');
+      return;
+    }
+    if (existingKeys.includes(trimmed)) {
+      setError('名称已存在');
+      return;
+    }
+    onAdd(trimmed);
+    setKey('');
+    setError(null);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mb-2">
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={key}
+          onChange={(e) => {
+            setKey(e.target.value);
+            if (error) setError(null);
+          }}
+          placeholder={placeholder}
+          className="flex-1 px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded"
+        />
+        <button
+          type="submit"
+          className="flex-shrink-0 px-2 py-1 text-xs text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+        >
+          添加一行
+        </button>
+      </div>
+      {error && (
+        <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>
+      )}
+    </form>
+  );
+}
+
+// ============================================
 // 端点测试面板组件
 // ============================================
 function EndpointTestPanel({
@@ -257,20 +317,6 @@ function EndpointTestPanel({
     }
   }
 
-  function addQueryParam() {
-    const key = prompt('输入参数名:');
-    if (key) {
-      setQueryParams({ ...queryParams, [key]: '' });
-    }
-  }
-
-  function addHeader() {
-    const key = prompt('输入请求头名称:');
-    if (key) {
-      setHeaders({ ...headers, [key]: '' });
-    }
-  }
-
   return (
     <div className="border-t border-gray-200 dark:border-gray-700">
       <button
@@ -326,18 +372,14 @@ function EndpointTestPanel({
 
             {/* Query Params */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  查询参数
-                </label>
-                <button
-                  type="button"
-                  onClick={addQueryParam}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  + 添加参数
-                </button>
-              </div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                查询参数
+              </label>
+              <AddKeyForm
+                placeholder="参数名"
+                existingKeys={Object.keys(queryParams)}
+                onAdd={(key) => setQueryParams({ ...queryParams, [key]: '' })}
+              />
               {Object.keys(queryParams).length === 0 ? (
                 <p className="text-xs text-gray-400 dark:text-gray-500">无查询参数</p>
               ) : (
@@ -378,18 +420,14 @@ function EndpointTestPanel({
 
             {/* Headers */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  请求头
-                </label>
-                <button
-                  type="button"
-                  onClick={addHeader}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  + 添加请求头
-                </button>
-              </div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                请求头
+              </label>
+              <AddKeyForm
+                placeholder="请求头名称"
+                existingKeys={Object.keys(headers)}
+                onAdd={(key) => setHeaders({ ...headers, [key]: '' })}
+              />
               {Object.keys(headers).length === 0 ? (
                 <p className="text-xs text-gray-400 dark:text-gray-500">无自定义请求头</p>
               ) : (
@@ -537,31 +575,19 @@ function EndpointTestPanel({
 export default function SharePage() {
   const params = useParams();
   const slug = params.slug as string;
+  const { success: toastSuccess, error: toastError } = useToast();
 
   const [data, setData] = useState<ShareData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; visible: boolean; type: 'success' | 'error' } | null>(null);
   const [expandedDetailId, setExpandedDetailId] = useState<string | null>(null);
   const [expandedTestId, setExpandedTestId] = useState<string | null>(null);
-  // P2-49:toast 自动消失计时器,新 toast 触发时先清旧 timer,避免提前清掉新 toast
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadShareData();
     // 仅按 slug 变化重载；loadShareData 闭包读取最新 prop，无需加入依赖
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
-
-  // P2-49:组件卸载时清掉挂着的 toast timer,防止 setState on unmounted
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current !== null) {
-        clearTimeout(toastTimerRef.current);
-        toastTimerRef.current = null;
-      }
-    };
-  }, []);
 
   async function loadShareData() {
     try {
@@ -586,24 +612,12 @@ export default function SharePage() {
     }
   }
 
-  function showToast(message: string, type: 'success' | 'error' = 'success') {
-    setToast({ message, visible: true, type });
-    // P2-49:连续复制时先清掉上一个 toast 的计时器,否则旧 timer 会提前清掉新 toast
-    if (toastTimerRef.current !== null) {
-      clearTimeout(toastTimerRef.current);
-    }
-    toastTimerRef.current = setTimeout(() => {
-      setToast(null);
-      toastTimerRef.current = null;
-    }, 2000);
-  }
-
   async function copyToClipboard(text: string, label: string) {
     try {
       await navigator.clipboard.writeText(text);
-      showToast(`已复制: ${label}`);
+      toastSuccess(`已复制: ${label}`);
     } catch {
-      showToast('复制失败，请手动复制', 'error');
+      toastError('复制失败，请手动复制');
     }
   }
 
@@ -653,28 +667,6 @@ export default function SharePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Toast */}
-      {toast && (
-        <div className="fixed top-4 right-4 z-50 animate-slide-in max-w-[calc(100vw-2rem)]">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg ${
-            toast.type === 'error'
-              ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-800 dark:text-red-300'
-              : 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-800 dark:text-green-300'
-          }`}>
-            {toast.type === 'error' ? (
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-            <p className="text-sm font-medium">{toast.message}</p>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -814,22 +806,6 @@ export default function SharePage() {
           <p>由 <Link href="/" className="text-blue-600 dark:text-blue-400 hover:underline">ApiMock</Link> 提供支持</p>
         </div>
       </main>
-
-      <style jsx>{`
-        @keyframes slide-in {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-        .animate-slide-in {
-          animation: slide-in 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 }
