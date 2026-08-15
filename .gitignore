@@ -43,3 +43,7 @@ e2e/.auth/
 
 # standalone 打包产物(pnpm package:standalone)
 release/
+
+# schema parity 测试的临时变体文件(tests/schema-parity.test.ts 生成)
+tmp-parity-schema-variant.ts
+scripts/tmp-parity-migrate-variant.mjs

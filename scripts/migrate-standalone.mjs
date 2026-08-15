@@ -39,12 +39,13 @@ mkdirSync(dirname(dbPath), { recursive: true });
 const sqlite = new Database(dbPath);
 sqlite.pragma('journal_mode = WAL');
 
-// 最终形态的建表语句(对应 src/lib/schema-sqlite.ts)
+// 最终形态的建表语句(对应 src/lib/schema-sqlite.ts;
+// 语义由 scripts/check-sqlite-schema-parity.mjs 门禁比对,改这里务必跑一遍)
 const STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS projects (
-    id TEXT PRIMARY KEY,
+    id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
+    slug TEXT NOT NULL,
     description TEXT,
     base_path TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
@@ -53,7 +54,7 @@ const STATEMENTS = [
     updated_at INTEGER NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS endpoints (
-    id TEXT PRIMARY KEY,
+    id TEXT PRIMARY KEY NOT NULL,
     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     path TEXT NOT NULL,
     method TEXT NOT NULL DEFAULT 'GET',
@@ -70,7 +71,7 @@ const STATEMENTS = [
     updated_at INTEGER NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS requests (
-    id TEXT PRIMARY KEY,
+    id TEXT PRIMARY KEY NOT NULL,
     endpoint_id TEXT REFERENCES endpoints(id) ON DELETE CASCADE,
     method TEXT NOT NULL,
     path TEXT NOT NULL,
@@ -84,7 +85,7 @@ const STATEMENTS = [
     created_at INTEGER NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS responses (
-    id TEXT PRIMARY KEY,
+    id TEXT PRIMARY KEY NOT NULL,
     endpoint_id TEXT NOT NULL REFERENCES endpoints(id) ON DELETE CASCADE,
     name TEXT,
     description TEXT,
@@ -99,7 +100,7 @@ const STATEMENTS = [
     updated_at INTEGER NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS ai_providers (
-    id TEXT PRIMARY KEY,
+    id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
     provider TEXT NOT NULL,
     base_url TEXT,
@@ -114,6 +115,9 @@ const STATEMENTS = [
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS endpoints_project_method_path_idx ON endpoints(project_id, method, path)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS projects_slug_idx ON projects(slug)`,
+  // 与 drizzle push 对齐:列级 .unique() 生成命名唯一索引(而非内联 UNIQUE 的
+  // sqlite_autoindex),两条建库链路索引集合需一致(见 parity 门禁)
+  `CREATE UNIQUE INDEX IF NOT EXISTS projects_slug_unique ON projects(slug)`,
   `CREATE INDEX IF NOT EXISTS requests_endpoint_idx ON requests(endpoint_id)`,
   `CREATE INDEX IF NOT EXISTS requests_created_idx ON requests(created_at)`,
   `CREATE INDEX IF NOT EXISTS responses_endpoint_idx ON responses(endpoint_id)`,
